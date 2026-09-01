@@ -8,6 +8,8 @@ import '../modules/open_bills/bindings/open_bills_binding.dart';
 import '../modules/open_bills/views/open_bills_view.dart';
 import '../modules/transactions/bindings/transactions_binding.dart';
 import '../modules/transactions/views/transactions_view.dart';
+import '../modules/online_orders/bindings/online_orders_binding.dart';
+import '../modules/online_orders/views/online_orders_view.dart';
 import '../modules/settings/bindings/settings_binding.dart';
 import '../modules/settings/views/settings_view.dart';
 
@@ -37,6 +39,12 @@ class AppPages {
       name: AppRoutes.transactions,
       page: () => const TransactionsView(),
       binding: TransactionsBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: AppRoutes.onlineOrders,
+      page: () => const OnlineOrdersView(),
+      binding: OnlineOrdersBinding(),
       transition: Transition.rightToLeft,
     ),
     GetPage(

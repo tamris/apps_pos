@@ -7,6 +7,7 @@ import '../../shift/views/shift_dialogs.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../data/services/offline_sync_service.dart';
+import '../../../data/services/online_order_polling_service.dart';
 import '../../../routes/app_routes.dart';
 import 'widgets/category_selector.dart';
 import 'widgets/product_card.dart';
@@ -22,6 +23,7 @@ class PosView extends GetView<PosController> {
     final cartController = Get.find<CartController>();
     final shiftController = Get.find<ShiftController>();
     final offlineSyncService = Get.find<OfflineSyncService>();
+    final onlineOrderPollingService = Get.find<OnlineOrderPollingService>();
 
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
@@ -119,7 +121,55 @@ class PosView extends GetView<PosController> {
             );
           }),
 
-          // 2. Open Bills Icon (dengan badge jumlah bill aktif)
+          // 2. Pesanan Online Status & Badge Icon Button
+          Obx(() {
+            final isActive = onlineOrderPollingService.isOnlineOrderActive.value;
+            final count = onlineOrderPollingService.activeOrdersCount.value;
+            final bgColor = isActive ? AppColors.primarySoft : AppColors.dangerSoft;
+            final borderColor = isActive ? AppColors.primary : AppColors.danger;
+            final iconColor = isActive ? AppColors.primary : AppColors.danger;
+
+            return Tooltip(
+              message: isActive
+                  ? (count > 0 ? '$count Pesanan Online Aktif' : 'Toko Online Buka')
+                  : 'Toko Online Dijeda',
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                child: Badge(
+                  isLabelVisible: count > 0,
+                  label: Text(
+                    '$count',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+                  ),
+                  backgroundColor: AppColors.primaryDark,
+                  offset: const Offset(-2, 2),
+                  child: Material(
+                    color: bgColor,
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () => Get.toNamed(AppRoutes.onlineOrders),
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: borderColor.withAlpha(120), width: 1.2),
+                        ),
+                        child: Icon(
+                          isActive ? Icons.delivery_dining_rounded : Icons.delivery_dining_outlined,
+                          size: 20,
+                          color: iconColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+
+          // 3. Open Bills Icon (dengan badge jumlah bill aktif)
           Obx(() {
             final count = controller.activeOpenBillsCount.value;
             return IconButton(
@@ -140,14 +190,7 @@ class PosView extends GetView<PosController> {
             );
           }),
 
-          // 3. Riwayat Transaksi Hari Ini
-          IconButton(
-            tooltip: 'Riwayat Transaksi',
-            icon: const Icon(Icons.history_rounded),
-            onPressed: () => Get.toNamed(AppRoutes.transactions),
-          ),
-
-          // 4. Menu Lainnya (⋮ Dropdown: Ketersediaan Menu, Sync Offline, Pengaturan)
+          // 4. Menu Lainnya (⋮ Dropdown: Riwayat Transaksi, Ketersediaan Menu, Sync Offline, Pengaturan)
           PopupMenuButton<String>(
             icon: Obx(() {
               final offlineCount = offlineSyncService.pendingCount.value;
@@ -164,6 +207,9 @@ class PosView extends GetView<PosController> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             onSelected: (val) async {
               switch (val) {
+                case 'transactions':
+                  Get.toNamed(AppRoutes.transactions);
+                  break;
                 case 'availability':
                   MenuAvailabilityDialog.show(context);
                   break;
@@ -179,10 +225,20 @@ class PosView extends GetView<PosController> {
               final offlineCount = offlineSyncService.pendingCount.value;
               return [
                 const PopupMenuItem(
+                  value: 'transactions',
+                  child: Row(
+                    children: [
+                      Icon(Icons.history_rounded, color: AppColors.primary, size: 20),
+                      SizedBox(width: 12),
+                      Text('Riwayat Transaksi', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
                   value: 'availability',
                   child: Row(
                     children: [
-                      Icon(Icons.inventory_2_outlined, color: AppColors.primary, size: 20),
+                      Icon(Icons.inventory_2_outlined, color: AppColors.textPrimary, size: 20),
                       SizedBox(width: 12),
                       Text('Ketersediaan Menu', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                     ],

@@ -35,4 +35,14 @@ class ApiConstants {
   static const String availability = '/pos/availability';
   static String toggleProductAvailability(int id) => '/pos/products/$id/toggle-availability';
   static String toggleCategoryAvailability(int id) => '/pos/categories/$id/toggle-availability';
+
+  // Online Orders (Self-Order / Web Order)
+  static const String onlineOrders = '/pos/online-orders';
+  static const String onlineOrdersCheckNew = '/pos/online-orders/check-new';
+  static const String onlineOrdersStats = '/pos/online-orders/stats';
+  static const String onlineOrdersToggleActive = '/pos/online-orders/toggle-active';
+  static String onlineOrderDetail(int id) => '/pos/online-orders/$id';
+  static String updateOnlineOrderStatus(int id) => '/pos/online-orders/$id/status';
+  static String onlineOrderReceipt(int id) => '/pos/online-orders/$id/receipt';
+  static String onlineOrderKitchen(int id) => '/pos/online-orders/$id/kitchen';
 }

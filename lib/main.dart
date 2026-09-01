@@ -7,6 +7,7 @@ import 'app/data/services/storage_service.dart';
 import 'app/data/providers/api_provider.dart';
 import 'app/data/services/offline_sync_service.dart';
 import 'app/data/services/esc_pos_printer_service.dart';
+import 'app/data/services/online_order_polling_service.dart';
 import 'app/routes/app_pages.dart';
 import 'app/routes/app_routes.dart';
 
@@ -29,6 +30,7 @@ void main() async {
   Get.put<ApiProvider>(ApiProvider());
   Get.put<OfflineSyncService>(OfflineSyncService());
   Get.put<EscPosPrinterService>(EscPosPrinterService());
+  Get.put<OnlineOrderPollingService>(OnlineOrderPollingService());
 
   // Tentukan rute awal (jika token tersimpan maka langsung ke POS)
   final String initialRoute = storageService.hasToken ? AppRoutes.pos : AppRoutes.pinLogin;
