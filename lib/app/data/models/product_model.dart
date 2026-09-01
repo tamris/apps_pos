@@ -75,4 +75,34 @@ class ProductModel {
       'total_sold': totalSold,
     };
   }
+
+  ProductModel copyWith({
+    int? id,
+    int? categoryId,
+    String? categoryName,
+    String? name,
+    String? sku,
+    String? barcode,
+    double? price,
+    double? hargaBeli,
+    String? description,
+    String? imageUrl,
+    bool? isActive,
+    int? totalSold,
+  }) {
+    return ProductModel(
+      id: id ?? this.id,
+      categoryId: categoryId ?? this.categoryId,
+      categoryName: categoryName ?? this.categoryName,
+      name: name ?? this.name,
+      sku: sku ?? this.sku,
+      barcode: barcode ?? this.barcode,
+      price: price ?? this.price,
+      hargaBeli: hargaBeli ?? this.hargaBeli,
+      description: description ?? this.description,
+      imageUrl: imageUrl ?? this.imageUrl,
+      isActive: isActive ?? this.isActive,
+      totalSold: totalSold ?? this.totalSold,
+    );
+  }
 }

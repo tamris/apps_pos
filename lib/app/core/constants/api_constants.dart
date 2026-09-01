@@ -30,4 +30,9 @@ class ApiConstants {
 
   // Offline Sync
   static const String syncOffline = '/pos/sync-offline';
+
+  // Menu Availability
+  static const String availability = '/pos/availability';
+  static String toggleProductAvailability(int id) => '/pos/products/$id/toggle-availability';
+  static String toggleCategoryAvailability(int id) => '/pos/categories/$id/toggle-availability';
 }

@@ -12,6 +12,7 @@ import 'widgets/category_selector.dart';
 import 'widgets/product_card.dart';
 import 'widgets/cart_bottom_sheet.dart';
 import 'widgets/tablet_cart_panel.dart';
+import 'widgets/menu_availability_dialog.dart';
 
 class PosView extends GetView<PosController> {
   const PosView({super.key});
@@ -130,6 +131,13 @@ class PosView extends GetView<PosController> {
               onPressed: () => offlineSyncService.showSyncDialog(context),
             );
           }),
+
+          // Ketersediaan Menu (Ready / Habis)
+          IconButton(
+            tooltip: 'Ketersediaan Menu (Ready/Habis)',
+            icon: const Icon(Icons.inventory_2_outlined),
+            onPressed: () => MenuAvailabilityDialog.show(context),
+          ),
 
           // Open Bills Icon (dengan badge jumlah bill aktif)
           Obx(() {

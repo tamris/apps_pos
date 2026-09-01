@@ -122,9 +122,10 @@ class PosController extends GetxController {
     }
   }
 
-  /// Filter produk berdasarkan kategori dan kata kunci pencarian
+  /// Filter produk berdasarkan kategori dan kata kunci pencarian,
+  /// dengan urutan: Produk Aktif (Ready) di atas, Produk Non-Aktif (Habis) di paling bawah
   List<ProductModel> get filteredProducts {
-    return products.where((product) {
+    final list = products.where((product) {
       // Filter kategori
       final matchCategory =
           (selectedCategoryId.value == 0) ||
@@ -141,6 +142,15 @@ class PosController extends GetxController {
           product.barcode?.toLowerCase().contains(query) ?? false;
       return nameMatch || skuMatch || barcodeMatch;
     }).toList();
+
+    // Sort: Produk aktif (true) di urutan awal, non-aktif (false) di paling bawah
+    list.sort((a, b) {
+      if (a.isActive && !b.isActive) return -1;
+      if (!a.isActive && b.isActive) return 1;
+      return 0;
+    });
+
+    return list;
   }
 
   void selectCategory(int categoryId) {
@@ -154,6 +164,49 @@ class PosController extends GetxController {
   void clearSearch() {
     searchController.clear();
     searchQuery.value = '';
+  }
+
+  /// Toggle ketersediaan menu produk (Ready / Habis)
+  Future<bool> toggleProductAvailability(ProductModel product) async {
+    final newStatus = !product.isActive;
+
+    // Optimistic update di UI
+    final index = products.indexWhere((p) => p.id == product.id);
+    if (index != -1) {
+      products[index] = product.copyWith(isActive: newStatus);
+    }
+
+    try {
+      final response = await _apiProvider.post(
+        ApiConstants.toggleProductAvailability(product.id),
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        final statusLabel = newStatus ? 'Tersedia di Kasir' : 'Habis / Non-Aktif';
+        AppSnackbar.success(
+          'Ketersediaan Menu',
+          "Menu '${product.name}' kini diubah menjadi $statusLabel.",
+        );
+        return true;
+      } else {
+        // Rollback jika server error
+        if (index != -1) {
+          products[index] = product.copyWith(isActive: !newStatus);
+        }
+        AppSnackbar.danger(
+          'Gagal Mengubah Status',
+          response.data?['message'] ?? 'Terjadi kesalahan di server.',
+        );
+        return false;
+      }
+    } catch (e) {
+      // Rollback jika jaringan error
+      if (index != -1) {
+        products[index] = product.copyWith(isActive: !newStatus);
+      }
+      AppSnackbar.danger('Gagal Mengubah Status', ApiProvider.getErrorMessage(e));
+      return false;
+    }
   }
 
   /// Tandai meja terisi setelah save open bill / checkout dine in
