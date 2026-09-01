@@ -11,6 +11,8 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/app_snackbar.dart';
 import 'pos_controller.dart';
 import '../views/widgets/payment_success_dialog.dart';
+import '../../shift/controllers/shift_controller.dart';
+import '../../shift/views/shift_dialogs.dart';
 
 class CartController extends GetxController {
   final ApiProvider _apiProvider = Get.find<ApiProvider>();
@@ -171,9 +173,18 @@ class CartController extends GetxController {
   }
 
   /// Simpan / Tahan Pesanan sebagai Open Bill (Meja / Nama Pelanggan)
-  Future<bool> saveOpenBill() async {
+  Future<bool> saveOpenBill({BuildContext? context}) async {
     if (isCartEmpty) {
       return false;
+    }
+
+    // Periksa apakah shift kasir sudah dibuka
+    if (Get.isRegistered<ShiftController>() && context != null) {
+      final shiftCtrl = Get.find<ShiftController>();
+      if (!shiftCtrl.hasActiveShift.value) {
+        final opened = await ShiftDialogs.showStartShiftDialog(context);
+        if (!opened) return false; // Kasir membatalkan buka shift
+      }
     }
 
     if (orderType.value == 'dine_in' && tableNumber.value.isEmpty && customerName.value.isEmpty) {

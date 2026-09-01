@@ -367,7 +367,7 @@ class CartBottomSheet extends StatelessWidget {
                           onPressed: cartController.isCartEmpty
                               ? null
                               : () async {
-                                  final success = await cartController.saveOpenBill();
+                                  final success = await cartController.saveOpenBill(context: context);
                                   if (success) Get.back();
                                 },
                           style: OutlinedButton.styleFrom(

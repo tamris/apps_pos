@@ -9,7 +9,6 @@ import '../../../data/services/storage_service.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/app_snackbar.dart';
 import '../../shift/controllers/shift_controller.dart';
-import '../../shift/views/shift_dialogs.dart';
 
 class PosController extends GetxController {
   final ApiProvider _apiProvider = Get.find<ApiProvider>();
@@ -100,18 +99,6 @@ class PosController extends GetxController {
           } else {
             shiftCtrl.currentShift.value = null;
             await _storageService.saveActiveShift(null);
-            // Prompt dialog buka shift jika user adalah kasir
-            final currentUser = _storageService.user;
-            if (currentUser != null && currentUser.isCashier) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (Get.context != null) {
-                  ShiftDialogs.showStartShiftDialog(
-                    Get.context!,
-                    dismissible: false,
-                  );
-                }
-              });
-            }
           }
         }
       }

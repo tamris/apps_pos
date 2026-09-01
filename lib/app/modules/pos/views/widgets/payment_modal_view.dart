@@ -6,10 +6,24 @@ import '../../../../core/utils/currency_formatter.dart';
 import '../../controllers/cart_controller.dart';
 import '../../controllers/pos_controller.dart';
 
+import '../../../shift/controllers/shift_controller.dart';
+import '../../../shift/views/shift_dialogs.dart';
+
 class PaymentModalView extends StatefulWidget {
   const PaymentModalView({super.key});
 
-  static void show(BuildContext context) {
+  static Future<void> show(BuildContext context) async {
+    // 1. Periksa apakah kasir sudah membuka shift aktif sebelum bayar
+    if (Get.isRegistered<ShiftController>()) {
+      final shiftCtrl = Get.find<ShiftController>();
+      if (!shiftCtrl.hasActiveShift.value) {
+        final opened = await ShiftDialogs.showStartShiftDialog(context);
+        if (!opened) return; // Kasir membatalkan buka shift -> jangan tampilkan pembayaran
+      }
+    }
+
+    if (!context.mounted) return;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,

@@ -602,7 +602,7 @@ class TabletCartPanel extends StatelessWidget {
                         child: OutlinedButton.icon(
                           onPressed: cartController.isCartEmpty
                               ? null
-                              : () => cartController.saveOpenBill(),
+                              : () => cartController.saveOpenBill(context: context),
                           icon: const Icon(Icons.bookmark_border_rounded, size: 16),
                           label: const Text(
                             'Simpan Bill',

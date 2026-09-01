@@ -29,84 +29,89 @@ class PosView extends GetView<PosController> {
         titleSpacing: 16,
         title: Obx(() {
           final cafeName = controller.cafeSettings.value.shopName;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          return Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                cafeName.isNotEmpty ? cafeName : 'Noli POS Kasir',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.lightBorder, width: 1.2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withAlpha(8),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: ClipOval(
+                  child: Image.asset(
+                    'assets/icons/app_icon.png',
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Icon(
+                      Icons.point_of_sale_rounded,
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(height: 2),
-              const Text(
-                'Sistem Kasir & Inventory Toko',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.normal,
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  cafeName.isNotEmpty ? cafeName : 'Noli POS Kasir',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                    letterSpacing: -0.2,
+                  ),
                 ),
               ),
             ],
           );
         }),
         actions: [
-          // Shift Status Button
+          // 1. Shift Status Compact Icon Button
           Obx(() {
             final isOpen = shiftController.hasActiveShift.value;
-            final bgColor = isOpen
-                ? AppColors.primarySoft
-                : AppColors.warningSoft;
+            final bgColor = isOpen ? AppColors.primarySoft : AppColors.warningSoft;
             final borderColor = isOpen ? AppColors.primary : AppColors.warning;
-            final textColor = isOpen
-                ? AppColors.primaryDark
-                : AppColors.warning;
             final iconColor = isOpen ? AppColors.primary : AppColors.warning;
 
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4),
-              child: Material(
-                color: bgColor,
-                borderRadius: BorderRadius.circular(20),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(20),
-                  onTap: () async {
-                    if (isOpen) {
-                      await ShiftDialogs.showShiftSummaryDialog(context);
-                    } else {
-                      await ShiftDialogs.showStartShiftDialog(context);
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: borderColor, width: 1.5),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          isOpen
-                              ? Icons.lock_open_rounded
-                              : Icons.lock_clock_rounded,
-                          size: 16,
-                          color: iconColor,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          isOpen ? 'Shift Aktif' : 'Buka Shift',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: textColor,
-                          ),
-                        ),
-                      ],
+            return Tooltip(
+              message: isOpen ? 'Shift Aktif (Ketuk untuk Ringkasan)' : 'Shift Tutup (Ketuk untuk Buka)',
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                child: Material(
+                  color: bgColor,
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () async {
+                      if (isOpen) {
+                        await ShiftDialogs.showShiftSummaryDialog(context);
+                      } else {
+                        await ShiftDialogs.showStartShiftDialog(context);
+                      }
+                    },
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: borderColor.withAlpha(120), width: 1.2),
+                      ),
+                      child: Icon(
+                        isOpen ? Icons.lock_open_rounded : Icons.lock_clock_rounded,
+                        size: 18,
+                        color: iconColor,
+                      ),
                     ),
                   ),
                 ),
@@ -114,32 +119,7 @@ class PosView extends GetView<PosController> {
             );
           }),
 
-          // Offline Queue Indicator (jika ada data antrean offline)
-          Obx(() {
-            final count = offlineSyncService.pendingCount.value;
-            if (count == 0) return const SizedBox.shrink();
-            return IconButton(
-              tooltip: '$count Transaksi Offline Menunggu Sync',
-              icon: Badge(
-                label: Text('$count'),
-                backgroundColor: AppColors.warning,
-                child: const Icon(
-                  Icons.cloud_off_rounded,
-                  color: AppColors.warning,
-                ),
-              ),
-              onPressed: () => offlineSyncService.showSyncDialog(context),
-            );
-          }),
-
-          // Ketersediaan Menu (Ready / Habis)
-          IconButton(
-            tooltip: 'Ketersediaan Menu (Ready/Habis)',
-            icon: const Icon(Icons.inventory_2_outlined),
-            onPressed: () => MenuAvailabilityDialog.show(context),
-          ),
-
-          // Open Bills Icon (dengan badge jumlah bill aktif)
+          // 2. Open Bills Icon (dengan badge jumlah bill aktif)
           Obx(() {
             final count = controller.activeOpenBillsCount.value;
             return IconButton(
@@ -160,20 +140,88 @@ class PosView extends GetView<PosController> {
             );
           }),
 
-          // Riwayat Transaksi Hari Ini
+          // 3. Riwayat Transaksi Hari Ini
           IconButton(
             tooltip: 'Riwayat Transaksi',
             icon: const Icon(Icons.history_rounded),
             onPressed: () => Get.toNamed(AppRoutes.transactions),
           ),
 
-          // Pengaturan & Perangkat
-          IconButton(
-            tooltip: 'Pengaturan & Printer',
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => Get.toNamed(AppRoutes.settings),
+          // 4. Menu Lainnya (⋮ Dropdown: Ketersediaan Menu, Sync Offline, Pengaturan)
+          PopupMenuButton<String>(
+            icon: Obx(() {
+              final offlineCount = offlineSyncService.pendingCount.value;
+              if (offlineCount > 0) {
+                return Badge(
+                  label: Text('$offlineCount'),
+                  backgroundColor: AppColors.warning,
+                  child: const Icon(Icons.more_vert_rounded),
+                );
+              }
+              return const Icon(Icons.more_vert_rounded);
+            }),
+            tooltip: 'Menu Lainnya',
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            onSelected: (val) async {
+              switch (val) {
+                case 'availability':
+                  MenuAvailabilityDialog.show(context);
+                  break;
+                case 'sync':
+                  offlineSyncService.showSyncDialog(context);
+                  break;
+                case 'settings':
+                  Get.toNamed(AppRoutes.settings);
+                  break;
+              }
+            },
+            itemBuilder: (context) {
+              final offlineCount = offlineSyncService.pendingCount.value;
+              return [
+                const PopupMenuItem(
+                  value: 'availability',
+                  child: Row(
+                    children: [
+                      Icon(Icons.inventory_2_outlined, color: AppColors.primary, size: 20),
+                      SizedBox(width: 12),
+                      Text('Ketersediaan Menu', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'sync',
+                  child: Row(
+                    children: [
+                      Icon(
+                        offlineCount > 0 ? Icons.cloud_off_rounded : Icons.cloud_done_rounded,
+                        color: offlineCount > 0 ? AppColors.warning : AppColors.info,
+                        size: 20,
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          offlineCount > 0 ? 'Sinkronisasi ($offlineCount antrean)' : 'Sinkronisasi Offline',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(height: 1),
+                const PopupMenuItem(
+                  value: 'settings',
+                  child: Row(
+                    children: [
+                      Icon(Icons.settings_outlined, color: AppColors.textSecondary, size: 20),
+                      SizedBox(width: 12),
+                      Text('Pengaturan & Printer', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+              ];
+            },
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
         ],
       ),
       body: LayoutBuilder(
