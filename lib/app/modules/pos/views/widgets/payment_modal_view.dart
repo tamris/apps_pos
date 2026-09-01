@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
@@ -34,7 +35,7 @@ class _PaymentModalViewState extends State<PaymentModalView> {
       cartController.setPaidAmount(cartController.grandTotal);
     }
     _paidInputController = TextEditingController(
-      text: cartController.paidAmount.value.toInt().toString(),
+      text: CurrencyFormatter.formatWithoutSymbol(cartController.paidAmount.value),
     );
   }
 
@@ -42,6 +43,53 @@ class _PaymentModalViewState extends State<PaymentModalView> {
   void dispose() {
     _paidInputController.dispose();
     super.dispose();
+  }
+
+  /// Generator Rekomendasi Uang Cepat Pintar (Selalu >= Total Tagihan)
+  List<double> _getSmartCashSuggestions(double total) {
+    if (total <= 0) return [10000, 20000, 50000];
+
+    final Set<double> suggestions = {};
+
+    // Daftar pecahan uang rupiah yang umum
+    final List<double> standardNotes = [
+      10000,
+      20000,
+      50000,
+      100000,
+      150000,
+      200000,
+      250000,
+      300000,
+      400000,
+      500000,
+      1000000,
+    ];
+
+    // 1. Pembulatan 10k terdekat
+    if (total % 10000 != 0) {
+      suggestions.add(((total ~/ 10000) + 1) * 10000.0);
+    }
+    // 2. Pembulatan 50k terdekat
+    if (total % 50000 != 0) {
+      suggestions.add(((total ~/ 50000) + 1) * 50000.0);
+    }
+    // 3. Pembulatan 100k terdekat
+    if (total % 100000 != 0) {
+      suggestions.add(((total ~/ 100000) + 1) * 100000.0);
+    }
+
+    // 4. Tambahkan pecahan standar yang lebih besar dari total
+    for (final note in standardNotes) {
+      if (note > total) {
+        suggestions.add(note);
+      }
+    }
+
+    final sorted = suggestions.where((s) => s > total).toList()..sort();
+
+    // Ambil 3 rekomendasi nominal tercepat
+    return sorted.take(3).toList();
   }
 
   @override
@@ -76,10 +124,14 @@ class _PaymentModalViewState extends State<PaymentModalView> {
             children: [
               const Text(
                 'Pembayaran Transaksi',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
               ),
               IconButton(
-                icon: const Icon(Icons.close),
+                icon: const Icon(Icons.close_rounded),
                 onPressed: () => Get.back(),
               ),
             ],
@@ -96,7 +148,7 @@ class _PaymentModalViewState extends State<PaymentModalView> {
                   // Total Tagihan Banner
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                     decoration: BoxDecoration(
                       color: AppColors.primarySoft,
                       borderRadius: BorderRadius.circular(16),
@@ -106,7 +158,12 @@ class _PaymentModalViewState extends State<PaymentModalView> {
                       children: [
                         const Text(
                           'TOTAL TAGIHAN',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primaryDark,
+                            letterSpacing: 1.0,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Obx(() => Text(
@@ -122,10 +179,14 @@ class _PaymentModalViewState extends State<PaymentModalView> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Pilihan Metode Pembayaran
+                  // Pilihan Metode Pembayaran (4 Kartu Sama Rata)
                   const Text(
                     'Pilih Metode Pembayaran:',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                   const SizedBox(height: 10),
 
@@ -151,17 +212,17 @@ class _PaymentModalViewState extends State<PaymentModalView> {
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: AppColors.lightBackground,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
                           border: Border.all(color: AppColors.lightBorder),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.info_outline, color: AppColors.info, size: 20),
-                            const SizedBox(width: 8),
+                            const Icon(Icons.info_outline_rounded, color: AppColors.primaryDark, size: 20),
+                            const SizedBox(width: 10),
                             Expanded(
                               child: Text(
                                 'Pembayaran non-tunai (${cartController.paymentMethod.value.toUpperCase()}) akan diverifikasi secara pas/lunas tanpa uang kembalian.',
-                                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.3),
                               ),
                             ),
                           ],
@@ -169,12 +230,18 @@ class _PaymentModalViewState extends State<PaymentModalView> {
                       );
                     }
 
+                    final grandTotal = cartController.grandTotal;
+
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
                           'Uang Yang Diterima Kasir:',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
                         const SizedBox(height: 8),
 
@@ -182,11 +249,37 @@ class _PaymentModalViewState extends State<PaymentModalView> {
                         TextField(
                           controller: _paidInputController,
                           keyboardType: TextInputType.number,
-                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            CurrencyInputFormatter(),
+                          ],
+                          style: const TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
                           decoration: InputDecoration(
-                            prefixIcon: const Icon(Icons.money_rounded, color: AppColors.primary),
+                            prefixIcon: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 14),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.payments_rounded, color: AppColors.primary, size: 22),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Rp',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.primaryDark,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
                             suffixIcon: IconButton(
-                              icon: const Icon(Icons.clear),
+                              icon: const Icon(Icons.clear_rounded, size: 18),
                               onPressed: () {
                                 _paidInputController.clear();
                                 cartController.setPaidAmount(0);
@@ -200,36 +293,8 @@ class _PaymentModalViewState extends State<PaymentModalView> {
                         ),
                         const SizedBox(height: 12),
 
-                        // Preset Uang Pas & Pecahan
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            // Uang Pas
-                            ActionChip(
-                              label: const Text('Uang Pas', style: TextStyle(fontWeight: FontWeight.bold)),
-                              backgroundColor: AppColors.primarySoft,
-                              side: const BorderSide(color: AppColors.primary),
-                              onPressed: () {
-                                final exact = cartController.grandTotal;
-                                cartController.setPaidAmount(exact);
-                                _paidInputController.text = exact.toInt().toString();
-                              },
-                            ),
-                            // Presets dari Backend
-                            ...posController.quickCashPresets.map((preset) {
-                              return ActionChip(
-                                label: Text(CurrencyFormatter.format(preset)),
-                                backgroundColor: AppColors.lightBackground,
-                                side: const BorderSide(color: AppColors.lightBorder),
-                                onPressed: () {
-                                  cartController.setPaidAmount(preset.toDouble());
-                                  _paidInputController.text = preset.toString();
-                                },
-                              );
-                            }),
-                          ],
-                        ),
+                        // Preset Uang Pas & Rekomendasi Cepat Dinamis (4 Tombol Sama Rata)
+                        _buildQuickCashRow(grandTotal),
                         const SizedBox(height: 16),
 
                         // Kembalian Box
@@ -254,7 +319,7 @@ class _PaymentModalViewState extends State<PaymentModalView> {
                                     ? 'UANG KEMBALIAN:'
                                     : 'KURANG BAYAR:',
                                 style: TextStyle(
-                                  fontSize: 13,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                   color: cartController.paidAmount.value >= cartController.grandTotal
                                       ? AppColors.primaryDark
@@ -293,18 +358,20 @@ class _PaymentModalViewState extends State<PaymentModalView> {
 
             return SizedBox(
               width: double.infinity,
-              height: 52,
+              height: 50,
               child: ElevatedButton(
                 onPressed: (canProceed && !cartController.isProcessing.value)
                     ? () async {
-                        final success = await cartController.processCheckout(context: context);
-                        if (success) {
-                          Get.back();
-                        }
+                        // Tutup modal pembayaran terlebih dahulu agar tidak menumpuk di latar belakang dialog sukses
+                        Navigator.of(context).pop();
+                        await cartController.processCheckout(context: context);
                       }
                     : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
                 ),
                 child: cartController.isProcessing.value
                     ? const Row(
@@ -316,17 +383,17 @@ class _PaymentModalViewState extends State<PaymentModalView> {
                             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                           ),
                           SizedBox(width: 10),
-                          Text('Memproses Transaksi...', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                          Text('Memproses Transaksi...', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                         ],
                       )
                     : Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.check_circle_outline, size: 20),
+                          const Icon(Icons.check_circle_outline_rounded, size: 20),
                           const SizedBox(width: 8),
                           Text(
                             'Selesaikan & Bayar (${CurrencyFormatter.format(cartController.grandTotal)})',
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
@@ -334,6 +401,88 @@ class _PaymentModalViewState extends State<PaymentModalView> {
             );
           }),
         ],
+      ),
+    );
+  }
+
+  /// Komponen Rekomendasi Uang Cepat (4 Tombol Sama Lebar)
+  Widget _buildQuickCashRow(double total) {
+    final suggestions = _getSmartCashSuggestions(total);
+    final isExactSelected = cartController.paidAmount.value == total && total > 0;
+
+    return Row(
+      children: [
+        // 1. Tombol Uang Pas (Teks satu baris bersih)
+        Expanded(
+          child: _buildCashPresetButton(
+            label: 'Uang Pas',
+            isSelected: isExactSelected,
+            onTap: () {
+              cartController.setPaidAmount(total);
+              _paidInputController.text = CurrencyFormatter.formatWithoutSymbol(total);
+            },
+          ),
+        ),
+        // 2. Tombol Rekomendasi Dinamis
+        ...suggestions.map((amount) {
+          final isSelected = cartController.paidAmount.value == amount;
+          return Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(left: 6.0),
+              child: _buildCashPresetButton(
+                label: CurrencyFormatter.format(amount),
+                isSelected: isSelected,
+                onTap: () {
+                  if (isSelected) {
+                    // Toggle: jika nominal yang sama diklik lagi, reset kembali ke uang pas
+                    cartController.setPaidAmount(total);
+                    _paidInputController.text = CurrencyFormatter.formatWithoutSymbol(total);
+                  } else {
+                    cartController.setPaidAmount(amount);
+                    _paidInputController.text = CurrencyFormatter.formatWithoutSymbol(amount);
+                  }
+                },
+              ),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _buildCashPresetButton({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: isSelected ? AppColors.primarySoft : AppColors.lightBackground,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Container(
+          height: 42,
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected ? AppColors.primary : AppColors.lightBorder,
+              width: isSelected ? 1.5 : 1.0,
+            ),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+              color: isSelected ? AppColors.primaryDark : AppColors.textPrimary,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -353,7 +502,7 @@ class _PaymentModalViewState extends State<PaymentModalView> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: isSelected ? AppColors.primary : AppColors.lightBorder,
-                width: 1.5,
+                width: isSelected ? 1.5 : 1.0,
               ),
             ),
             child: Column(

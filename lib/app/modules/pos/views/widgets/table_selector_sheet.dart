@@ -31,7 +31,14 @@ class _TableSelectorSheetState extends State<TableSelectorSheet> {
     super.initState();
     final cartController = Get.find<CartController>();
     _selectedOrderType = cartController.orderType.value;
-    _selectedTable = cartController.tableNumber.value;
+    
+    final rawTable = cartController.tableNumber.value.trim();
+    if (int.tryParse(rawTable) != null) {
+      _selectedTable = int.parse(rawTable).toString().padLeft(2, '0');
+    } else {
+      _selectedTable = rawTable;
+    }
+
     _customerController = TextEditingController(text: cartController.customerName.value);
     _customTableController = TextEditingController(text: _isCustomTable(_selectedTable) ? _selectedTable : '');
   }
@@ -40,6 +47,16 @@ class _TableSelectorSheetState extends State<TableSelectorSheet> {
     if (tbl.isEmpty) return false;
     final intNum = int.tryParse(tbl);
     return intNum == null || intNum < 1 || intNum > 20;
+  }
+
+  bool _isSameTable(String a, String b) {
+    if (a.isEmpty || b.isEmpty) return false;
+    final cleanA = a.replaceAll(RegExp(r'[^0-9]'), '');
+    final cleanB = b.replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleanA.isNotEmpty && cleanB.isNotEmpty) {
+      return int.tryParse(cleanA) == int.tryParse(cleanB);
+    }
+    return a.trim().toLowerCase() == b.trim().toLowerCase();
   }
 
   @override
@@ -134,7 +151,7 @@ class _TableSelectorSheetState extends State<TableSelectorSheet> {
                     itemBuilder: (context, index) {
                       final tableNum = (index + 1).toString().padLeft(2, '0');
                       final isOccupied = occupied.contains(tableNum) || occupied.contains('${index + 1}');
-                      final isSelected = _selectedTable == tableNum;
+                      final isSelected = _isSameTable(_selectedTable, tableNum);
 
                       Color bgColor = Colors.white;
                       Color borderColor = AppColors.tableAvailable;
@@ -157,8 +174,15 @@ class _TableSelectorSheetState extends State<TableSelectorSheet> {
                           borderRadius: BorderRadius.circular(10),
                           onTap: () {
                             setState(() {
-                              _selectedTable = tableNum;
-                              _customTableController.clear();
+                              if (_isSameTable(_selectedTable, tableNum)) {
+                                // Jika meja yang sama diklik -> BATALKAN / CANCEL
+                                _selectedTable = '';
+                                _customTableController.clear();
+                              } else {
+                                // Jika meja berbeda diklik -> PILIH
+                                _selectedTable = tableNum;
+                                _customTableController.clear();
+                              }
                             });
                           },
                           child: Container(
@@ -231,7 +255,7 @@ class _TableSelectorSheetState extends State<TableSelectorSheet> {
                   final cartController = Get.find<CartController>();
                   cartController.setOrderDetails(
                     type: _selectedOrderType,
-                    table: _selectedOrderType == 'dine_in' ? _selectedTable : null,
+                    table: _selectedOrderType == 'dine_in' ? _selectedTable.trim() : '',
                     name: _customerController.text.trim(),
                   );
                   Get.back();

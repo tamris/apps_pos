@@ -115,8 +115,8 @@ class CartController extends GetxController {
   /// Set tipe pesanan & nomor meja
   void setOrderDetails({required String type, String? table, String? name}) {
     orderType.value = type;
-    if (table != null) tableNumber.value = table;
-    if (name != null) customerName.value = name;
+    tableNumber.value = table ?? '';
+    customerName.value = name ?? '';
   }
 
   /// Set nominal bayar langsung (preset uang pas / quick cash)
@@ -265,6 +265,16 @@ class CartController extends GetxController {
           }
         }
 
+        // Kitchen Payload untuk cetak struk dapur
+        final kitchenPayload = {
+          'invoice_number': txData['invoice_number'] ?? 'INV',
+          'date': DateTime.now().toString().substring(0, 16),
+          'order_type': currentOrderType,
+          'table_number': savedTable.isNotEmpty ? savedTable : null,
+          'customer_name': savedCustomer.isNotEmpty ? savedCustomer : null,
+          'items': itemsPayload,
+        };
+
         // Tampilkan dialog sukses transaksi
         PaymentSuccessDialog.show(
           invoiceNumber: txData['invoice_number'] ?? 'INV',
@@ -272,7 +282,9 @@ class CartController extends GetxController {
           paid: currentPaid,
           change: (currentPaymentMethod == 'cash') ? max(0.0, currentPaid - grandTotal) : 0.0,
           paymentMethod: currentPaymentMethod.toUpperCase(),
+          isOffline: false,
           receiptPayload: receiptPayload,
+          kitchenPayload: kitchenPayload,
         );
 
         clearCart();
@@ -299,13 +311,44 @@ class CartController extends GetxController {
         'Transaksi disimpan di antrean offline lokal ($offlineId) karena kendala koneksi.',
       );
 
+      final offlineKitchenPayload = {
+        'invoice_number': offlineId,
+        'date': DateTime.now().toString().substring(0, 16),
+        'order_type': currentOrderType,
+        'table_number': savedTable.isNotEmpty ? savedTable : null,
+        'customer_name': savedCustomer.isNotEmpty ? savedCustomer : null,
+        'items': itemsPayload,
+      };
+
+      final offlineReceiptPayload = {
+        'header': {'shop_name': 'NOLI COFFE & SPACE', 'address': 'POS Kasir (Offline)'},
+        'invoice_number': offlineId,
+        'date': DateTime.now().toString().substring(0, 16),
+        'cashier_name': 'Kasir',
+        'order_type': currentOrderType,
+        'table_number': savedTable.isNotEmpty ? savedTable : null,
+        'customer_name': savedCustomer.isNotEmpty ? savedCustomer : null,
+        'items': itemsPayload,
+        'summary': {
+          'subtotal': subtotal,
+          'discount': discountAmount,
+          'tax': taxAmount,
+          'total': grandTotal,
+          'payment_method': currentPaymentMethod.toUpperCase(),
+          'paid': currentPaid,
+          'change': (currentPaymentMethod == 'cash') ? max(0.0, currentPaid - grandTotal) : 0.0,
+        },
+      };
+
       PaymentSuccessDialog.show(
         invoiceNumber: offlineId,
         total: grandTotal,
         paid: currentPaid,
         change: (currentPaymentMethod == 'cash') ? max(0.0, currentPaid - grandTotal) : 0.0,
-        paymentMethod: '$currentPaymentMethod (OFFLINE)',
-        receiptPayload: null,
+        paymentMethod: '$currentPaymentMethod (OFFLINE)'.toUpperCase(),
+        isOffline: true,
+        receiptPayload: offlineReceiptPayload,
+        kitchenPayload: offlineKitchenPayload,
       );
 
       clearCart();

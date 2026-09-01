@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 class CurrencyFormatter {
@@ -38,5 +39,33 @@ class CurrencyFormatter {
       amount = double.tryParse(amount) ?? 0;
     }
     return _compactRupiahFormat.format(amount);
+  }
+}
+
+/// Formatter otomatis saat kasir mengetik angka (misal: 10000 -> 10.000)
+class CurrencyInputFormatter extends TextInputFormatter {
+  final NumberFormat _formatter = NumberFormat('#,###', 'id_ID');
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) {
+      return newValue.copyWith(text: '');
+    }
+
+    final cleanDigits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleanDigits.isEmpty) {
+      return newValue.copyWith(text: '');
+    }
+
+    final number = int.tryParse(cleanDigits) ?? 0;
+    final formatted = _formatter.format(number);
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
   }
 }

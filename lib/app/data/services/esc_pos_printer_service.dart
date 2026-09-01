@@ -351,6 +351,91 @@ class EscPosPrinterService extends GetxService {
     return bytes;
   }
 
+  /// Generate ESC/POS byte data untuk Struk Dapur / Kitchen Order Ticket (58mm)
+  Future<List<int>> generateKitchenReceiptBytes(Map<String, dynamic> payload) async {
+    final profile = await CapabilityProfile.load();
+    final generator = Generator(PaperSize.mm58, profile);
+    List<int> bytes = [];
+
+    bytes += generator.reset();
+    bytes += generator.text(
+      '*** STRUK DAPUR ***',
+      styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2),
+    );
+    bytes += generator.hr(ch: '=');
+
+    final invoice = payload['invoice_number'] ?? '-';
+    final date = payload['date'] ?? DateTime.now().toString().substring(0, 16);
+    final orderType = payload['order_type'] ?? 'DINE IN';
+    final tableNumber = payload['table_number'];
+    final customer = payload['customer_name'];
+
+    if (tableNumber != null && tableNumber.toString().isNotEmpty) {
+      bytes += generator.text(
+        'MEJA: $tableNumber',
+        styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2),
+      );
+    } else {
+      bytes += generator.text(
+        'TIPE: $orderType',
+        styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2),
+      );
+    }
+
+    if (customer != null && customer.toString().isNotEmpty) {
+      bytes += generator.text('Pelanggan: $customer');
+    }
+    bytes += generator.text('No. Order: $invoice');
+    bytes += generator.text('Waktu    : $date');
+    bytes += generator.hr(ch: '-');
+
+    // List item pesanan
+    final List items = payload['items'] ?? [];
+    for (var item in items) {
+      final name = item['name'] ?? 'Item';
+      final qty = item['quantity'] ?? 1;
+      final notes = item['notes'];
+
+      bytes += generator.text(
+        '$qty x $name',
+        styles: const PosStyles(bold: true, height: PosTextSize.size2),
+      );
+      if (notes != null && notes.toString().isNotEmpty) {
+        bytes += generator.text(
+          '  * $notes',
+          styles: const PosStyles(fontType: PosFontType.fontB),
+        );
+      }
+      bytes += generator.feed(1);
+    }
+
+    bytes += generator.hr(ch: '=');
+    bytes += generator.text(
+      'SEGERA DIPROSES',
+      styles: const PosStyles(align: PosAlign.center, bold: true),
+    );
+    bytes += generator.feed(2);
+    bytes += generator.cut();
+    return bytes;
+  }
+
+  /// Eksekusi cetak struk dapur ke printer Bluetooth
+  Future<bool> printKitchenReceipt(Map<String, dynamic> kitchenPayload) async {
+    if (!isConnected.value) {
+      Get.snackbar('Printer Belum Terhubung', 'Silakan hubungkan printer Bluetooth di Pengaturan.');
+      return false;
+    }
+
+    try {
+      final List<int> bytes = await generateKitchenReceiptBytes(kitchenPayload);
+      final bool result = await PrintBluetoothThermal.writeBytes(Uint8List.fromList(bytes));
+      return result;
+    } catch (e) {
+      Get.snackbar('Gagal Mencetak Dapur', e.toString());
+      return false;
+    }
+  }
+
   /// Eksekusi cetak struk ke printer Bluetooth
   Future<bool> printReceipt(Map<String, dynamic> receiptPayload) async {
     if (!isConnected.value) {
