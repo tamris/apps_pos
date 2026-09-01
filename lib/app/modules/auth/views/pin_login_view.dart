@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/auth_controller.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/app_snackbar.dart';
 import '../../../data/services/storage_service.dart';
 import '../../../data/providers/api_provider.dart';
 
@@ -394,7 +395,7 @@ class PinLoginView extends GetView<AuthController> {
                 apiProvider.updateBaseUrl(newUrl);
                 controller.fetchCashiers();
                 Get.back();
-                Get.snackbar('Tersimpan', 'URL Server berhasil diperbarui.');
+                AppSnackbar.success('Tersimpan', 'URL Server berhasil diperbarui.');
               }
             },
             child: const Text('Simpan'),

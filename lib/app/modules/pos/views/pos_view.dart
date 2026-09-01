@@ -127,16 +127,30 @@ class PosView extends GetView<PosController> {
                   color: AppColors.warning,
                 ),
               ),
-              onPressed: () => offlineSyncService.syncPendingTransactions(),
+              onPressed: () => offlineSyncService.showSyncDialog(context),
             );
           }),
 
-          // Open Bills Icon
-          IconButton(
-            tooltip: 'Daftar Bill Aktif (Meja)',
-            icon: const Icon(Icons.receipt_long_outlined),
-            onPressed: () => Get.toNamed(AppRoutes.openBills),
-          ),
+          // Open Bills Icon (dengan badge jumlah bill aktif)
+          Obx(() {
+            final count = controller.activeOpenBillsCount.value;
+            return IconButton(
+              tooltip: count > 0 ? '$count Bill Aktif (Meja/Pesanan)' : 'Daftar Bill Aktif (Meja)',
+              icon: Badge(
+                isLabelVisible: count > 0,
+                label: Text(
+                  '$count',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+                ),
+                backgroundColor: AppColors.primary,
+                child: const Icon(Icons.receipt_long_rounded),
+              ),
+              onPressed: () async {
+                await Get.toNamed(AppRoutes.openBills);
+                controller.fetchOpenBillsCount();
+              },
+            );
+          }),
 
           // Riwayat Transaksi Hari Ini
           IconButton(

@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:get/get.dart' as getx;
 import '../services/storage_service.dart';
 import '../../routes/app_routes.dart';
+import '../../core/utils/app_snackbar.dart';
 
 class ApiResponse<T> {
   final bool success;
@@ -72,10 +73,9 @@ class ApiProvider extends getx.GetxService {
             _storageService.clearAuth();
             if (getx.Get.currentRoute != AppRoutes.pinLogin) {
               getx.Get.offAllNamed(AppRoutes.pinLogin);
-              getx.Get.snackbar(
+              AppSnackbar.warning(
                 'Sesi Berakhir',
                 'Sesi kasir telah berakhir. Silakan login kembali dengan PIN.',
-                snackPosition: getx.SnackPosition.BOTTOM,
               );
             }
           }

@@ -5,7 +5,6 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/app_snackbar.dart';
 import '../../pos/controllers/cart_controller.dart';
 import '../../pos/controllers/pos_controller.dart';
-import '../../../routes/app_routes.dart';
 
 class OpenBillsController extends GetxController {
   final ApiProvider _apiProvider = Get.find<ApiProvider>();
@@ -32,6 +31,11 @@ class OpenBillsController extends GetxController {
       if (response.data != null && response.data['success'] == true) {
         final List list = response.data['data'] ?? [];
         openBills.assignAll(list.map((e) => OpenBillModel.fromJson(e)).toList());
+        
+        // Update count di PosController
+        if (Get.isRegistered<PosController>()) {
+          Get.find<PosController>().activeOpenBillsCount.value = openBills.length;
+        }
       }
     } catch (e) {
       AppSnackbar.danger('Open Bills', ApiProvider.getErrorMessage(e));
@@ -44,21 +48,36 @@ class OpenBillsController extends GetxController {
   Future<void> resumeBill(OpenBillModel bill) async {
     isLoading.value = true;
     try {
-      final response = await _apiProvider.get(ApiConstants.openBillDetail(bill.id));
-      if (response.data != null && response.data['success'] == true) {
-        final detailedBill = OpenBillModel.fromJson(response.data['data']);
-        final cartController = Get.find<CartController>();
-        final posController = Get.find<PosController>();
+      OpenBillModel detailedBill = bill;
 
-        cartController.loadFromOpenBill(detailedBill, posController.products);
-
-        // Arahkan kembali ke tampilan POS
-        if (Get.currentRoute != AppRoutes.pos) {
-          Get.offNamed(AppRoutes.pos);
-        } else {
-          Get.back();
+      // Coba ambil data detail jika endpoint spesifik tersedia
+      try {
+        final response = await _apiProvider.get(ApiConstants.openBillDetail(bill.id));
+        if (response.data != null && response.data['success'] == true && response.data['data'] != null) {
+          detailedBill = OpenBillModel.fromJson(response.data['data']);
         }
+      } catch (_) {
+        // Fallback: gunakan data bill yang sudah dimuat di list
+        detailedBill = bill;
       }
+
+      final cartController = Get.find<CartController>();
+      final posController = Get.find<PosController>();
+
+      cartController.loadFromOpenBill(detailedBill, posController.products);
+
+      // Kembali ke layar POS
+      Get.back();
+
+      // Refresh counter
+      if (Get.isRegistered<PosController>()) {
+        Get.find<PosController>().fetchOpenBillsCount();
+      }
+
+      AppSnackbar.success(
+        'Bill Dimuat',
+        'Pesanan ${bill.billTitle} berhasil dimasukkan ke keranjang kasir.',
+      );
     } catch (e) {
       AppSnackbar.danger('Gagal Memuat Bill', ApiProvider.getErrorMessage(e));
     } finally {

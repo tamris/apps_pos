@@ -139,19 +139,30 @@ class CartController extends GetxController {
         : 0.0;
 
     for (var detail in bill.details) {
-      final product = allProducts.firstWhere(
-        (p) => p.id == detail.productId,
-        orElse: () => ProductModel(
-          id: detail.productId,
-          categoryId: 0,
-          categoryName: 'Menu',
-          name: detail.name,
-          price: detail.price,
-        ),
-      );
+      // 1. Cari produk berdasarkan ID yang valid
+      ProductModel? matchedProduct;
+      if (detail.productId > 0) {
+        matchedProduct = allProducts.firstWhereOrNull((p) => p.id == detail.productId);
+      }
 
-        items.add(CartItemModel(
-        product: product,
+      // 2. Jika tidak ditemukan berdasarkan ID, cari berdasarkan Nama
+      if (matchedProduct == null && detail.name.isNotEmpty) {
+        matchedProduct = allProducts.firstWhereOrNull(
+          (p) => p.name.trim().toLowerCase() == detail.name.trim().toLowerCase(),
+        );
+      }
+
+      final finalProduct = matchedProduct ??
+          ProductModel(
+            id: detail.productId > 0 ? detail.productId : (allProducts.isNotEmpty ? allProducts.first.id : 1),
+            categoryId: 0,
+            categoryName: 'Menu',
+            name: detail.name,
+            price: detail.price,
+          );
+
+      items.add(CartItemModel(
+        product: finalProduct,
         quantity: detail.quantity,
         price: detail.price,
         notes: detail.notes ?? '',

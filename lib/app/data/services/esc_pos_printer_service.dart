@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'storage_service.dart';
 import '../../core/utils/currency_formatter.dart';
+import '../../core/utils/app_snackbar.dart';
 
 class EscPosPrinterService extends GetxService {
   final StorageService _storageService = Get.find<StorageService>();
@@ -41,7 +42,7 @@ class EscPosPrinterService extends GetxService {
       availableDevices.assignAll(devices);
       return devices;
     } catch (e) {
-      Get.snackbar('Bluetooth Error', 'Gagal memindai perangkat bluetooth: $e');
+      AppSnackbar.danger('Bluetooth Error', 'Gagal memindai perangkat bluetooth: $e');
       return [];
     } finally {
       isScanning.value = false;
@@ -57,16 +58,16 @@ class EscPosPrinterService extends GetxService {
         connectedDeviceName.value = deviceName;
         connectedMacAddress.value = macAddress;
         await _storageService.savePrinter(macAddress, deviceName);
-        Get.snackbar('Printer Terhubung', '$deviceName siap digunakan untuk cetak struk.');
+        AppSnackbar.success('Printer Terhubung', '$deviceName siap digunakan untuk cetak struk.');
         return true;
       } else {
         isConnected.value = false;
-        Get.snackbar('Koneksi Gagal', 'Tidak dapat terhubung ke $deviceName.');
+        AppSnackbar.danger('Koneksi Gagal', 'Tidak dapat terhubung ke $deviceName.');
         return false;
       }
     } catch (e) {
       isConnected.value = false;
-      Get.snackbar('Koneksi Error', e.toString());
+      AppSnackbar.danger('Koneksi Error', e.toString());
       return false;
     }
   }
@@ -79,7 +80,7 @@ class EscPosPrinterService extends GetxService {
       connectedDeviceName.value = '';
       connectedMacAddress.value = '';
       await _storageService.clearPrinter();
-      Get.snackbar('Printer Terputus', 'Koneksi printer telah diputus.');
+      AppSnackbar.info('Printer Terputus', 'Koneksi printer telah diputus.');
     } catch (_) {}
   }
 
@@ -422,7 +423,7 @@ class EscPosPrinterService extends GetxService {
   /// Eksekusi cetak struk dapur ke printer Bluetooth
   Future<bool> printKitchenReceipt(Map<String, dynamic> kitchenPayload) async {
     if (!isConnected.value) {
-      Get.snackbar('Printer Belum Terhubung', 'Silakan hubungkan printer Bluetooth di Pengaturan.');
+      AppSnackbar.warning('Printer Belum Terhubung', 'Silakan hubungkan printer Bluetooth di Pengaturan.');
       return false;
     }
 
@@ -431,7 +432,7 @@ class EscPosPrinterService extends GetxService {
       final bool result = await PrintBluetoothThermal.writeBytes(Uint8List.fromList(bytes));
       return result;
     } catch (e) {
-      Get.snackbar('Gagal Mencetak Dapur', e.toString());
+      AppSnackbar.danger('Gagal Mencetak Dapur', e.toString());
       return false;
     }
   }
@@ -439,7 +440,7 @@ class EscPosPrinterService extends GetxService {
   /// Eksekusi cetak struk ke printer Bluetooth
   Future<bool> printReceipt(Map<String, dynamic> receiptPayload) async {
     if (!isConnected.value) {
-      Get.snackbar('Printer Belum Terhubung', 'Silakan hubungkan printer Bluetooth 58mm di menu Pengaturan.');
+      AppSnackbar.warning('Printer Belum Terhubung', 'Silakan hubungkan printer Bluetooth 58mm di menu Pengaturan.');
       return false;
     }
 
@@ -448,7 +449,7 @@ class EscPosPrinterService extends GetxService {
       final bool result = await PrintBluetoothThermal.writeBytes(Uint8List.fromList(bytes));
       return result;
     } catch (e) {
-      Get.snackbar('Gagal Mencetak', e.toString());
+      AppSnackbar.danger('Gagal Mencetak', e.toString());
       return false;
     }
   }
@@ -456,7 +457,7 @@ class EscPosPrinterService extends GetxService {
   /// Eksekusi cetak laporan shift
   Future<bool> printShiftReport(Map<String, dynamic> shiftPayload) async {
     if (!isConnected.value) {
-      Get.snackbar('Printer Belum Terhubung', 'Silakan hubungkan printer Bluetooth di Pengaturan.');
+      AppSnackbar.warning('Printer Belum Terhubung', 'Silakan hubungkan printer Bluetooth di Pengaturan.');
       return false;
     }
 
@@ -465,7 +466,7 @@ class EscPosPrinterService extends GetxService {
       final bool result = await PrintBluetoothThermal.writeBytes(Uint8List.fromList(bytes));
       return result;
     } catch (e) {
-      Get.snackbar('Gagal Mencetak', e.toString());
+      AppSnackbar.danger('Gagal Mencetak', e.toString());
       return false;
     }
   }

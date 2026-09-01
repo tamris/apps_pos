@@ -76,6 +76,54 @@ class CartBottomSheet extends StatelessWidget {
           ),
           const Divider(height: 1),
 
+          // Active Open Bill Banner (jika sedang mengedit bill terbuka)
+          Obx(() {
+            if (cartController.activeOpenBillId.value == null) return const SizedBox.shrink();
+            return Container(
+              margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.warningSoft,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.warning.withAlpha(150)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.edit_note_rounded, color: AppColors.warning, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Bill #${cartController.activeOpenBillId.value} Aktif (Sedang Diedit)',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.warning,
+                      ),
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () {
+                      cartController.activeOpenBillId.value = null;
+                      cartController.clearCart();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: AppColors.lightBorder),
+                      ),
+                      child: const Text(
+                        'Tutup',
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+
           // Order Type / Table Indicator
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

@@ -6,6 +6,7 @@ import '../../../data/providers/api_provider.dart';
 import '../../../data/services/storage_service.dart';
 import '../../../data/services/offline_sync_service.dart';
 import '../../../data/services/esc_pos_printer_service.dart';
+import '../../../core/utils/app_snackbar.dart';
 import '../../auth/controllers/auth_controller.dart';
 
 class SettingsController extends GetxController {
@@ -36,10 +37,9 @@ class SettingsController extends GetxController {
     if (newUrl.isNotEmpty) {
       await _storageService.setBaseUrl(newUrl);
       _apiProvider.updateBaseUrl(newUrl);
-      Get.snackbar(
+      AppSnackbar.success(
         'Tersimpan',
         'URL Server backend berhasil diperbarui ke: $newUrl',
-        snackPosition: SnackPosition.BOTTOM,
       );
     }
   }

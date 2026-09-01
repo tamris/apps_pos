@@ -18,22 +18,31 @@ class OpenBillDetailItem {
   });
 
   factory OpenBillDetailItem.fromJson(Map<String, dynamic> json) {
+    String itemName = json['name']?.toString() ?? json['product_name']?.toString() ?? '';
+    if (itemName.isEmpty && json['product'] != null && json['product'] is Map) {
+      itemName = json['product']['name']?.toString() ?? 'Menu';
+    }
+    if (itemName.isEmpty) itemName = 'Menu';
+
+    int prodId = 0;
+    if (json['product_id'] != null) {
+      prodId = int.tryParse(json['product_id'].toString()) ?? 0;
+    } else if (json['product'] != null && json['product'] is Map) {
+      prodId = int.tryParse(json['product']['id']?.toString() ?? '0') ?? 0;
+    }
+
+    final qty = int.tryParse((json['quantity'] ?? json['qty'] ?? '1').toString()) ?? 1;
+    final prc = double.tryParse((json['price'] ?? json['unit_price'] ?? '0').toString()) ?? 0.0;
+    final sub = double.tryParse((json['subtotal'] ?? json['total_price'] ?? (qty * prc)).toString()) ?? (qty * prc);
+
     return OpenBillDetailItem(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
-      productId: json['product_id'] is int
-          ? json['product_id']
-          : int.tryParse(json['product_id']?.toString() ?? '0') ?? 0,
-      name: json['name'] ?? 'Menu',
-      quantity: json['quantity'] is int
-          ? json['quantity']
-          : int.tryParse(json['quantity']?.toString() ?? '1') ?? 1,
-      price: (json['price'] != null)
-          ? double.tryParse(json['price'].toString()) ?? 0.0
-          : 0.0,
-      subtotal: (json['subtotal'] != null)
-          ? double.tryParse(json['subtotal'].toString()) ?? 0.0
-          : 0.0,
-      notes: json['notes']?.toString(),
+      id: int.tryParse(json['id']?.toString() ?? '0') ?? 0,
+      productId: prodId,
+      name: itemName,
+      quantity: qty,
+      price: prc,
+      subtotal: sub,
+      notes: json['notes']?.toString() ?? json['note']?.toString(),
     );
   }
 
@@ -91,30 +100,28 @@ class OpenBillModel {
 
   factory OpenBillModel.fromJson(Map<String, dynamic> json) {
     var detailsList = <OpenBillDetailItem>[];
-    if (json['details'] != null && json['details'] is List) {
-      detailsList = (json['details'] as List)
-          .map((i) => OpenBillDetailItem.fromJson(i))
+    final rawDetails = json['details'] ?? json['items'] ?? json['order_items'] ?? json['transaction_details'];
+    if (rawDetails != null && rawDetails is List) {
+      detailsList = rawDetails
+          .map((i) => OpenBillDetailItem.fromJson(i is Map<String, dynamic> ? i : Map<String, dynamic>.from(i)))
           .toList();
     }
 
+    final tot = double.tryParse((json['total'] ?? json['grand_total'] ?? json['total_amount'] ?? '0').toString()) ?? 0.0;
+    final sub = double.tryParse((json['subtotal'] ?? '0').toString()) ?? (tot > 0 ? tot : 0.0);
+    final disc = double.tryParse((json['discount'] ?? json['discount_amount'] ?? '0').toString()) ?? 0.0;
+    final tx = double.tryParse((json['tax'] ?? json['tax_amount'] ?? '0').toString()) ?? 0.0;
+
     return OpenBillModel(
       id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
-      invoiceNumber: json['invoice_number'] ?? '',
-      orderType: json['order_type'] ?? 'dine_in',
-      tableNumber: json['table_number']?.toString(),
-      customerName: json['customer_name']?.toString(),
-      total: (json['total'] != null)
-          ? double.tryParse(json['total'].toString()) ?? 0.0
-          : 0.0,
-      subtotal: (json['subtotal'] != null)
-          ? double.tryParse(json['subtotal'].toString()) ?? 0.0
-          : 0.0,
-      discount: (json['discount'] != null)
-          ? double.tryParse(json['discount'].toString()) ?? 0.0
-          : 0.0,
-      tax: (json['tax'] != null)
-          ? double.tryParse(json['tax'].toString()) ?? 0.0
-          : 0.0,
+      invoiceNumber: json['invoice_number']?.toString() ?? json['order_number']?.toString() ?? '',
+      orderType: json['order_type']?.toString() ?? 'dine_in',
+      tableNumber: json['table_number']?.toString() ?? json['table']?.toString(),
+      customerName: json['customer_name']?.toString() ?? json['customer']?.toString(),
+      total: tot,
+      subtotal: sub,
+      discount: disc,
+      tax: tx,
       itemsCount: json['items_count'] is int
           ? json['items_count']
           : int.tryParse(json['items_count']?.toString() ?? '0') ?? detailsList.length,

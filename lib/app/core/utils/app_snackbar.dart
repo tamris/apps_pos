@@ -176,21 +176,6 @@ class AppSnackbar {
                     },
                   ),
                 ],
-
-                // Close Button
-                const SizedBox(width: 8),
-                InkWell(
-                  borderRadius: BorderRadius.circular(20),
-                  onTap: () => Get.closeCurrentSnackbar(),
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    child: const Icon(
-                      Icons.close_rounded,
-                      size: 18,
-                      color: AppColors.textMuted,
-                    ),
-                  ),
-                ),
               ],
             ),
           ),

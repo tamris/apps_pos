@@ -7,6 +7,7 @@ import '../../../data/models/shift_model.dart';
 import '../../../data/providers/api_provider.dart';
 import '../../../data/services/storage_service.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../../core/utils/app_snackbar.dart';
 import '../../shift/controllers/shift_controller.dart';
 import '../../shift/views/shift_dialogs.dart';
 
@@ -17,6 +18,7 @@ class PosController extends GetxController {
   final RxList<CategoryModel> categories = <CategoryModel>[].obs;
   final RxList<ProductModel> products = <ProductModel>[].obs;
   final RxList<String> occupiedTables = <String>[].obs;
+  final RxInt activeOpenBillsCount = 0.obs;
   final Rx<CafeSettingsModel> cafeSettings = CafeSettingsModel().obs;
   final RxList<int> quickCashPresets = <int>[
     10000,
@@ -35,6 +37,7 @@ class PosController extends GetxController {
   void onInit() {
     super.onInit();
     fetchBootstrap();
+    fetchOpenBillsCount();
   }
 
   @override
@@ -113,7 +116,7 @@ class PosController extends GetxController {
         }
       }
     } catch (e) {
-      Get.snackbar('Koneksi POS', ApiProvider.getErrorMessage(e));
+      AppSnackbar.danger('Koneksi POS', ApiProvider.getErrorMessage(e));
     } finally {
       isLoading.value = false;
     }
@@ -158,10 +161,23 @@ class PosController extends GetxController {
     if (!occupiedTables.contains(table)) {
       occupiedTables.add(table);
     }
+    fetchOpenBillsCount();
   }
 
   /// Hapus meja dari daftar terisi setelah selesai bayar / void
   void freeTable(String table) {
     occupiedTables.remove(table);
+    fetchOpenBillsCount();
+  }
+
+  /// Ambil jumlah open bill aktif
+  Future<void> fetchOpenBillsCount() async {
+    try {
+      final response = await _apiProvider.get(ApiConstants.openBills);
+      if (response.data != null && response.data['success'] == true) {
+        final List list = response.data['data'] ?? [];
+        activeOpenBillsCount.value = list.length;
+      }
+    } catch (_) {}
   }
 }

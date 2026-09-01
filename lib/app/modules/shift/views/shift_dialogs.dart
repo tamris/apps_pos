@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/shift_controller.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/app_snackbar.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
 
@@ -403,7 +404,7 @@ class ShiftDialogs {
 
     final shift = controller.currentShift.value;
     if (shift == null) {
-      Get.snackbar('Informasi', 'Tidak ada shift aktif untuk ditutup.');
+      AppSnackbar.info('Informasi', 'Tidak ada shift aktif untuk ditutup.');
       return false;
     }
 
