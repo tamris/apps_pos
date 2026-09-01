@@ -1,7 +1,9 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../core/widgets/app_shimmer.dart';
 import '../../../../data/models/product_model.dart';
 import '../../controllers/pos_controller.dart';
 
@@ -298,13 +300,24 @@ class _MenuAvailabilityDialogState extends State<MenuAvailabilityDialog> {
               color: isAvailable ? AppColors.primarySoft : AppColors.lightBackground,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: product.imageUrl != null && product.imageUrl!.isNotEmpty
+            child: (product.imageUrl != null && product.imageUrl!.isNotEmpty)
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(10),
-                    child: Image.network(
-                      product.imageUrl!,
+                    child: CachedNetworkImage(
+                      imageUrl: product.imageUrl!,
+                      width: 42,
+                      height: 42,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _buildInitials(product.name, isAvailable),
+                      httpHeaders: const {'ngrok-skip-browser-warning': 'true'},
+                      fadeInDuration: const Duration(milliseconds: 180),
+                      placeholder: (context, url) => AppShimmer(
+                        child: Container(
+                          width: 42,
+                          height: 42,
+                          color: Colors.white,
+                        ),
+                      ),
+                      errorWidget: (_, __, ___) => _buildInitials(product.name, isAvailable),
                     ),
                   )
                 : _buildInitials(product.name, isAvailable),

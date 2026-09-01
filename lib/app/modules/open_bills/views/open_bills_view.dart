@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../controllers/open_bills_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../../core/widgets/skeletons/list_item_skeleton.dart';
 import '../../../data/models/open_bill_model.dart';
 
 class OpenBillsView extends GetView<OpenBillsController> {
@@ -67,7 +68,7 @@ class OpenBillsView extends GetView<OpenBillsController> {
           Expanded(
             child: Obx(() {
               if (controller.isLoading.value) {
-                return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+                return const ListItemSkeleton();
               }
 
               if (controller.openBills.isEmpty) {

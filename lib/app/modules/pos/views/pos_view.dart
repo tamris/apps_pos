@@ -14,6 +14,7 @@ import 'widgets/product_card.dart';
 import 'widgets/cart_bottom_sheet.dart';
 import 'widgets/tablet_cart_panel.dart';
 import 'widgets/menu_availability_dialog.dart';
+import '../../../core/widgets/skeletons/product_grid_skeleton.dart';
 
 class PosView extends GetView<PosController> {
   const PosView({super.key});
@@ -372,9 +373,7 @@ class PosView extends GetView<PosController> {
         Expanded(
           child: Obx(() {
             if (controller.isLoading.value) {
-              return const Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
-              );
+              return const ProductGridSkeleton();
             }
 
             final products = controller.filteredProducts;

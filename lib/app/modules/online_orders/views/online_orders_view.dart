@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/skeletons/online_order_skeleton.dart';
 import '../controllers/online_orders_controller.dart';
 import 'widgets/online_order_card.dart';
 
@@ -126,7 +127,7 @@ class OnlineOrdersView extends GetView<OnlineOrdersController> {
           Expanded(
             child: Obx(() {
               if (controller.isLoading.value) {
-                return const Center(child: CircularProgressIndicator());
+                return const OnlineOrderSkeleton();
               }
 
               if (controller.orders.isEmpty) {

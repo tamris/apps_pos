@@ -1,9 +1,11 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../data/models/product_model.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/app_snackbar.dart';
+import '../../../../core/widgets/app_shimmer.dart';
 import '../../controllers/cart_controller.dart';
 import 'product_customization_sheet.dart';
 
@@ -61,15 +63,26 @@ class ProductCard extends StatelessWidget {
                             top: Radius.circular(11),
                           ),
                         ),
-                        child: product.imageUrl != null && product.imageUrl!.isNotEmpty
+                        child: (product.imageUrl != null && product.imageUrl!.isNotEmpty)
                             ? ClipRRect(
                                 borderRadius: const BorderRadius.vertical(
                                   top: Radius.circular(11),
                                 ),
-                                child: Image.network(
-                                  product.imageUrl!,
+                                child: CachedNetworkImage(
+                                  imageUrl: product.imageUrl!,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => _buildInitialsPlaceholder(),
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  httpHeaders: const {'ngrok-skip-browser-warning': 'true'},
+                                  fadeInDuration: const Duration(milliseconds: 180),
+                                  placeholder: (context, url) => AppShimmer(
+                                    child: Container(
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  errorWidget: (_, __, ___) => _buildInitialsPlaceholder(),
                                 ),
                               )
                             : _buildInitialsPlaceholder(),

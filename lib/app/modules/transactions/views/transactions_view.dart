@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../controllers/transactions_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../../core/widgets/skeletons/list_item_skeleton.dart';
 import '../../../data/models/transaction_model.dart';
 
 class TransactionsView extends GetView<TransactionsController> {
@@ -61,7 +62,7 @@ class TransactionsView extends GetView<TransactionsController> {
           Expanded(
             child: Obx(() {
               if (controller.isLoading.value) {
-                return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+                return const ListItemSkeleton();
               }
 
               if (controller.transactions.isEmpty) {
