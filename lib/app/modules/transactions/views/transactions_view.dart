@@ -66,28 +66,33 @@ class TransactionsView extends GetView<TransactionsController> {
 
               if (controller.transactions.isEmpty) {
                 return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: AppColors.primarySoft,
-                          shape: BoxShape.circle,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: const BoxDecoration(
+                            color: AppColors.primarySoft,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.receipt_outlined, size: 48, color: AppColors.primary),
                         ),
-                        child: const Icon(Icons.receipt_outlined, size: 48, color: AppColors.primary),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Belum Ada Transaksi',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Riwayat transaksi hari ini akan muncul di sini.',
-                        style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                      ),
-                    ],
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Belum Ada Transaksi',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Riwayat transaksi hari ini akan muncul di sini.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               }
@@ -145,31 +150,38 @@ class TransactionsView extends GetView<TransactionsController> {
             // Top Meta
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Row(
-                  children: [
-                    Text(
-                      tx.invoiceNumber,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: tx.isCompleted ? AppColors.primarySoft : AppColors.dangerSoft,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        tx.status.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: tx.isCompleted ? AppColors.primaryDark : AppColors.danger,
+                Expanded(
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          tx.invoiceNumber,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: tx.isCompleted ? AppColors.primarySoft : AppColors.dangerSoft,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          tx.status.toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.bold,
+                            color: tx.isCompleted ? AppColors.primaryDark : AppColors.danger,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Text(
                   '${tx.time} • ${tx.date}',
                   style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
@@ -178,30 +190,29 @@ class TransactionsView extends GetView<TransactionsController> {
             ),
             const SizedBox(height: 8),
 
-            // Order Type & Payment Method Badges
-            Row(
+            // Order Type & Payment Method Badges (Wrap to prevent overflow)
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
               children: [
                 _buildSmallBadge(
                   Icons.restaurant_rounded,
                   tx.orderType == 'dine_in'
-                      ? 'Dine In ${tx.tableNumber != null ? '(Meja ${tx.tableNumber})' : ''}'
+                      ? 'Dine In ${tx.tableNumber != null && tx.tableNumber!.isNotEmpty ? "(Meja ${tx.tableNumber})" : ""}'
                       : 'Take Away',
                   AppColors.primary,
                 ),
-                const SizedBox(width: 6),
                 _buildSmallBadge(
                   Icons.payment_rounded,
                   tx.paymentMethod.toUpperCase(),
                   AppColors.secondary,
                 ),
-                if (tx.customerName != null && tx.customerName!.isNotEmpty) ...[
-                  const SizedBox(width: 6),
+                if (tx.customerName != null && tx.customerName!.isNotEmpty)
                   _buildSmallBadge(
                     Icons.person_outline,
                     tx.customerName!,
                     AppColors.info,
                   ),
-                ],
               ],
             ),
             const SizedBox(height: 10),

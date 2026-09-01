@@ -72,28 +72,33 @@ class OpenBillsView extends GetView<OpenBillsController> {
 
               if (controller.openBills.isEmpty) {
                 return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(22),
-                        decoration: const BoxDecoration(
-                          color: AppColors.primarySoft,
-                          shape: BoxShape.circle,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(22),
+                          decoration: const BoxDecoration(
+                            color: AppColors.primarySoft,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.receipt_long_rounded, size: 48, color: AppColors.primary),
                         ),
-                        child: const Icon(Icons.receipt_long_rounded, size: 48, color: AppColors.primary),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Tidak Ada Bill Aktif',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Semua pesanan meja telah selesai dibayar atau belum ada bill tersimpan.',
-                        style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                      ),
-                    ],
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Tidak Ada Bill Aktif',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Semua pesanan meja telah selesai dibayar atau belum ada bill tersimpan.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               }

@@ -342,35 +342,39 @@ class SettingsView extends GetView<SettingsController> {
               final isSyncing = controller.offlineSyncService.isSyncing.value;
 
               return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        count > 0 ? '$count Transaksi Tersimpan Offline' : 'Semua transaksi tersinkronisasi',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: count > 0 ? AppColors.warning : AppColors.success,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          count > 0 ? '$count Transaksi Tersimpan Offline' : 'Semua transaksi tersinkronisasi',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: count > 0 ? AppColors.warning : AppColors.success,
+                          ),
                         ),
-                      ),
-                      const Text(
-                        'Data tersimpan aman di penyimpanan lokal.',
-                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                      ),
-                    ],
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Data tersimpan aman di penyimpanan lokal.',
+                          style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 10),
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: count > 0 ? AppColors.primary : AppColors.lightBackground,
                       foregroundColor: count > 0 ? Colors.white : AppColors.textPrimary,
                       side: BorderSide(color: count > 0 ? AppColors.primary : AppColors.lightBorder),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
                     icon: isSyncing
                         ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(Icons.sync_rounded, size: 16),
-                    label: const Text('Sync Sekarang'),
+                    label: const Text('Sync', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                     onPressed: isSyncing ? null : () => controller.syncOffline(),
                   ),
                 ],

@@ -37,7 +37,7 @@ class _MenuAvailabilityDialogState extends State<MenuAvailabilityDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 20),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 620, maxHeight: 720),
         child: Container(
@@ -56,46 +56,44 @@ class _MenuAvailabilityDialogState extends State<MenuAvailabilityDialog> {
             children: [
               // Header
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 18, 16, 12),
+                padding: const EdgeInsets.fromLTRB(16, 16, 8, 12),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.primarySoft,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.inventory_2_outlined,
-                            size: 20,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Ketersediaan Menu',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
-                              ),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primarySoft,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.inventory_2_outlined,
+                        size: 20,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Ketersediaan Menu',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
                             ),
-                            Text(
-                              'Atur status menu Ready atau Habis untuk kasir',
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                color: AppColors.textSecondary,
-                              ),
+                          ),
+                          Text(
+                            'Atur status menu Ready atau Habis untuk kasir',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
                             ),
-                          ],
-                        ),
-                      ],
+                          ),
+                        ],
+                      ),
                     ),
                     IconButton(
                       visualDensity: VisualDensity.compact,
@@ -241,29 +239,31 @@ class _MenuAvailabilityDialogState extends State<MenuAvailabilityDialog> {
 
               // Footer Bar
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: const BoxDecoration(
                   color: AppColors.lightBackground,
                   borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
                   border: Border(top: BorderSide(color: AppColors.lightBorder)),
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Perubahan status langsung tersinkronisasi ke POS.',
-                      style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+                    const Expanded(
+                      child: Text(
+                        'Perubahan status langsung tersinkronisasi ke POS.',
+                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      ),
                     ),
+                    const SizedBox(width: 10),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                         elevation: 0,
                       ),
                       onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Selesai', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                      child: const Text('Selesai', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),
