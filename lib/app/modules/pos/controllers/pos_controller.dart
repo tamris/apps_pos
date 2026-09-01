@@ -18,7 +18,13 @@ class PosController extends GetxController {
   final RxList<ProductModel> products = <ProductModel>[].obs;
   final RxList<String> occupiedTables = <String>[].obs;
   final Rx<CafeSettingsModel> cafeSettings = CafeSettingsModel().obs;
-  final RxList<int> quickCashPresets = <int>[10000, 20000, 50000, 100000, 200000].obs;
+  final RxList<int> quickCashPresets = <int>[
+    10000,
+    20000,
+    50000,
+    100000,
+    200000,
+  ].obs;
 
   final RxInt selectedCategoryId = 0.obs; // 0 = Semua Kategori
   final RxString searchQuery = ''.obs;
@@ -48,13 +54,17 @@ class PosController extends GetxController {
         // 1. Categories
         if (data['categories'] != null) {
           final List catList = data['categories'];
-          categories.assignAll(catList.map((e) => CategoryModel.fromJson(e)).toList());
+          categories.assignAll(
+            catList.map((e) => CategoryModel.fromJson(e)).toList(),
+          );
         }
 
         // 2. Products
         if (data['products'] != null) {
           final List prodList = data['products'];
-          products.assignAll(prodList.map((e) => ProductModel.fromJson(e)).toList());
+          products.assignAll(
+            prodList.map((e) => ProductModel.fromJson(e)).toList(),
+          );
         }
 
         // 3. Occupied Tables
@@ -71,7 +81,9 @@ class PosController extends GetxController {
         // 5. Presets
         if (data['quick_cash_presets'] != null) {
           final List presets = data['quick_cash_presets'];
-          quickCashPresets.assignAll(presets.map((e) => int.tryParse(e.toString()) ?? 0).toList());
+          quickCashPresets.assignAll(
+            presets.map((e) => int.tryParse(e.toString()) ?? 0).toList(),
+          );
         }
 
         // 6. Active Shift check
@@ -90,7 +102,10 @@ class PosController extends GetxController {
             if (currentUser != null && currentUser.isCashier) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (Get.context != null) {
-                  ShiftDialogs.showStartShiftDialog(Get.context!, dismissible: false);
+                  ShiftDialogs.showStartShiftDialog(
+                    Get.context!,
+                    dismissible: false,
+                  );
                 }
               });
             }
@@ -108,7 +123,9 @@ class PosController extends GetxController {
   List<ProductModel> get filteredProducts {
     return products.where((product) {
       // Filter kategori
-      final matchCategory = (selectedCategoryId.value == 0) || (product.categoryId == selectedCategoryId.value);
+      final matchCategory =
+          (selectedCategoryId.value == 0) ||
+          (product.categoryId == selectedCategoryId.value);
       if (!matchCategory) return false;
 
       // Filter query pencarian
@@ -117,7 +134,8 @@ class PosController extends GetxController {
 
       final nameMatch = product.name.toLowerCase().contains(query);
       final skuMatch = product.sku?.toLowerCase().contains(query) ?? false;
-      final barcodeMatch = product.barcode?.toLowerCase().contains(query) ?? false;
+      final barcodeMatch =
+          product.barcode?.toLowerCase().contains(query) ?? false;
       return nameMatch || skuMatch || barcodeMatch;
     }).toList();
   }

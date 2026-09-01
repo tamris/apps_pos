@@ -29,20 +29,33 @@ class ProductModel {
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
     return ProductModel(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
+      id: json['id'] is int
+          ? json['id']
+          : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
       categoryId: json['category_id'] is int
           ? json['category_id']
           : int.tryParse(json['category_id']?.toString() ?? '0') ?? 0,
-      categoryName: json['category_name'] ?? (json['category'] != null ? json['category']['name'] : 'Menu'),
+      categoryName:
+          json['category_name'] ??
+          (json['category'] != null ? json['category']['name'] : 'Menu'),
       name: json['name'] ?? '',
       sku: json['sku']?.toString(),
       barcode: json['barcode']?.toString(),
-      price: (json['price'] != null) ? double.tryParse(json['price'].toString()) ?? 0.0 : 0.0,
-      hargaBeli: (json['harga_beli'] != null) ? double.tryParse(json['harga_beli'].toString()) ?? 0.0 : 0.0,
+      price: (json['price'] != null)
+          ? double.tryParse(json['price'].toString()) ?? 0.0
+          : 0.0,
+      hargaBeli: (json['harga_beli'] != null)
+          ? double.tryParse(json['harga_beli'].toString()) ?? 0.0
+          : 0.0,
       description: json['description']?.toString(),
       imageUrl: json['image_url']?.toString() ?? json['image']?.toString(),
-      isActive: json['is_active'] == 1 || json['is_active'] == true || json['is_active'] == null,
-      totalSold: json['total_sold'] is int ? json['total_sold'] : int.tryParse(json['total_sold']?.toString() ?? '0') ?? 0,
+      isActive:
+          json['is_active'] == 1 ||
+          json['is_active'] == true ||
+          json['is_active'] == null,
+      totalSold: json['total_sold'] is int
+          ? json['total_sold']
+          : int.tryParse(json['total_sold']?.toString() ?? '0') ?? 0,
     );
   }
 

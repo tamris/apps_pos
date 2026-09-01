@@ -159,10 +159,16 @@ class PosView extends GetView<PosController> {
           final bool isTablet = constraints.maxWidth >= 768;
 
           if (isTablet) {
-            // Tampilan Tablet Split-Screen (Kiri: Katalog & Search, Kanan: Cart Panel)
+            // Tampilan Tablet Split-Screen (4 kolom kartu produk agar compact & minim scroll)
             return Row(
               children: [
-                Expanded(child: _buildMenuContent(context, crossAxisCount: 3)),
+                Expanded(
+                  child: _buildMenuContent(
+                    context,
+                    crossAxisCount: 4,
+                    childAspectRatio: 0.90,
+                  ),
+                ),
                 const TabletCartPanel(),
               ],
             );
@@ -193,6 +199,7 @@ class PosView extends GetView<PosController> {
   Widget _buildMenuContent(
     BuildContext context, {
     required int crossAxisCount,
+    double childAspectRatio = 0.90,
     double bottomPadding = 16,
   }) {
     return Column(
@@ -278,9 +285,9 @@ class PosView extends GetView<PosController> {
                 padding: EdgeInsets.fromLTRB(16, 4, 16, bottomPadding),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: crossAxisCount,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 0.76,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: childAspectRatio,
                 ),
                 itemCount: products.length,
                 itemBuilder: (context, index) {
