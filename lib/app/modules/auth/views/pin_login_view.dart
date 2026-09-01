@@ -30,32 +30,29 @@ class PinLoginView extends GetView<AuthController> {
           builder: (context, constraints) {
             final bool isTablet = constraints.maxWidth >= 600;
             return Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: isTablet ? 500 : double.infinity),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: isTablet ? 420 : double.infinity),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       // Logo & Header
                       _buildHeader(),
-                      const SizedBox(height: 20),
-
-                      // Cashier Quick Selector
-                      _buildCashierSelector(),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 28),
 
                       // 6-Digit PIN Indicator Dots
                       _buildPinDots(),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
 
                       // Error message display
                       _buildErrorMessage(),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
 
                       // Numeric Keypad
                       _buildKeypad(),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 12),
                     ],
                   ),
                 ),
@@ -71,23 +68,32 @@ class PinLoginView extends GetView<AuthController> {
     return Column(
       children: [
         Container(
-          width: 68,
-          height: 68,
+          width: 76,
+          height: 76,
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(20),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: AppColors.lightBorder, width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withAlpha(76),
+                color: Colors.black.withAlpha(12),
                 blurRadius: 16,
                 offset: const Offset(0, 6),
               ),
             ],
           ),
-          child: const Icon(
-            Icons.point_of_sale_rounded,
-            color: Colors.white,
-            size: 36,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Image.asset(
+              'assets/icons/app_icon.png',
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Icon(
+                Icons.point_of_sale_rounded,
+                color: AppColors.primary,
+                size: 36,
+              ),
+            ),
           ),
         ),
         const SizedBox(height: 16),
@@ -97,74 +103,19 @@ class PinLoginView extends GetView<AuthController> {
             fontSize: 24,
             fontWeight: FontWeight.bold,
             color: AppColors.textPrimary,
+            letterSpacing: -0.3,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         const Text(
-          'Masukkan 6 digit PIN untuk memulai transaksi',
+          'Masukkan 6 digit PIN kasir untuk login',
           style: TextStyle(
-            fontSize: 13,
+            fontSize: 13.5,
             color: AppColors.textSecondary,
           ),
         ),
       ],
     );
-  }
-
-  Widget _buildCashierSelector() {
-    return Obx(() {
-      if (controller.cashiers.isEmpty) return const SizedBox.shrink();
-
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Pilih Kasir (Opsional):',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: controller.cashiers.map((cashier) {
-                final isSelected = controller.selectedCashier.value?.id == cashier.id;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: FilterChip(
-                    avatar: CircleAvatar(
-                      backgroundColor: isSelected ? Colors.white : AppColors.primaryLight,
-                      child: Text(
-                        cashier.name.isNotEmpty ? cashier.name[0].toUpperCase() : 'K',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isSelected ? AppColors.primary : Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    label: Text(
-                      cashier.name,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                        color: isSelected ? Colors.white : AppColors.textPrimary,
-                      ),
-                    ),
-                    selected: isSelected,
-                    selectedColor: AppColors.primary,
-                    backgroundColor: Colors.white,
-                    side: BorderSide(
-                      color: isSelected ? AppColors.primary : AppColors.lightBorder,
-                    ),
-                    onSelected: (_) => controller.selectCashier(cashier),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ],
-      );
-    });
   }
 
   Widget _buildPinDots() {
@@ -351,12 +302,12 @@ class PinLoginView extends GetView<AuthController> {
 
     Get.dialog(
       AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: const Row(
           children: [
-            Icon(Icons.dns_rounded, color: AppColors.primary),
-            SizedBox(width: 8),
-            Text('Konfigurasi URL Server', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Icon(Icons.cloud_outlined, color: AppColors.primary),
+            SizedBox(width: 10),
+            Text('Alamat Server Toko', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ],
         ),
         content: Column(
@@ -364,21 +315,38 @@ class PinLoginView extends GetView<AuthController> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Masukkan URL API Backend Laravel POS Toko Anda:',
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              'Masukkan alamat server pusat data toko untuk menghubungkan aplikasi kasir:',
+              style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: textController,
               decoration: const InputDecoration(
-                hintText: 'http://192.168.1.100:8000/api',
-                prefixIcon: Icon(Icons.link, size: 20),
+                hintText: 'https://alamat-server-toko.com/api',
+                prefixIcon: Icon(Icons.link_rounded, size: 20),
               ),
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Contoh:\n• Emulator Android: http://10.0.2.2:8000/api\n• HP Fisik (Wi-Fi): http://192.168.1.XX:8000/api',
-              style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.lightBackground,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.lightBorder),
+              ),
+              child: const Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline_rounded, size: 15, color: AppColors.textMuted),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Gunakan alamat server lokal (Wi-Fi toko) atau domain server cloud yang diberikan oleh pengelola toko.',
+                      style: TextStyle(fontSize: 11, color: AppColors.textMuted, height: 1.3),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -388,14 +356,18 @@ class PinLoginView extends GetView<AuthController> {
             child: const Text('Batal'),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
             onPressed: () async {
               final newUrl = textController.text.trim();
               if (newUrl.isNotEmpty) {
                 await storageService.setBaseUrl(newUrl);
                 apiProvider.updateBaseUrl(newUrl);
-                controller.fetchCashiers();
                 Get.back();
-                AppSnackbar.success('Tersimpan', 'URL Server berhasil diperbarui.');
+                AppSnackbar.success('Tersimpan', 'Alamat server toko berhasil diperbarui.');
               }
             },
             child: const Text('Simpan'),

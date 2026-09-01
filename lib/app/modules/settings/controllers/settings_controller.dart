@@ -31,7 +31,7 @@ class SettingsController extends GetxController {
     super.onClose();
   }
 
-  /// Simpan URL Server baru
+  /// Simpan Alamat Server Toko
   Future<void> saveBaseUrl() async {
     final newUrl = baseUrlController.text.trim();
     if (newUrl.isNotEmpty) {
@@ -39,7 +39,7 @@ class SettingsController extends GetxController {
       _apiProvider.updateBaseUrl(newUrl);
       AppSnackbar.success(
         'Tersimpan',
-        'URL Server backend berhasil diperbarui ke: $newUrl',
+        'Alamat server toko berhasil diperbarui.',
       );
     }
   }

@@ -83,7 +83,6 @@ class AuthController extends GetxController {
     try {
       final payload = {
         'pin': pin.value,
-        if (selectedCashier.value != null) 'user_id': selectedCashier.value!.id,
         'device_name': 'POS-Mobile-App',
       };
 

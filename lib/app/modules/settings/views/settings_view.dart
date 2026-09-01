@@ -284,14 +284,14 @@ class SettingsView extends GetView<SettingsController> {
           children: [
             const Row(
               children: [
-                Icon(Icons.dns_rounded, color: AppColors.primary),
+                Icon(Icons.cloud_outlined, color: AppColors.primary),
                 SizedBox(width: 8),
-                Text('URL Server Backend (API)', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                Text('Alamat Server Toko', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             const Text(
-              'Sesuaikan alamat IP backend Laravel POS bila menggunakan jaringan lokal toko:',
+              'Alamat server pusat data untuk menghubungkan aplikasi kasir dengan database toko:',
               style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 12),
@@ -299,15 +299,37 @@ class SettingsView extends GetView<SettingsController> {
               controller: controller.baseUrlController,
               decoration: const InputDecoration(
                 prefixIcon: Icon(Icons.link_rounded),
-                hintText: 'http://192.168.1.100:8000/api',
+                hintText: 'https://alamat-server-toko.com/api',
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.primarySoft.withAlpha(80),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.primaryLight.withAlpha(100)),
+              ),
+              child: const Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline_rounded, size: 16, color: AppColors.primary),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Pastikan perangkat kasir terhubung ke jaringan Wi-Fi toko atau internet yang stabil agar sinkronisasi data lancar.',
+                      style: TextStyle(fontSize: 11, color: AppColors.textSecondary, height: 1.3),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
             Align(
               alignment: Alignment.centerRight,
               child: ElevatedButton.icon(
                 icon: const Icon(Icons.save_rounded, size: 16),
-                label: const Text('Simpan URL Server'),
+                label: const Text('Simpan Alamat Server'),
                 onPressed: () => controller.saveBaseUrl(),
               ),
             ),
