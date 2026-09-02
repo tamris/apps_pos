@@ -27,6 +27,9 @@ class OnlineOrderStatsModel {
 
   factory OnlineOrderStatsModel.fromJson(Map<String, dynamic> json) {
     final revenue = (json['revenue_today'] as num?)?.toDouble() ?? 0.0;
+    final rawActive = json['is_online_order_active'] ?? json['is_active'];
+    final bool active = rawActive == null ? true : (rawActive == true || rawActive == 1 || rawActive == '1');
+
     return OnlineOrderStatsModel(
       active: (json['active'] as num?)?.toInt() ?? 0,
       pending: (json['pending'] as num?)?.toInt() ?? 0,
@@ -36,7 +39,7 @@ class OnlineOrderStatsModel {
       cancelledToday: (json['cancelled_today'] as num?)?.toInt() ?? 0,
       revenueToday: revenue,
       formattedRevenueToday: json['formatted_revenue_today'] ?? CurrencyFormatter.format(revenue),
-      isOnlineOrderActive: json['is_online_order_active'] == true,
+      isOnlineOrderActive: active,
     );
   }
 

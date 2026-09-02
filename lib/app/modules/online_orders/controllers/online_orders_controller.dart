@@ -26,6 +26,8 @@ class OnlineOrdersController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    // Sinkronkan status awal dengan service polling global
+    isStoreOnlineActive.value = pollingService.isOnlineOrderActive.value;
     fetchOrders();
   }
 
@@ -61,6 +63,7 @@ class OnlineOrdersController extends GetxController {
           final statsData = OnlineOrderStatsModel.fromJson(response.data['stats']);
           stats.value = statsData;
           isStoreOnlineActive.value = statsData.isOnlineOrderActive;
+          pollingService.isOnlineOrderActive.value = statsData.isOnlineOrderActive;
           pollingService.liveStats.value = statsData;
           pollingService.activeOrdersCount.value = statsData.active;
           pollingService.pendingOrdersCount.value = statsData.pending;
@@ -151,14 +154,26 @@ class OnlineOrdersController extends GetxController {
       );
 
       if (response.statusCode == 200) {
-        isStoreOnlineActive.value = nextState;
-        pollingService.isOnlineOrderActive.value = nextState;
-        if (nextState) {
+        bool finalStatus = nextState;
+        if (response.data != null) {
+          final rawVal = response.data['is_active'] ??
+              response.data['data']?['is_active'] ??
+              response.data['is_online_order_active'];
+          if (rawVal != null) {
+            finalStatus = rawVal == true || rawVal == 1 || rawVal == '1';
+          }
+        }
+
+        isStoreOnlineActive.value = finalStatus;
+        pollingService.isOnlineOrderActive.value = finalStatus;
+        if (finalStatus) {
           pollingService.startPolling();
         } else {
           pollingService.stopPolling();
         }
-        final msg = response.data['message'] ?? (nextState ? 'Pesanan online DIBUKA' : 'Pesanan online DITUTUP');
+
+        final msg = response.data?['message'] ??
+            (finalStatus ? 'Pesanan online DIBUKA' : 'Pesanan online DIJEDA');
         AppSnackbar.info('Status Toko Online', msg);
         await fetchOrders(silent: true);
       }

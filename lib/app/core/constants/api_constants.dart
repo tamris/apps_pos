@@ -1,8 +1,8 @@
 class ApiConstants {
   // Default Base URL for Android Emulator (10.0.2.2) or Physical Device via LAN
   // This can be modified dynamically at runtime in Settings
-  static const String defaultBaseUrl = 'https://ethical-ape-oddly.ngrok-free.app/api';
-  static const String defaultStorageUrl = 'https://ethical-ape-oddly.ngrok-free.app/storage';
+  static const String defaultBaseUrl = 'https://problem-catalyst-sauna.ngrok-free.dev/api';
+  static const String defaultStorageUrl = 'https://problem-catalyst-sauna.ngrok-free.dev/storage';
 
   // Auth Endpoints
   static const String cashiers = '/auth/cashiers';

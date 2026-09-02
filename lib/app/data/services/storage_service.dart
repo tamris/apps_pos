@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
@@ -17,8 +18,13 @@ class StorageService extends GetxService {
   static const String _keyPrinterName = 'selected_printer_name';
   static const String _keyCustomSoundPath = 'custom_order_sound_path';
   static const String _keyCustomSoundName = 'custom_order_sound_name';
-
   static const String _keySelectedSoundPreset = 'selected_sound_preset';
+
+  // Offline-First Caches
+  static const String _keyBootstrapCache = 'pos_bootstrap_cache';
+  static const String _keyBootstrapTimestamp = 'pos_bootstrap_timestamp';
+  static const String _keyCachedCashiers = 'cached_cashiers_list';
+  static const String _keyCashierPinHashes = 'cashier_pin_hashes';
 
   Future<StorageService> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -56,15 +62,25 @@ class StorageService extends GetxService {
   // --- Auth Token ---
   String? get token => _prefs.getString(_keyToken);
   bool get hasToken => token != null && token!.isNotEmpty;
+  bool get isOfflineToken => token != null && token!.startsWith('offline_token_');
 
   Future<void> saveToken(String token) async {
     await _prefs.setString(_keyToken, token);
+  }
+
+  // --- Active Cashier PIN for Auto Re-Auth ---
+  static const String _keyActivePin = 'active_cashier_pin';
+  String? get activePin => _prefs.getString(_keyActivePin);
+
+  Future<void> saveActivePin(String pin) async {
+    await _prefs.setString(_keyActivePin, pin);
   }
 
   Future<void> clearAuth() async {
     await _prefs.remove(_keyToken);
     await _prefs.remove(_keyUser);
     await _prefs.remove(_keyActiveShift);
+    await _prefs.remove(_keyActivePin);
   }
 
   // --- User Profile ---
@@ -139,5 +155,104 @@ class StorageService extends GetxService {
 
   Future<void> clearOfflineQueue() async {
     await _prefs.remove(_keyOfflineQueue);
+  }
+
+  // --- SHA-256 Helper ---
+  String hashPin(String pin) {
+    final bytes = utf8.encode('noli_pos_salt_$pin');
+    return sha256.convert(bytes).toString();
+  }
+
+  // --- Master Data (Bootstrap) Cache ---
+  bool get hasBootstrapCache => _prefs.containsKey(_keyBootstrapCache);
+
+  Map<String, dynamic>? getBootstrapCache() {
+    final raw = _prefs.getString(_keyBootstrapCache);
+    if (raw == null) return null;
+    try {
+      return jsonDecode(raw) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> saveBootstrapCache(Map<String, dynamic> data) async {
+    await _prefs.setString(_keyBootstrapCache, jsonEncode(data));
+    await _prefs.setString(_keyBootstrapTimestamp, DateTime.now().toIso8601String());
+  }
+
+  DateTime? get bootstrapCacheTime {
+    final raw = _prefs.getString(_keyBootstrapTimestamp);
+    if (raw == null) return null;
+    return DateTime.tryParse(raw);
+  }
+
+  // --- Cashier List & Offline PIN Hashes ---
+  Future<void> saveCachedCashiers(List<UserModel> cashiers) async {
+    final list = cashiers.map((c) => c.toJson()).toList();
+    await _prefs.setString(_keyCachedCashiers, jsonEncode(list));
+  }
+
+  List<UserModel> getCachedCashiers() {
+    final raw = _prefs.getString(_keyCachedCashiers);
+    if (raw == null) return [];
+    try {
+      final List decoded = jsonDecode(raw);
+      return decoded.map((e) => UserModel.fromJson(e)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> saveCashierPinHash(int userId, String pin) async {
+    final hash = hashPin(pin);
+    final raw = _prefs.getString(_keyCashierPinHashes);
+    Map<String, dynamic> map = {};
+    if (raw != null) {
+      try {
+        map = jsonDecode(raw);
+      } catch (_) {}
+    }
+    map[userId.toString()] = hash;
+    await _prefs.setString(_keyCashierPinHashes, jsonEncode(map));
+  }
+
+  UserModel? verifyOfflinePin(String pin, int? selectedUserId) {
+    final inputHash = hashPin(pin);
+    final raw = _prefs.getString(_keyCashierPinHashes);
+    if (raw == null) return null;
+
+    try {
+      final Map<String, dynamic> map = jsonDecode(raw);
+      final cachedCashiers = getCachedCashiers();
+
+      // 1. Jika kasir memilih avatar spesifik
+      if (selectedUserId != null && selectedUserId > 0) {
+        final expectedHash = map[selectedUserId.toString()];
+        if (expectedHash == inputHash) {
+          return cachedCashiers.firstWhereOrNull((c) => c.id == selectedUserId) ?? user;
+        }
+        return null;
+      }
+
+      // 2. Jika kasir langsung mengetik PIN tanpa pilih avatar
+      for (final entry in map.entries) {
+        if (entry.value == inputHash) {
+          final userId = int.tryParse(entry.key) ?? 0;
+          final matchedCashier = cachedCashiers.firstWhereOrNull((c) => c.id == userId);
+          if (matchedCashier != null) return matchedCashier;
+        }
+      }
+
+      // 3. Cek user yang sedang tersimpan di session
+      if (user != null) {
+        final expectedHash = map[user!.id.toString()];
+        if (expectedHash == inputHash) {
+          return user;
+        }
+      }
+    } catch (_) {}
+
+    return null;
   }
 }

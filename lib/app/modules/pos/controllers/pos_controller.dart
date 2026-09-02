@@ -35,6 +35,9 @@ class PosController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    // 1. Muat cache lokal terlebih dahulu agar UI instan dan siap offline
+    _loadCachedBootstrap();
+    // 2. Ambil data terbaru dari backend
     fetchBootstrap();
     fetchOpenBillsCount();
   }
@@ -45,48 +48,79 @@ class PosController extends GetxController {
     super.onClose();
   }
 
+  /// Memuat data bootstrap dari penyimpanan lokal (Master Data Cache)
+  void _loadCachedBootstrap() {
+    final cachedData = _storageService.getBootstrapCache();
+    if (cachedData != null) {
+      _applyBootstrapData(cachedData);
+    }
+  }
+
+  /// Terapkan payload data bootstrap ke state aplikasi
+  void _applyBootstrapData(Map<String, dynamic> data) {
+    // 1. Categories
+    if (data['categories'] != null) {
+      final List catList = data['categories'];
+      categories.assignAll(
+        catList.map((e) => CategoryModel.fromJson(e)).toList(),
+      );
+    }
+
+    // 2. Products
+    if (data['products'] != null) {
+      final List prodList = data['products'];
+      products.assignAll(
+        prodList.map((e) => ProductModel.fromJson(e)).toList(),
+      );
+    }
+
+    // 3. Occupied Tables
+    if (data['occupied_tables'] != null) {
+      final List tables = data['occupied_tables'];
+      occupiedTables.assignAll(tables.map((e) => e.toString()).toList());
+    }
+
+    // 4. Cafe Settings
+    if (data['settings'] != null) {
+      cafeSettings.value = CafeSettingsModel.fromJson(data['settings']);
+    }
+
+    // 5. Presets
+    if (data['quick_cash_presets'] != null) {
+      final List presets = data['quick_cash_presets'];
+      quickCashPresets.assignAll(
+        presets.map((e) => int.tryParse(e.toString()) ?? 0).toList(),
+      );
+    }
+  }
+
   /// Ambil data lengkap POS (Kategori, Produk, Meja Terisi, Info Kafe, Shift)
-  Future<void> fetchBootstrap() async {
-    isLoading.value = true;
+  Future<void> fetchBootstrap({bool isSilent = false}) async {
+    final bool hasExistingData = products.isNotEmpty;
+    if (!hasExistingData && !isSilent) {
+      isLoading.value = true;
+    }
+
     try {
+      // Jika kasir masuk dalam mode offline token, coba lakukan auto re-auth jika internet sudah aktif
+      if (_storageService.isOfflineToken) {
+        await _apiProvider.ensureAuthenticated();
+      }
+
+      // Jika masih offline token (internet belum ada), tetap gunakan data cache lokal
+      if (_storageService.isOfflineToken) {
+        return;
+      }
+
       final response = await _apiProvider.get(ApiConstants.bootstrap);
       if (response.data != null && response.data['success'] == true) {
         final data = response.data['data'];
 
-        // 1. Categories
-        if (data['categories'] != null) {
-          final List catList = data['categories'];
-          categories.assignAll(
-            catList.map((e) => CategoryModel.fromJson(e)).toList(),
-          );
-        }
+        // Terapkan data ke model
+        _applyBootstrapData(data);
 
-        // 2. Products
-        if (data['products'] != null) {
-          final List prodList = data['products'];
-          products.assignAll(
-            prodList.map((e) => ProductModel.fromJson(e)).toList(),
-          );
-        }
-
-        // 3. Occupied Tables
-        if (data['occupied_tables'] != null) {
-          final List tables = data['occupied_tables'];
-          occupiedTables.assignAll(tables.map((e) => e.toString()).toList());
-        }
-
-        // 4. Cafe Settings
-        if (data['settings'] != null) {
-          cafeSettings.value = CafeSettingsModel.fromJson(data['settings']);
-        }
-
-        // 5. Presets
-        if (data['quick_cash_presets'] != null) {
-          final List presets = data['quick_cash_presets'];
-          quickCashPresets.assignAll(
-            presets.map((e) => int.tryParse(e.toString()) ?? 0).toList(),
-          );
-        }
+        // Simpan ke storage untuk master cache offline berikutnya
+        await _storageService.saveBootstrapCache(data);
 
         // 6. Active Shift check
         if (Get.isRegistered<ShiftController>()) {
@@ -103,7 +137,9 @@ class PosController extends GetxController {
         }
       }
     } catch (e) {
-      AppSnackbar.danger('Koneksi POS', ApiProvider.getErrorMessage(e));
+      if (products.isEmpty) {
+        AppSnackbar.danger('Koneksi POS', ApiProvider.getErrorMessage(e));
+      }
     } finally {
       isLoading.value = false;
     }

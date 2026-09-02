@@ -83,7 +83,8 @@ class OnlineOrderPollingService extends GetxService {
         final hasNew = data['has_new_orders'] == true;
         final latestId = (data['latest_order_id'] as num?)?.toInt() ?? _lastOrderId;
         final activeCount = (data['active_orders_count'] as num?)?.toInt() ?? 0;
-        final isActive = data['is_online_order_active'] == true;
+        final rawActive = data['is_online_order_active'] ?? data['is_active'];
+        final isActive = rawActive == null ? true : (rawActive == true || rawActive == 1 || rawActive == '1');
 
         activeOrdersCount.value = activeCount;
         isOnlineOrderActive.value = isActive;

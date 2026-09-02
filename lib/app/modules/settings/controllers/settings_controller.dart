@@ -9,6 +9,7 @@ import '../../../data/providers/api_provider.dart';
 import '../../../data/services/storage_service.dart';
 import '../../../data/services/offline_sync_service.dart';
 import '../../../data/services/esc_pos_printer_service.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../core/services/sound_service.dart';
 import '../../../core/utils/app_snackbar.dart';
 import '../../auth/controllers/auth_controller.dart';
@@ -21,6 +22,10 @@ class SettingsController extends GetxController {
 
   final Rx<UserModel?> currentUser = Rx<UserModel?>(null);
   final TextEditingController baseUrlController = TextEditingController();
+
+  void resetBaseUrlToDefault() {
+    baseUrlController.text = ApiConstants.defaultBaseUrl;
+  }
 
   // State Audio Notifikasi Kustom & Presets
   final RxString selectedPreset = 'bell_classic'.obs;

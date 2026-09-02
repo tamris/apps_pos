@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:get/get.dart';
 import '../../../data/models/shift_model.dart';
 import '../../../data/providers/api_provider.dart';
@@ -29,6 +30,11 @@ class ShiftController extends GetxController {
   /// Ambil status shift aktif kasir saat ini
   Future<void> fetchCurrentShift() async {
     try {
+      if (_storageService.isOfflineToken) {
+        await _apiProvider.ensureAuthenticated();
+      }
+      if (_storageService.isOfflineToken) return;
+
       final response = await _apiProvider.get(ApiConstants.currentShift);
       if (response.data != null && response.data['success'] == true) {
         hasActiveShift.value = response.data['has_active_shift'] == true;
@@ -72,6 +78,28 @@ class ShiftController extends GetxController {
         return false;
       }
     } catch (e) {
+      if (_isNetworkError(e)) {
+        // Fallback offline shift
+        final user = _storageService.user;
+        final offlineShift = ShiftModel(
+          id: -1,
+          userId: user?.id,
+          status: 'open',
+          startTime: DateTime.now().toIso8601String(),
+          startingCash: startingCash,
+          expectedCash: startingCash,
+        );
+        currentShift.value = offlineShift;
+        hasActiveShift.value = true;
+        await _storageService.saveActiveShift(offlineShift);
+
+        AppSnackbar.warning(
+          'Shift Kasir Dibuka (Offline)',
+          'Shift dibuka dalam mode offline lokal dengan modal awal kasir.',
+        );
+        return true;
+      }
+
       AppSnackbar.danger('Gagal Buka Shift', ApiProvider.getErrorMessage(e));
       return false;
     } finally {
@@ -118,6 +146,19 @@ class ShiftController extends GetxController {
         return false;
       }
     } catch (e) {
+      if (_isNetworkError(e) && currentShift.value?.id == -1) {
+        // Tutup shift offline lokal
+        currentShift.value = null;
+        hasActiveShift.value = false;
+        await _storageService.saveActiveShift(null);
+
+        AppSnackbar.warning(
+          'Shift Ditutup (Offline)',
+          'Shift kasir offline berhasil ditutup di perangkat ini.',
+        );
+        return true;
+      }
+
       final errorMsg = ApiProvider.getErrorMessage(e);
       final isOpenBillError = errorMsg.toLowerCase().contains('bill') || errorMsg.toLowerCase().contains('meja');
 
@@ -135,5 +176,16 @@ class ShiftController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  bool _isNetworkError(dynamic e) {
+    if (e is DioException) {
+      return e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.unknown;
+    }
+    return true;
   }
 }

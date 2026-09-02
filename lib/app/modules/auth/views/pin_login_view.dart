@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/auth_controller.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/app_snackbar.dart';
 import '../../../data/services/storage_service.dart';
 import '../../../data/providers/api_provider.dart';
 
-class PinLoginView extends GetView<AuthController> {
+class PinLoginView extends StatelessWidget {
   const PinLoginView({super.key});
+
+  AuthController get controller =>
+      Get.isRegistered<AuthController>() ? Get.find<AuthController>() : Get.put(AuthController());
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +44,7 @@ class PinLoginView extends GetView<AuthController> {
                     children: [
                       // Logo & Header
                       _buildHeader(),
+                      _buildOfflineBadge(),
                       const SizedBox(height: 28),
 
                       // 6-Digit PIN Indicator Dots
@@ -116,6 +121,36 @@ class PinLoginView extends GetView<AuthController> {
         ),
       ],
     );
+  }
+
+  Widget _buildOfflineBadge() {
+    return Obx(() {
+      if (!controller.isOfflineMode.value) return const SizedBox.shrink();
+      return Container(
+        margin: const EdgeInsets.only(top: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.amber.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.amber.shade300),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.cloud_off_rounded, size: 14, color: Colors.amber.shade800),
+            const SizedBox(width: 6),
+            Text(
+              'Mode Offline (Lokal)',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: Colors.amber.shade900,
+              ),
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   Widget _buildPinDots() {
@@ -351,6 +386,12 @@ class PinLoginView extends GetView<AuthController> {
           ],
         ),
         actions: [
+          TextButton(
+            onPressed: () {
+              textController.text = ApiConstants.defaultBaseUrl;
+            },
+            child: const Text('Reset Default', style: TextStyle(color: AppColors.textSecondary)),
+          ),
           TextButton(
             onPressed: () => Get.back(),
             child: const Text('Batal'),

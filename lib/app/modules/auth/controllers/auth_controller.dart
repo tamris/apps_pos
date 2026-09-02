@@ -1,9 +1,11 @@
+import 'package:dio/dio.dart';
 import 'package:get/get.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/models/shift_model.dart';
 import '../../../data/providers/api_provider.dart';
 import '../../../data/services/storage_service.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../../core/utils/app_snackbar.dart';
 import '../../../routes/app_routes.dart';
 
 class AuthController extends GetxController {
@@ -16,10 +18,16 @@ class AuthController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxBool isFetchingCashiers = false.obs;
   final RxString errorMessage = ''.obs;
+  final RxBool isOfflineMode = false.obs;
 
   @override
   void onInit() {
     super.onInit();
+    // Load cached cashiers first so avatars appear immediately
+    final cached = _storageService.getCachedCashiers();
+    if (cached.isNotEmpty) {
+      cashiers.assignAll(cached);
+    }
     fetchCashiers();
   }
 
@@ -30,10 +38,18 @@ class AuthController extends GetxController {
       final response = await _apiProvider.get(ApiConstants.cashiers);
       if (response.data != null && response.data['success'] == true) {
         final List list = response.data['data'] ?? [];
-        cashiers.assignAll(list.map((e) => UserModel.fromJson(e)).toList());
+        final parsedCashiers = list.map((e) => UserModel.fromJson(e)).toList();
+        cashiers.assignAll(parsedCashiers);
+        await _storageService.saveCachedCashiers(parsedCashiers);
+        isOfflineMode.value = false;
       }
     } catch (_) {
-      // Fallback silent: kasir tetap bisa login langsung dengan PIN tanpa memilih avatar
+      // Fallback offline: gunakan kasir dari storage
+      final cached = _storageService.getCachedCashiers();
+      if (cached.isNotEmpty) {
+        cashiers.assignAll(cached);
+      }
+      isOfflineMode.value = true;
     } finally {
       isFetchingCashiers.value = false;
     }
@@ -73,16 +89,17 @@ class AuthController extends GetxController {
     }
   }
 
-  /// Submit PIN ke backend
+  /// Submit PIN ke backend atau verifikasi offline PIN jika server tidak dapat dihubungi
   Future<void> loginWithPin() async {
     if (pin.value.length != 6) return;
 
     isLoading.value = true;
     errorMessage.value = '';
+    final enteredPin = pin.value;
 
     try {
       final payload = {
-        'pin': pin.value,
+        'pin': enteredPin,
         'device_name': 'POS-Mobile-App',
       };
 
@@ -100,10 +117,12 @@ class AuthController extends GetxController {
           activeShift = ShiftModel.fromJson(data['active_shift']);
         }
 
-        // Simpan ke storage
+        // Simpan ke storage (termasuk hash PIN dan activePin untuk login offline / auto re-auth)
         await _storageService.saveToken(token);
         await _storageService.saveUser(userData);
         await _storageService.saveActiveShift(activeShift);
+        await _storageService.saveCashierPinHash(userData.id, enteredPin);
+        await _storageService.saveActivePin(enteredPin);
 
         pin.value = '';
         Get.offAllNamed(AppRoutes.pos);
@@ -112,17 +131,62 @@ class AuthController extends GetxController {
         pin.value = '';
       }
     } catch (e) {
-      errorMessage.value = ApiProvider.getErrorMessage(e);
-      pin.value = '';
+      // Cek apakah error adalah masalah koneksi jaringan (offline)
+      final bool isNetworkIssue = _isNetworkError(e);
+
+      if (isNetworkIssue) {
+        // Coba Offline PIN Auth dari cache lokal
+        final matchedUser = _storageService.verifyOfflinePin(
+          enteredPin,
+          selectedCashier.value?.id,
+        );
+
+        if (matchedUser != null) {
+          // Berhasil login offline!
+          await _storageService.saveToken(
+            'offline_token_${matchedUser.id}_${DateTime.now().millisecondsSinceEpoch}',
+          );
+          await _storageService.saveUser(matchedUser);
+          await _storageService.saveActivePin(enteredPin);
+
+          pin.value = '';
+          Get.offAllNamed(AppRoutes.pos);
+          AppSnackbar.warning(
+            'Mode Offline',
+            'Masuk sebagai ${matchedUser.name} dalam mode offline lokal.',
+          );
+          return;
+        } else {
+          errorMessage.value =
+              'Koneksi server gagal & PIN belum pernah login online di perangkat ini.';
+          pin.value = '';
+        }
+      } else {
+        errorMessage.value = ApiProvider.getErrorMessage(e);
+        pin.value = '';
+      }
     } finally {
       isLoading.value = false;
     }
   }
 
+  bool _isNetworkError(dynamic e) {
+    if (e is DioException) {
+      return e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.unknown;
+    }
+    return true;
+  }
+
   /// Logout kasir
   Future<void> logout() async {
     try {
-      await _apiProvider.post(ApiConstants.logout);
+      if (!_storageService.isOfflineToken) {
+        await _apiProvider.post(ApiConstants.logout);
+      }
     } catch (_) {}
     await _storageService.clearAuth();
     Get.offAllNamed(AppRoutes.pinLogin);

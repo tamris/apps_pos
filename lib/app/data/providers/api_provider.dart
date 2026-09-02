@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:get/get.dart' as getx;
 import '../services/storage_service.dart';
 import '../../routes/app_routes.dart';
+import '../../core/constants/api_constants.dart';
 import '../../core/utils/app_snackbar.dart';
 
 class ApiResponse<T> {
@@ -63,12 +64,20 @@ class ApiProvider extends getx.GetxService {
           options.headers['ngrok-skip-browser-warning'] = 'true';
           final token = _storageService.token;
           if (token != null && token.isNotEmpty) {
-            options.headers['Authorization'] = 'Bearer $token';
+            // Jangan kirim offline token ke server karena server Laravel pasti 401
+            if (!_storageService.isOfflineToken) {
+              options.headers['Authorization'] = 'Bearer $token';
+            }
           }
           return handler.next(options);
         },
         onError: (DioException error, handler) {
           if (error.response?.statusCode == 401) {
+            // Jika dalam mode offline, jangan logout paksa
+            if (_storageService.isOfflineToken) {
+              return handler.next(error);
+            }
+
             // Token expired or invalid
             _storageService.clearAuth();
             if (getx.Get.currentRoute != AppRoutes.pinLogin) {
@@ -83,6 +92,37 @@ class ApiProvider extends getx.GetxService {
         },
       ),
     );
+  }
+
+  /// Memastikan token valid sebelum request penting (seperti sync). Melakukan auto re-auth jika masih offline token.
+  Future<bool> ensureAuthenticated() async {
+    if (!_storageService.hasToken) return false;
+    if (!_storageService.isOfflineToken) return true;
+
+    final pin = _storageService.activePin;
+    if (pin == null || pin.isEmpty) return false;
+
+    try {
+      final response = await _dio.post(
+        ApiConstants.pinLogin,
+        data: {
+          'pin': pin,
+          'device_name': 'POS-Mobile-App',
+        },
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        final data = response.data['data'];
+        final realToken = data['token'];
+        if (realToken != null && realToken.toString().isNotEmpty) {
+          await _storageService.saveToken(realToken.toString());
+          return true;
+        }
+      }
+    } catch (_) {
+      // Server belum online
+    }
+    return false;
   }
 
   /// Reload Dio Base Options when user changes Server IP in Settings

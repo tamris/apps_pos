@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:uuid/uuid.dart';
 import 'storage_service.dart';
+import '../models/shift_model.dart';
 import '../providers/api_provider.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/app_snackbar.dart';
 import '../../modules/pos/controllers/pos_controller.dart';
+import '../../modules/shift/controllers/shift_controller.dart';
 
 class OfflineSyncService extends GetxService {
   final StorageService _storageService = Get.find<StorageService>();
@@ -125,45 +127,98 @@ class OfflineSyncService extends GetxService {
     );
   }
 
-  /// Melakukan sinkronisasi batch semua transaksi offline yang tersimpan ke backend
+  /// Melakukan sinkronisasi batch semua transaksi offline dan shift offline yang tersimpan ke backend
   Future<bool> syncPendingTransactions() async {
     final queue = _storageService.getOfflineQueue();
-    if (queue.isEmpty) {
+    final activeShift = _storageService.activeShift;
+
+    // Jika tidak ada antrean transaksi dan tidak ada shift offline yang perlu disinkronkan
+    if (queue.isEmpty && (activeShift == null || activeShift.id > 0)) {
       AppSnackbar.info(
         'Sinkronisasi',
-        'Tidak ada antrean transaksi offline yang perlu disinkronkan.',
+        'Tidak ada data offline yang perlu disinkronkan.',
       );
       return true;
     }
 
-    // Sanitasi data: perbaiki jika ada product_id = 0 agar tidak melanggar foreign key MySQL
-    final sanitizedQueue = queue.map((rawTx) {
-      final tx = Map<String, dynamic>.from(rawTx);
-      if (tx['items'] != null && tx['items'] is List) {
-        final itemsList = (tx['items'] as List).map((rawItem) {
-          final item = Map<String, dynamic>.from(rawItem);
-          int pId = int.tryParse(item['id']?.toString() ?? '0') ?? 0;
-          if (pId <= 0 && Get.isRegistered<PosController>()) {
-            final pos = Get.find<PosController>();
-            final name = item['name']?.toString() ?? '';
-            final match = pos.products.firstWhereOrNull((p) => p.name.toLowerCase() == name.toLowerCase());
-            if (match != null) {
-              pId = match.id;
-            } else if (pos.products.isNotEmpty) {
-              pId = pos.products.first.id;
-            }
-          }
-          if (pId <= 0) pId = 1;
-          item['id'] = pId;
-          return item;
-        }).toList();
-        tx['items'] = itemsList;
-      }
-      return tx;
-    }).toList();
-
     isSyncing.value = true;
     try {
+      // 1. Pastikan terautentikasi (Silent re-auth jika kasir masih menggunakan offline token)
+      final bool isAuthenticated = await _apiProvider.ensureAuthenticated();
+      if (!isAuthenticated && _storageService.isOfflineToken) {
+        AppSnackbar.danger(
+          'Gagal Sinkronisasi',
+          'Tidak dapat terhubung ke server atau sesi kasir belum terautentikasi.',
+        );
+        return false;
+      }
+
+      // 2. Sinkronisasi Shift Offline (jika kasir membuka shift saat offline / id <= 0)
+      if (activeShift != null && activeShift.id <= 0) {
+        try {
+          final shiftCheck = await _apiProvider.get(ApiConstants.currentShift);
+          bool serverHasShift = false;
+          if (shiftCheck.data != null && shiftCheck.data['success'] == true) {
+            serverHasShift = shiftCheck.data['has_active_shift'] == true;
+          }
+
+          if (!serverHasShift) {
+            // Buka shift resmi di server dengan modal awal yang diinput kasir saat offline
+            final startRes = await _apiProvider.post(
+              ApiConstants.startShift,
+              data: {'starting_cash': activeShift.startingCash},
+            );
+            if (startRes.data != null && startRes.data['success'] == true) {
+              final realShift = ShiftModel.fromJson(startRes.data['data']);
+              await _storageService.saveActiveShift(realShift);
+              if (Get.isRegistered<ShiftController>()) {
+                final shiftCtrl = Get.find<ShiftController>();
+                shiftCtrl.currentShift.value = realShift;
+                shiftCtrl.hasActiveShift.value = true;
+              }
+            }
+          }
+        } catch (_) {
+          // Lanjutkan jika ada kendala spesifik shift
+        }
+      }
+
+      // Jika hanya ada shift offline tanpa transaksi
+      if (queue.isEmpty) {
+        AppSnackbar.success(
+          'Sinkronisasi Shift Berhasil',
+          'Shift kasir offline berhasil disinkronkan ke server.',
+        );
+        return true;
+      }
+
+      // 3. Sanitasi data transaksi: perbaiki product_id jika <= 0
+      final sanitizedQueue = queue.map((rawTx) {
+        final tx = Map<String, dynamic>.from(rawTx);
+        if (tx['items'] != null && tx['items'] is List) {
+          final itemsList = (tx['items'] as List).map((rawItem) {
+            final item = Map<String, dynamic>.from(rawItem);
+            int pId = int.tryParse(item['id']?.toString() ?? '0') ?? 0;
+            if (pId <= 0 && Get.isRegistered<PosController>()) {
+              final pos = Get.find<PosController>();
+              final name = item['name']?.toString() ?? '';
+              final match = pos.products.firstWhereOrNull((p) => p.name.toLowerCase() == name.toLowerCase());
+              if (match != null) {
+                pId = match.id;
+              } else if (pos.products.isNotEmpty) {
+                pId = pos.products.first.id;
+              }
+            }
+            if (pId <= 0) pId = 1;
+            item['id'] = pId;
+            return item;
+          }).toList();
+          tx['items'] = itemsList;
+        }
+        return tx;
+      }).toList();
+
+      // 4. Kirim transaksi offline ke server
       final response = await _apiProvider.post(
         ApiConstants.syncOffline,
         data: {
@@ -177,8 +232,17 @@ class OfflineSyncService extends GetxService {
         final syncedCount = response.data['synced_count'] ?? queue.length;
         AppSnackbar.success(
           'Sinkronisasi Berhasil',
-          '$syncedCount transaksi offline berhasil dikirim ke server.',
+          '$syncedCount transaksi offline berhasil disinkronkan dan masuk ke shift kasir.',
         );
+
+        // 5. Refresh master data & status shift dari server
+        if (Get.isRegistered<PosController>()) {
+          Get.find<PosController>().fetchBootstrap(isSilent: true);
+        }
+        if (Get.isRegistered<ShiftController>()) {
+          Get.find<ShiftController>().fetchCurrentShift();
+        }
+
         return true;
       } else {
         AppSnackbar.danger(

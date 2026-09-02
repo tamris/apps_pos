@@ -5,6 +5,7 @@ import '../../../data/models/cart_item_model.dart';
 import '../../../data/models/product_model.dart';
 import '../../../data/models/open_bill_model.dart';
 import '../../../data/providers/api_provider.dart';
+import '../../../data/services/storage_service.dart';
 import '../../../data/services/offline_sync_service.dart';
 import '../../../data/services/esc_pos_printer_service.dart';
 import '../../../core/constants/api_constants.dart';
@@ -16,6 +17,7 @@ import '../../shift/views/shift_dialogs.dart';
 
 class CartController extends GetxController {
   final ApiProvider _apiProvider = Get.find<ApiProvider>();
+  final StorageService _storageService = Get.find<StorageService>();
   final OfflineSyncService _offlineSyncService = Get.find<OfflineSyncService>();
   final EscPosPrinterService _printerService = Get.find<EscPosPrinterService>();
 
@@ -333,6 +335,15 @@ class CartController extends GetxController {
         'Transaksi disimpan di antrean offline lokal ($offlineId) karena kendala koneksi.',
       );
 
+      final posCtrl = Get.isRegistered<PosController>() ? Get.find<PosController>() : null;
+      final cafeName = (posCtrl?.cafeSettings.value.shopName.isNotEmpty == true)
+          ? posCtrl!.cafeSettings.value.shopName
+          : 'NOLI COFFE & SPACE';
+      final cafeAddress = (posCtrl?.cafeSettings.value.address.isNotEmpty == true)
+          ? posCtrl!.cafeSettings.value.address
+          : 'POS Kasir (Offline)';
+      final cashierName = _storageService.user?.name ?? 'Kasir';
+
       final offlineKitchenPayload = {
         'invoice_number': offlineId,
         'date': DateTime.now().toString().substring(0, 16),
@@ -343,10 +354,10 @@ class CartController extends GetxController {
       };
 
       final offlineReceiptPayload = {
-        'header': {'shop_name': 'NOLI COFFE & SPACE', 'address': 'POS Kasir (Offline)'},
+        'header': {'shop_name': cafeName, 'address': cafeAddress},
         'invoice_number': offlineId,
         'date': DateTime.now().toString().substring(0, 16),
-        'cashier_name': 'Kasir',
+        'cashier_name': cashierName,
         'order_type': currentOrderType,
         'table_number': savedTable.isNotEmpty ? savedTable : null,
         'customer_name': savedCustomer.isNotEmpty ? savedCustomer : null,
