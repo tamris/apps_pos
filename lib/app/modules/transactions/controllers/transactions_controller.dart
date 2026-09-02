@@ -62,6 +62,19 @@ class TransactionsController extends GetxController {
     }
   }
 
+  /// Tampilkan Pratinjau Kertas Struk
+  Future<void> previewReceipt(int transactionId) async {
+    try {
+      final response = await _apiProvider.get(ApiConstants.receiptData(transactionId));
+      if (response.data != null && response.data['success'] == true) {
+        final payload = response.data['data'];
+        ReceiptViewDialog.show(payload);
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Pratinjau Struk', ApiProvider.getErrorMessage(e));
+    }
+  }
+
   void onSearchChanged(String query) {
     searchQuery.value = query;
     fetchTodayTransactions();

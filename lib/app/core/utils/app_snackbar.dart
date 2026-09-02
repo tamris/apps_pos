@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../services/sound_service.dart';
 import '../theme/app_colors.dart';
 
 class AppSnackbar {
@@ -52,6 +53,125 @@ class AppSnackbar {
       actionLabel: actionLabel,
       onAction: onAction,
       duration: const Duration(seconds: 4),
+    );
+  }
+
+  /// Tampilkan Pop-Up Notifikasi Pesanan Online Masuk (Simpel, Bersih, Bebas Overflow)
+  static void showOnlineOrderAlert({
+    String? totalFormatted,
+    VoidCallback? onTap,
+  }) {
+    if (Get.isSnackbarOpen) {
+      Get.closeCurrentSnackbar();
+    }
+
+    Get.rawSnackbar(
+      snackPosition: SnackPosition.TOP,
+      backgroundColor: Colors.transparent,
+      margin: const EdgeInsets.only(top: 12, left: 16, right: 16),
+      padding: EdgeInsets.zero,
+      duration: const Duration(seconds: 10),
+      snackStyle: SnackStyle.FLOATING,
+      messageText: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 540),
+          child: Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            elevation: 8,
+            shadowColor: Colors.black.withAlpha(40),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () {
+                SoundService.stopSound();
+                Get.closeCurrentSnackbar();
+                onTap?.call();
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.primary.withAlpha(120), width: 1.5),
+                ),
+                child: Row(
+                  children: [
+                    // Icon Lonceng / Pesanan
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: AppColors.primarySoft,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.delivery_dining_rounded,
+                        color: AppColors.primary,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+
+                    // Info Bersih & Padat
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Pesanan Online Masuk!',
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            (totalFormatted != null && totalFormatted.isNotEmpty)
+                                ? 'Total: $totalFormatted • Ketuk untuk proses'
+                                : 'Ketuk untuk melihat rincian pesanan',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+
+                    // Tombol Buka / Lihat
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Lihat',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(width: 4),
+                          Icon(Icons.arrow_forward_rounded, size: 14, color: Colors.white),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 

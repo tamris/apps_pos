@@ -15,10 +15,36 @@ class StorageService extends GetxService {
   static const String _keyOfflineQueue = 'offline_transactions_queue';
   static const String _keyPrinterMac = 'selected_printer_mac';
   static const String _keyPrinterName = 'selected_printer_name';
+  static const String _keyCustomSoundPath = 'custom_order_sound_path';
+  static const String _keyCustomSoundName = 'custom_order_sound_name';
+
+  static const String _keySelectedSoundPreset = 'selected_sound_preset';
 
   Future<StorageService> init() async {
     _prefs = await SharedPreferences.getInstance();
     return this;
+  }
+
+  // --- Notification Sound Settings (Presets & Custom) ---
+  String get selectedSoundPreset => _prefs.getString(_keySelectedSoundPreset) ?? 'bell_classic';
+
+  Future<void> saveSelectedSoundPreset(String preset) async {
+    await _prefs.setString(_keySelectedSoundPreset, preset);
+  }
+
+  String? get customSoundPath => _prefs.getString(_keyCustomSoundPath);
+  String? get customSoundName => _prefs.getString(_keyCustomSoundName);
+
+  Future<void> saveCustomSound(String path, String name) async {
+    await _prefs.setString(_keyCustomSoundPath, path);
+    await _prefs.setString(_keyCustomSoundName, name);
+    await saveSelectedSoundPreset('custom');
+  }
+
+  Future<void> clearCustomSound() async {
+    await _prefs.remove(_keyCustomSoundPath);
+    await _prefs.remove(_keyCustomSoundName);
+    await saveSelectedSoundPreset('bell_classic');
   }
 
   // --- Base URL ---

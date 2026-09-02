@@ -124,29 +124,6 @@ class ProductCard extends StatelessWidget {
                           ),
                         ),
 
-                      // Badge Kategori (Pojok Kiri Atas)
-                      Positioned(
-                        top: 6,
-                        left: 6,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2.5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withAlpha(140),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            product.categoryName,
-                            style: const TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
 
                       // Cart Quantity Badge (Pojok Kanan Atas - hanya jika produk tersedia)
                       if (isAvailable)

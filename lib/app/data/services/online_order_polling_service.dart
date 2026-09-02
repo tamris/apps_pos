@@ -1,14 +1,17 @@
 import 'dart:async';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../core/constants/api_constants.dart';
+import '../../core/services/sound_service.dart';
 import '../../core/utils/app_snackbar.dart';
 import '../../modules/online_orders/controllers/online_orders_controller.dart';
+import '../../routes/app_routes.dart';
 import '../models/online_order_model.dart';
 import '../providers/api_provider.dart';
+import 'storage_service.dart';
 
 class OnlineOrderPollingService extends GetxService {
   final ApiProvider _apiProvider = Get.find<ApiProvider>();
+  final StorageService _storageService = Get.find<StorageService>();
 
   Timer? _pollingTimer;
   int _lastOrderId = 0;
@@ -22,7 +25,10 @@ class OnlineOrderPollingService extends GetxService {
   @override
   void onInit() {
     super.onInit();
-    startPolling();
+    // Inisialisasi awal hanya jika user sudah login
+    if (_storageService.hasToken) {
+      initCheck();
+    }
   }
 
   @override
@@ -31,23 +37,39 @@ class OnlineOrderPollingService extends GetxService {
     super.onClose();
   }
 
+  /// Cek inisialisasi awal sekali saat aplikasi dibuka
+  Future<void> initCheck() async {
+    await checkNewOrders();
+  }
+
+  /// Mulai timer berkala (hanya aktif jika toko online sedang Buka)
   void startPolling() {
     stopPolling();
-    // Immediate initial check
+    if (!isOnlineOrderActive.value) return;
+
+    // Cek langsung saat dinyalakan
     checkNewOrders();
-    // Poll every 12 seconds
+
+    // Timer berkala setiap 12 detik
     _pollingTimer = Timer.periodic(const Duration(seconds: 12), (_) {
+      // Jika status toko berubah jadi nonaktif, hentikan timer seketika
+      if (!isOnlineOrderActive.value) {
+        stopPolling();
+        return;
+      }
       checkNewOrders();
     });
   }
 
+  /// Hentikan total timer berkala (0 request ke backend)
   void stopPolling() {
     _pollingTimer?.cancel();
     _pollingTimer = null;
   }
 
+  /// Cek pesanan baru masuk
   Future<void> checkNewOrders() async {
-    if (_isChecking) return;
+    if (_isChecking || !_storageService.hasToken) return;
     _isChecking = true;
 
     try {
@@ -66,24 +88,38 @@ class OnlineOrderPollingService extends GetxService {
         activeOrdersCount.value = activeCount;
         isOnlineOrderActive.value = isActive;
 
+        // SMART POLLING: Jika toko ternyata sedang dijeda di server, hentikan timer
+        if (!isActive) {
+          stopPolling();
+        } else {
+          // Jika toko buka tapi timer belum jalan, jalankan timer berkala
+          _pollingTimer ??= Timer.periodic(const Duration(seconds: 10), (_) {
+            if (!isOnlineOrderActive.value) {
+              stopPolling();
+              return;
+            }
+            checkNewOrders();
+          });
+        }
+
         // Jika ada pesanan baru dan bukan saat inisialisasi pertama kali
         if (hasNew && _lastOrderId > 0) {
           final newOrders = (data['new_orders'] as List? ?? []);
           if (newOrders.isNotEmpty) {
             final latest = newOrders.last;
-            final custName = latest['customer_name'] ?? 'Pelanggan';
-            final table = latest['table_number'];
             final totalFormatted = latest['formatted_total'] ?? '';
-            final location = table != null ? 'Meja $table' : 'Take Away';
 
-            // Haptic alert feedback
-            try {
-              HapticFeedback.heavyImpact();
-            } catch (_) {}
+            // 1. Play Crisp Bell Notification Sound & Haptic Alert
+            SoundService.playOrderNotificationSound();
 
-            AppSnackbar.info(
-              '🛎️ Pesanan Online Masuk!',
-              '$location • $custName ($totalFormatted)',
+            // 2. Show Clean, Simple & Overflow-Proof Alert Pop-Up
+            AppSnackbar.showOnlineOrderAlert(
+              totalFormatted: totalFormatted,
+              onTap: () {
+                if (Get.currentRoute != AppRoutes.onlineOrders) {
+                  Get.toNamed(AppRoutes.onlineOrders);
+                }
+              },
             );
 
             // Jika sedang membuka layar OnlineOrdersView, trigger auto refresh
@@ -106,6 +142,7 @@ class OnlineOrderPollingService extends GetxService {
   }
 
   Future<void> refreshStats() async {
+    if (!_storageService.hasToken) return;
     try {
       final response = await _apiProvider.get(ApiConstants.onlineOrdersStats);
       if (response.statusCode == 200 && response.data != null && response.data['data'] != null) {
@@ -114,6 +151,10 @@ class OnlineOrderPollingService extends GetxService {
         activeOrdersCount.value = stats.active;
         pendingOrdersCount.value = stats.pending;
         isOnlineOrderActive.value = stats.isOnlineOrderActive;
+
+        if (!stats.isOnlineOrderActive) {
+          stopPolling();
+        }
       }
     } catch (_) {}
   }

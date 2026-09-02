@@ -153,6 +153,11 @@ class OnlineOrdersController extends GetxController {
       if (response.statusCode == 200) {
         isStoreOnlineActive.value = nextState;
         pollingService.isOnlineOrderActive.value = nextState;
+        if (nextState) {
+          pollingService.startPolling();
+        } else {
+          pollingService.stopPolling();
+        }
         final msg = response.data['message'] ?? (nextState ? 'Pesanan online DIBUKA' : 'Pesanan online DITUTUP');
         AppSnackbar.info('Status Toko Online', msg);
         await fetchOrders(silent: true);

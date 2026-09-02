@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/widgets/skeletons/list_item_skeleton.dart';
 import '../../../data/models/transaction_model.dart';
+import 'widgets/transaction_detail_dialog.dart';
 
 class TransactionsView extends GetView<TransactionsController> {
   const TransactionsView({super.key});
@@ -143,145 +144,162 @@ class TransactionsView extends GetView<TransactionsController> {
         borderRadius: BorderRadius.circular(16),
         side: const BorderSide(color: AppColors.lightBorder, width: 1.2),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top Meta
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          tx.invoiceNumber,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: tx.isCompleted ? AppColors.primarySoft : AppColors.dangerSoft,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          tx.status.toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.bold,
-                            color: tx.isCompleted ? AppColors.primaryDark : AppColors.danger,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => TransactionDetailDialog.show(context, tx, controller),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top Meta
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            tx.invoiceNumber,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: tx.isCompleted ? AppColors.primarySoft : AppColors.dangerSoft,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            tx.status.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.bold,
+                              color: tx.isCompleted ? AppColors.primaryDark : AppColors.danger,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '${tx.time} • ${tx.date}',
-                  style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // Order Type & Payment Method Badges (Wrap to prevent overflow)
-            Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              children: [
-                _buildSmallBadge(
-                  Icons.restaurant_rounded,
-                  tx.orderType == 'dine_in'
-                      ? 'Dine In ${tx.tableNumber != null && tx.tableNumber!.isNotEmpty ? "(Meja ${tx.tableNumber})" : ""}'
-                      : 'Take Away',
-                  AppColors.primary,
-                ),
-                _buildSmallBadge(
-                  Icons.payment_rounded,
-                  tx.paymentMethod.toUpperCase(),
-                  AppColors.secondary,
-                ),
-                if (tx.customerName != null && tx.customerName!.isNotEmpty)
-                  _buildSmallBadge(
-                    Icons.person_outline,
-                    tx.customerName!,
-                    AppColors.info,
-                  ),
-              ],
-            ),
-            const SizedBox(height: 10),
-
-            // Details summary
-            if (tx.details.isNotEmpty) ...[
-              ...tx.details.take(3).map((item) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  const SizedBox(width: 8),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        '${item.quantity}x ${item.name}',
-                        style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
+                        '${tx.time} • ${tx.date}',
+                        style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
                       ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textMuted),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // Order Type & Payment Method Badges (Wrap to prevent overflow)
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  _buildSmallBadge(
+                    Icons.restaurant_rounded,
+                    tx.orderType == 'dine_in'
+                        ? (tx.tableNumber != null && tx.tableNumber!.isNotEmpty ? 'Dine In (Meja ${tx.tableNumber})' : 'Dine In')
+                        : 'Take Away',
+                    AppColors.primary,
+                  ),
+                  _buildSmallBadge(
+                    Icons.payment_rounded,
+                    tx.paymentMethod.toUpperCase(),
+                    AppColors.secondary,
+                  ),
+                  if (tx.customerName != null && tx.customerName!.isNotEmpty)
+                    _buildSmallBadge(
+                      Icons.person_outline,
+                      tx.customerName!,
+                      AppColors.info,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              // Details summary
+              if (tx.details.isNotEmpty) ...[
+                ...tx.details.take(3).map((item) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${item.quantity}x ${item.name}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          CurrencyFormatter.format(item.subtotal),
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                if (tx.details.length > 3)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2.0),
+                    child: Text(
+                      '+${tx.details.length - 3} item lainnya... (Ketuk untuk rincian)',
+                      style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: AppColors.primary),
+                    ),
+                  ),
+                const Divider(height: 16),
+              ],
+
+              // Total & Cetak Ulang Action
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Total Pembayaran', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                       Text(
-                        CurrencyFormatter.format(item.subtotal),
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                        CurrencyFormatter.format(tx.total),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primaryDark,
+                        ),
                       ),
                     ],
                   ),
-                );
-              }),
-              if (tx.details.length > 3)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2.0),
-                  child: Text(
-                    '+${tx.details.length - 3} item lainnya...',
-                    style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: AppColors.textSecondary),
-                  ),
-                ),
-              const Divider(height: 16),
-            ],
-
-            // Total & Cetak Ulang Action
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Total Pembayaran', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                    Text(
-                      CurrencyFormatter.format(tx.total),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primaryDark,
-                      ),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.lightBackground,
+                      foregroundColor: AppColors.textPrimary,
+                      side: const BorderSide(color: AppColors.lightBorder),
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     ),
-                  ],
-                ),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.lightBackground,
-                    foregroundColor: AppColors.textPrimary,
-                    side: const BorderSide(color: AppColors.lightBorder),
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    icon: const Icon(Icons.print_outlined, size: 16),
+                    label: const Text('Cetak Struk', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    onPressed: () => controller.printOrPreviewReceipt(tx.id),
                   ),
-                  icon: const Icon(Icons.print_outlined, size: 16),
-                  label: const Text('Cetak Struk', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  onPressed: () => controller.printOrPreviewReceipt(tx.id),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
