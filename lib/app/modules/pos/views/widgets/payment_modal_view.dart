@@ -193,7 +193,7 @@ class _PaymentModalViewState extends State<PaymentModalView> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Pilihan Metode Pembayaran (4 Kartu Sama Rata)
+                  // Pilihan Metode Pembayaran (3 Kartu Sama Rata)
                   const Text(
                     'Pilih Metode Pembayaran:',
                     style: TextStyle(
@@ -212,8 +212,6 @@ class _PaymentModalViewState extends State<PaymentModalView> {
                         _buildMethodCard('qris', 'QRIS', Icons.qr_code_scanner_rounded),
                         const SizedBox(width: 8),
                         _buildMethodCard('transfer', 'Transfer', Icons.account_balance_outlined),
-                        const SizedBox(width: 8),
-                        _buildMethodCard('debit', 'Debit EDC', Icons.credit_card_rounded),
                       ],
                     );
                   }),

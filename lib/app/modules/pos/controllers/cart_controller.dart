@@ -110,6 +110,7 @@ class CartController extends GetxController {
   /// Kosongkan seluruh keranjang & reset bill aktif
   void clearCart() {
     items.clear();
+    items.refresh();
     discountPercent.value = 0.0;
     taxPercent.value = 0.0;
     paidAmount.value = 0.0;
@@ -177,6 +178,7 @@ class CartController extends GetxController {
         notes: detail.notes ?? '',
       ));
     }
+    items.refresh();
   }
 
   /// Simpan / Tahan Pesanan sebagai Open Bill (Meja / Nama Pelanggan)
@@ -222,6 +224,7 @@ class CartController extends GetxController {
           if (tableNumber.value.isNotEmpty) {
             posCtrl.markTableOccupied(tableNumber.value);
           }
+          posCtrl.fetchOpenBillsCount();
         }
 
         AppSnackbar.success('Bill Tersimpan', 'Pesanan open bill meja berhasil disimpan.');
@@ -292,6 +295,7 @@ class CartController extends GetxController {
           if (savedTable.isNotEmpty) {
             posCtrl.freeTable(savedTable);
           }
+          posCtrl.fetchOpenBillsCount();
         }
 
         // Kitchen Payload untuk cetak struk dapur

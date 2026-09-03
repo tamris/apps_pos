@@ -55,9 +55,24 @@ class CartItemModel {
     return parts.join(' • ');
   }
 
-  /// Format full notes string sent to backend / receipt
+  /// Format variant/options & manual notes for backend (excluding addons which have their own field)
+  String get variantNotesString {
+    final List<String> parts = [];
+    if (sugarLevel != 'Normal' && sugarLevel.isNotEmpty) {
+      parts.add(sugarLevel);
+    }
+    if (iceLevel != 'Normal Ice' && iceLevel != 'Normal' && iceLevel.isNotEmpty) {
+      parts.add(iceLevel);
+    }
+    if (notes.trim().isNotEmpty) {
+      parts.add(notes.trim());
+    }
+    return parts.join(' • ');
+  }
+
+  /// Format full notes string sent to backend
   String get fullNotesString {
-    final summary = customizationSummary;
+    final summary = variantNotesString;
     return summary.isEmpty ? '' : summary;
   }
 

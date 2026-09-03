@@ -117,29 +117,7 @@ class ShiftDialogs {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 12),
-
-                  // 4 Tombol Pilihan Nominal Cepat (2 Baris x 2 Kolom - Nyaman & Rapi di HP)
-                  Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(child: _buildQuickNominalButton(amountController, 50000)),
-                          const SizedBox(width: 8),
-                          Expanded(child: _buildQuickNominalButton(amountController, 100000)),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(child: _buildQuickNominalButton(amountController, 200000)),
-                          const SizedBox(width: 8),
-                          Expanded(child: _buildQuickNominalButton(amountController, 500000)),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
                   // Buttons
                   Row(
@@ -298,7 +276,7 @@ class ShiftDialogs {
 
                 // Card 1: Info Mulai & Modal Awal
                 Container(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: AppColors.lightBackground,
                     borderRadius: BorderRadius.circular(12),
@@ -312,11 +290,11 @@ class ShiftDialogs {
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
 
                 // Card 2: Rincian Penjualan
                 Container(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: AppColors.lightBackground,
                     borderRadius: BorderRadius.circular(12),
@@ -325,9 +303,9 @@ class ShiftDialogs {
                   child: Column(
                     children: [
                       _buildRow('Penjualan Tunai (Cash)', CurrencyFormatter.format(shift.cashSales)),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       _buildRow('Penjualan QRIS', CurrencyFormatter.format(shift.qrisSales)),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       _buildRow('Penjualan Transfer Bank', CurrencyFormatter.format(shift.transferSales)),
                       const Divider(height: 16),
                       _buildRow('Total Omset Penjualan', CurrencyFormatter.format(shift.totalSales), isBold: true),
@@ -341,45 +319,71 @@ class ShiftDialogs {
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
 
                 // Card 3: Highlight Kas di Laci Kasir
                 Container(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: AppColors.primarySoft,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.primary.withAlpha(90), width: 1.2),
+                    border: Border.all(color: AppColors.primary.withAlpha(70), width: 1.0),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Estimasi Kas di Laci',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            '(Modal Awal + Tunai)',
-                            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                          ),
-                        ],
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(7),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: AppColors.primary.withAlpha(40)),
+                              ),
+                              child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.primary, size: 17),
+                            ),
+                            const SizedBox(width: 10),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Estimasi Kas di Laci',
+                                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  SizedBox(height: 1),
+                                  Text(
+                                    '(Modal Awal + Tunai)',
+                                    style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      Text(
-                        CurrencyFormatter.format(shift.expectedCash),
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
+                      const SizedBox(width: 8),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          CurrencyFormatter.format(shift.expectedCash),
+                          style: const TextStyle(
+                            fontSize: 16.5,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.primaryDark,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
 
                 // Tombol Aksi
                 Row(
@@ -500,7 +504,7 @@ class ShiftDialogs {
                   Obx(() {
                     final current = controller.currentShift.value ?? shift;
                     return Container(
-                      padding: const EdgeInsets.all(14),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: AppColors.primarySoft,
                         borderRadius: BorderRadius.circular(12),
@@ -511,25 +515,68 @@ class ShiftDialogs {
                           _buildRow('Mulai Shift', DateFormatter.formatDateTime(current.startTime)),
                           const Divider(height: 12),
                           _buildRow('Modal Awal', CurrencyFormatter.format(current.startingCash)),
+                          const SizedBox(height: 2),
                           _buildRow('Penjualan Tunai', CurrencyFormatter.format(current.cashSales)),
+                          const SizedBox(height: 2),
                           _buildRow('Penjualan Non-Tunai', CurrencyFormatter.format(current.qrisSales + current.transferSales)),
                           const Divider(height: 12),
                           _buildRow(
                             'Total Kas Seharusnya',
                             CurrencyFormatter.format(current.expectedCash),
                             isBold: true,
-                            valueColor: AppColors.primary,
+                            valueColor: AppColors.primaryDark,
                           ),
                         ],
                       ),
                     );
                   }),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 16),
 
-                  const Text(
-                    'Uang fisik kasir di laci:',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
+                  // Header Input Uang Fisik + Shortcut Set Uang Pas
+                  Obx(() {
+                    final current = controller.currentShift.value ?? shift;
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Uang Fisik Kasir di Laci:',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                        ),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: () {
+                            final amt = current.expectedCash.toInt();
+                            cashController.text = CurrencyFormatter.formatWithoutSymbol(amt);
+                            actualCash.value = current.expectedCash;
+                            hasInput.value = true;
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                            decoration: BoxDecoration(
+                              color: AppColors.primarySoft,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppColors.primary.withAlpha(60)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check_circle_rounded, size: 13, color: AppColors.primary),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Set Uang Pas',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primaryDark,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }),
                   const SizedBox(height: 8),
 
                   // Input Uang Fisik Kasir Berformat Rupiah
@@ -543,7 +590,7 @@ class ShiftDialogs {
                     ],
                     style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                     decoration: InputDecoration(
-                      labelText: 'Uang Fisik Kasir',
+                      hintText: '0',
                       prefixIcon: const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 14),
                         child: Row(
@@ -589,65 +636,6 @@ class ShiftDialogs {
                   ),
                   const SizedBox(height: 10),
 
-                  // Tombol Cepat: Uang Pas Sesuai Sistem (Sama Rata)
-                  Obx(() {
-                    final current = controller.currentShift.value ?? shift;
-                    return Material(
-                      color: AppColors.primarySoft,
-                      borderRadius: BorderRadius.circular(10),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(10),
-                        onTap: () {
-                          final amt = current.expectedCash.toInt();
-                          cashController.text = CurrencyFormatter.formatWithoutSymbol(amt);
-                          actualCash.value = current.expectedCash;
-                          hasInput.value = true;
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: AppColors.primary.withAlpha(60)),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.check_circle_rounded, size: 16, color: AppColors.primary),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Set Uang Pas: ${CurrencyFormatter.format(current.expectedCash)}',
-                                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
-                  const SizedBox(height: 8),
-
-                  // 4 Tombol Pilihan Nominal Cepat (2 Baris x 2 Kolom)
-                  Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(child: _buildQuickCashButton(cashController, actualCash, hasInput, 50000)),
-                          const SizedBox(width: 8),
-                          Expanded(child: _buildQuickCashButton(cashController, actualCash, hasInput, 100000)),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(child: _buildQuickCashButton(cashController, actualCash, hasInput, 200000)),
-                          const SizedBox(width: 8),
-                          Expanded(child: _buildQuickCashButton(cashController, actualCash, hasInput, 500000)),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-
                   // Selisih Kas Live Preview
                   Obx(() {
                     final current = controller.currentShift.value ?? shift;
@@ -675,29 +663,38 @@ class ShiftDialogs {
 
                     final diff = actualCash.value - current.expectedCash;
                     Color diffColor = AppColors.success;
+                    IconData diffIcon = Icons.check_circle_rounded;
                     String statusText = 'Pas (Sesuai)';
 
                     if (diff > 0) {
                       diffColor = AppColors.info;
+                      diffIcon = Icons.arrow_circle_up_rounded;
                       statusText = 'Lebih (+${CurrencyFormatter.format(diff)})';
                     } else if (diff < 0) {
                       diffColor = AppColors.danger;
+                      diffIcon = Icons.warning_amber_rounded;
                       statusText = 'Kurang (${CurrencyFormatter.format(diff)})';
                     }
 
                     return Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
-                        color: diffColor.withAlpha(25),
+                        color: diffColor.withAlpha(20),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: diffColor.withAlpha(102)),
+                        border: Border.all(color: diffColor.withAlpha(80)),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Status Selisih Kas:',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          Row(
+                            children: [
+                              Icon(diffIcon, size: 16, color: diffColor),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Status Selisih Kas:',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                              ),
+                            ],
                           ),
                           Text(
                             statusText,
@@ -707,17 +704,17 @@ class ShiftDialogs {
                       ),
                     );
                   }),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 12),
 
                   TextFormField(
                     controller: notesController,
                     maxLines: 2,
                     decoration: const InputDecoration(
                       labelText: 'Catatan Kasir (Opsional)',
-                      hintText: 'Misal: Selisih karena pembulatan diskon',
+                      hintText: 'Misal: Selisih karena pembulatan atau uang kembalian',
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
                   // Buttons
                   Row(
@@ -778,18 +775,23 @@ class ShiftDialogs {
 
   static Widget _buildRow(String label, String value, {bool isBold = false, Color? valueColor}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3.0),
+      padding: const EdgeInsets.symmetric(vertical: 3.5),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              color: isBold ? AppColors.textPrimary : AppColors.textSecondary,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                color: isBold ? AppColors.textPrimary : AppColors.textSecondary,
+                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
+          const SizedBox(width: 8),
           Text(
             value,
             style: TextStyle(
@@ -799,71 +801,6 @@ class ShiftDialogs {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  static Widget _buildQuickNominalButton(TextEditingController controller, int amt) {
-    final formattedVal = CurrencyFormatter.formatWithoutSymbol(amt);
-    return Material(
-      color: AppColors.primarySoft,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => controller.text = formattedVal,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 11),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.primary.withAlpha(60), width: 1.2),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            CurrencyFormatter.format(amt),
-            style: const TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primaryDark,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  static Widget _buildQuickCashButton(
-    TextEditingController controller,
-    RxDouble actualCash,
-    RxBool hasInput,
-    int amt,
-  ) {
-    final formattedVal = CurrencyFormatter.formatWithoutSymbol(amt);
-    return Material(
-      color: AppColors.lightBackground,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          controller.text = formattedVal;
-          actualCash.value = amt.toDouble();
-          hasInput.value = true;
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 11),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.lightBorder, width: 1.2),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            CurrencyFormatter.format(amt),
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-          ),
-        ),
       ),
     );
   }

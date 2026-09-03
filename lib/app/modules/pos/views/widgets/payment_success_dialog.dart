@@ -4,6 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../data/services/esc_pos_printer_service.dart';
 import '../../../transactions/views/widgets/receipt_view_dialog.dart';
+import '../../controllers/cart_controller.dart';
 
 class PaymentSuccessDialog {
   static void show({
@@ -247,7 +248,15 @@ class PaymentSuccessDialog {
                   width: double.infinity,
                   height: 48,
                   child: ElevatedButton(
-                    onPressed: () => Get.back(),
+                    onPressed: () {
+                      Get.back();
+                      if (Get.isBottomSheetOpen ?? false) {
+                        Get.back();
+                      }
+                      if (Get.isRegistered<CartController>()) {
+                        Get.find<CartController>().clearCart();
+                      }
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,

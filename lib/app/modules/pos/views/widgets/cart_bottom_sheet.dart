@@ -367,8 +367,8 @@ class CartBottomSheet extends StatelessWidget {
                           onPressed: cartController.isCartEmpty
                               ? null
                               : () async {
-                                  final success = await cartController.saveOpenBill(context: context);
-                                  if (success) Get.back();
+                                  Navigator.of(context).pop();
+                                  await cartController.saveOpenBill(context: context);
                                 },
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
@@ -384,8 +384,12 @@ class CartBottomSheet extends StatelessWidget {
                           onPressed: cartController.isCartEmpty
                               ? null
                               : () {
-                                  Get.back();
-                                  PaymentModalView.show(context);
+                                  Navigator.of(context).pop();
+                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                    if (Get.context != null) {
+                                      PaymentModalView.show(Get.context!);
+                                    }
+                                  });
                                 },
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),

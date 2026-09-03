@@ -89,7 +89,7 @@ class SettingsController extends GetxController {
         SoundService.testPlaySound(customPath: savedFile.path);
       }
     } catch (e) {
-      AppSnackbar.danger('Gagal Memilih Suara', 'Terjadi kesalahan: $e');
+      AppSnackbar.danger('Gagal Memilih Suara', 'Format file audio tidak didukung atau file gagal dimuat.');
     }
   }
 

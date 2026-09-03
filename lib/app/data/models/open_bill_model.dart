@@ -33,6 +33,8 @@ class OpenBillDetailItem {
       prodId = int.tryParse(json['product_id'].toString()) ?? 0;
     } else if (json['product'] != null && json['product'] is Map) {
       prodId = int.tryParse(json['product']['id']?.toString() ?? '0') ?? 0;
+    } else if (json['id'] != null) {
+      prodId = int.tryParse(json['id'].toString()) ?? 0;
     }
 
     final qty = int.tryParse((json['quantity'] ?? json['qty'] ?? '1').toString()) ?? 1;

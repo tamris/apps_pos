@@ -71,7 +71,7 @@ class OnlineOrdersController extends GetxController {
       }
     } catch (e) {
       if (!silent) {
-        AppSnackbar.danger('Gagal Memuat Pesanan', 'Terjadi kesalahan saat memuat pesanan online: $e');
+        AppSnackbar.danger('Gagal Memuat Pesanan', ApiProvider.getErrorMessage(e));
       }
     } finally {
       if (!silent) isLoading.value = false;
@@ -137,7 +137,7 @@ class OnlineOrdersController extends GetxController {
         return false;
       }
     } catch (e) {
-      AppSnackbar.danger('Gagal', 'Terjadi kesalahan jaringan: $e');
+      AppSnackbar.danger('Gagal', ApiProvider.getErrorMessage(e));
       return false;
     } finally {
       isUpdating.value = false;
@@ -178,7 +178,7 @@ class OnlineOrdersController extends GetxController {
         await fetchOrders(silent: true);
       }
     } catch (e) {
-      AppSnackbar.danger('Gagal', 'Gagal memperbarui status penerimaan online: $e');
+      AppSnackbar.danger('Gagal', ApiProvider.getErrorMessage(e));
     }
   }
 
@@ -196,7 +196,7 @@ class OnlineOrdersController extends GetxController {
         }
       }
     } catch (e) {
-      AppSnackbar.danger('Cetak Gagal', 'Gagal mencetak tiket dapur: $e');
+      AppSnackbar.danger('Cetak Gagal', 'Gagal mencetak tiket dapur. Pastikan printer terhubung.');
     }
   }
 
@@ -214,7 +214,7 @@ class OnlineOrdersController extends GetxController {
         }
       }
     } catch (e) {
-      AppSnackbar.danger('Cetak Gagal', 'Gagal mencetak struk: $e');
+      AppSnackbar.danger('Cetak Gagal', 'Gagal mencetak struk. Pastikan printer terhubung.');
     }
   }
 }

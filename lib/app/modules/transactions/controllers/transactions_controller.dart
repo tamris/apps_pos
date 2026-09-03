@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../data/models/transaction_model.dart';
 import '../../../data/providers/api_provider.dart';
@@ -11,9 +12,12 @@ class TransactionsController extends GetxController {
   final EscPosPrinterService _printerService = Get.find<EscPosPrinterService>();
 
   final RxList<TransactionModel> transactions = <TransactionModel>[].obs;
+  final Rx<TransactionStatsModel> stats = TransactionStatsModel.empty().obs;
+  final RxString selectedTab = 'completed'.obs; // 'completed', 'pending', 'cancelled', 'all'
+  RxString get selectedStatus => selectedTab;
   final RxString searchQuery = ''.obs;
-  final RxString selectedStatus = 'completed'.obs; // 'completed', 'cancelled', 'all'
   final RxBool isLoading = false.obs;
+  final TextEditingController searchController = TextEditingController();
 
   @override
   void onInit() {
@@ -21,15 +25,21 @@ class TransactionsController extends GetxController {
     fetchTodayTransactions();
   }
 
-  /// Ambil riwayat transaksi hari ini kasir
-  Future<void> fetchTodayTransactions() async {
-    isLoading.value = true;
+  @override
+  void onClose() {
+    searchController.dispose();
+    super.onClose();
+  }
+
+  /// Ambil riwayat transaksi hari ini kasir beserta live stats
+  Future<void> fetchTodayTransactions({bool silent = false}) async {
+    if (!silent) isLoading.value = true;
     try {
       final response = await _apiProvider.get(
         ApiConstants.todayTransactions,
         queryParameters: {
-          if (searchQuery.value.isNotEmpty) 'search': searchQuery.value,
-          'status': selectedStatus.value,
+          if (searchQuery.value.trim().isNotEmpty) 'search': searchQuery.value.trim(),
+          'status': selectedTab.value,
         },
       );
 
@@ -37,11 +47,17 @@ class TransactionsController extends GetxController {
         final data = response.data['data'];
         final List list = (data is Map && data['data'] != null) ? data['data'] : (data is List ? data : []);
         transactions.assignAll(list.map((e) => TransactionModel.fromJson(e)).toList());
+
+        if (response.data['stats'] != null) {
+          stats.value = TransactionStatsModel.fromJson(response.data['stats']);
+        }
       }
     } catch (e) {
-      AppSnackbar.danger('Riwayat Transaksi', ApiProvider.getErrorMessage(e));
+      if (!silent) {
+        AppSnackbar.danger('Riwayat Transaksi', ApiProvider.getErrorMessage(e));
+      }
     } finally {
-      isLoading.value = false;
+      if (!silent) isLoading.value = false;
     }
   }
 
@@ -75,13 +91,26 @@ class TransactionsController extends GetxController {
     }
   }
 
-  void onSearchChanged(String query) {
-    searchQuery.value = query;
+  /// Ganti Tab Status (Selesai, Open Bill, Dibatalkan, Semua)
+  void changeTab(String tab) {
+    if (selectedTab.value == tab) return;
+    selectedTab.value = tab;
     fetchTodayTransactions();
   }
 
-  void onStatusChanged(String status) {
-    selectedStatus.value = status;
-    fetchTodayTransactions();
+  /// Cari transaksi berdasarkan nama / meja / invoice (silent agar tidak kedip skeleton)
+  void onSearch(String val) {
+    searchQuery.value = val;
+    fetchTodayTransactions(silent: true);
   }
+
+  /// Bersihkan pencarian
+  void clearSearch() {
+    searchController.clear();
+    searchQuery.value = '';
+    fetchTodayTransactions(silent: true);
+  }
+
+  void onSearchChanged(String query) => onSearch(query);
+  void onStatusChanged(String status) => changeTab(status);
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../data/models/addon_model.dart';
@@ -84,10 +85,14 @@ class PosController extends GetxController {
       );
     }
 
-    // 4. Occupied Tables
+    // 4. Occupied Tables & Open Bills Count
     if (data['occupied_tables'] != null) {
       final List tables = data['occupied_tables'];
       occupiedTables.assignAll(tables.map((e) => e.toString()).toList());
+    }
+    if (data['open_bills_count'] != null) {
+      final count = (data['open_bills_count'] as num).toInt();
+      updateOpenBillsCount(count);
     }
 
     // 5. Cafe Settings
@@ -283,13 +288,28 @@ class PosController extends GetxController {
     fetchOpenBillsCount();
   }
 
-  /// Ambil jumlah open bill aktif
+
+  /// Update nilai badge open bill secara hening (silent update)
+  void updateOpenBillsCount(int newCount) {
+    activeOpenBillsCount.value = newCount;
+  }
+
+  /// Ambil jumlah open bill aktif dari server
   Future<void> fetchOpenBillsCount() async {
     try {
       final response = await _apiProvider.get(ApiConstants.openBills);
       if (response.data != null && response.data['success'] == true) {
         final List list = response.data['data'] ?? [];
-        activeOpenBillsCount.value = list.length;
+        updateOpenBillsCount(list.length);
+
+        // Update occupiedTables otomatis jika ada perubahan dari server
+        final tables = list
+            .map((e) => e['table_number']?.toString())
+            .where((t) => t != null && t.isNotEmpty)
+            .cast<String>()
+            .toSet()
+            .toList();
+        occupiedTables.assignAll(tables);
       }
     } catch (_) {}
   }

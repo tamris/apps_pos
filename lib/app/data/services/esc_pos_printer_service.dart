@@ -42,7 +42,7 @@ class EscPosPrinterService extends GetxService {
       availableDevices.assignAll(devices);
       return devices;
     } catch (e) {
-      AppSnackbar.danger('Bluetooth Error', 'Gagal memindai perangkat bluetooth: $e');
+      AppSnackbar.danger('Bluetooth Error', 'Gagal memindai printer. Pastikan Bluetooth dan lokasi perangkat aktif.');
       return [];
     } finally {
       isScanning.value = false;
@@ -67,7 +67,7 @@ class EscPosPrinterService extends GetxService {
       }
     } catch (e) {
       isConnected.value = false;
-      AppSnackbar.danger('Koneksi Error', e.toString());
+      AppSnackbar.danger('Koneksi Error', 'Gagal menghubungkan ke printer. Pastikan printer menyala dan dalam jangkauan.');
       return false;
     }
   }

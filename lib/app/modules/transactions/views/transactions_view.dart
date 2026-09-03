@@ -26,35 +26,41 @@ class TransactionsView extends GetView<TransactionsController> {
       ),
       body: Column(
         children: [
-          // Search & Filter Status
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          // 1. Search Bar & Status Filter Tabs
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 TextField(
+                  controller: controller.searchController,
+                  onChanged: controller.onSearch,
                   decoration: InputDecoration(
                     hintText: 'Cari no invoice, meja, nama pelanggan...',
-                    prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary),
+                    prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                    suffixIcon: Obx(() {
+                      if (controller.searchQuery.value.isEmpty) return const SizedBox.shrink();
+                      return IconButton(
+                        icon: const Icon(Icons.clear_rounded, size: 18),
+                        onPressed: controller.clearSearch,
+                      );
+                    }),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    fillColor: AppColors.lightBackground,
                     filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppColors.lightBorder),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppColors.lightBorder),
+                    ),
                   ),
-                  onChanged: (val) => controller.onSearchChanged(val),
                 ),
-                const SizedBox(height: 10),
-                // Status Filter Chips
-                Obx(() {
-                  final curStatus = controller.selectedStatus.value;
-                  return Row(
-                    children: [
-                      _buildStatusFilterChip('completed', 'Selesai', curStatus == 'completed'),
-                      const SizedBox(width: 8),
-                      _buildStatusFilterChip('cancelled', 'Dibatalkan', curStatus == 'cancelled'),
-                      const SizedBox(width: 8),
-                      _buildStatusFilterChip('all', 'Semua Status', curStatus == 'all'),
-                    ],
-                  );
-                }),
+                const SizedBox(height: 8),
+                _buildStatusTabs(),
               ],
             ),
           ),
@@ -119,22 +125,82 @@ class TransactionsView extends GetView<TransactionsController> {
     );
   }
 
-  Widget _buildStatusFilterChip(String status, String label, bool isSelected) {
-    return ChoiceChip(
-      label: Text(label),
-      selected: isSelected,
-      selectedColor: AppColors.primarySoft,
-      backgroundColor: Colors.white,
-      side: BorderSide(
-        color: isSelected ? AppColors.primary : AppColors.lightBorder,
-      ),
-      labelStyle: TextStyle(
-        fontSize: 12,
-        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-        color: isSelected ? AppColors.primaryDark : AppColors.textPrimary,
-      ),
-      onSelected: (_) => controller.onStatusChanged(status),
-    );
+  Widget _buildStatusTabs() {
+    return Obx(() {
+      final selected = controller.selectedTab.value;
+      final stats = controller.stats.value;
+
+      final tabs = [
+        {'id': 'completed', 'label': 'Selesai', 'count': stats.completed, 'color': AppColors.primary},
+        {'id': 'pending', 'label': 'Open Bill', 'count': stats.pending, 'color': AppColors.warning},
+        {'id': 'cancelled', 'label': 'Dibatalkan', 'count': stats.cancelled, 'color': AppColors.danger},
+        {'id': 'all', 'label': 'Semua', 'count': stats.all, 'color': AppColors.secondary},
+      ];
+
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: tabs.map((tab) {
+            final isCurrent = selected == tab['id'];
+            final color = tab['color'] as Color;
+            final count = tab['count'] as int;
+
+            return Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: Material(
+                color: isCurrent ? color : AppColors.lightBackground,
+                borderRadius: BorderRadius.circular(20),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: () => controller.changeTab(tab['id'] as String),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isCurrent ? color : AppColors.lightBorder,
+                        width: 1.2,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          tab['label'] as String,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: isCurrent ? FontWeight.bold : FontWeight.w600,
+                            color: isCurrent ? Colors.white : AppColors.textPrimary,
+                          ),
+                        ),
+                        if (count > 0) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: isCurrent ? Colors.white.withAlpha(50) : color.withAlpha(30),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '$count',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.bold,
+                                color: isCurrent ? Colors.white : color,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      );
+    });
   }
 
   Widget _buildTransactionCard(BuildContext context, TransactionModel tx) {
@@ -172,15 +238,19 @@ class TransactionsView extends GetView<TransactionsController> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                           decoration: BoxDecoration(
-                            color: tx.isCompleted ? AppColors.primarySoft : AppColors.dangerSoft,
+                            color: tx.isCompleted
+                                ? AppColors.primarySoft
+                                : (tx.isPending ? AppColors.warningSoft : AppColors.dangerSoft),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            tx.status.toUpperCase(),
+                            tx.isPending ? 'OPEN BILL' : tx.status.toUpperCase(),
                             style: TextStyle(
                               fontSize: 9.5,
                               fontWeight: FontWeight.bold,
-                              color: tx.isCompleted ? AppColors.primaryDark : AppColors.danger,
+                              color: tx.isCompleted
+                                  ? AppColors.primaryDark
+                                  : (tx.isPending ? AppColors.warning : AppColors.danger),
                             ),
                           ),
                         ),
@@ -217,8 +287,8 @@ class TransactionsView extends GetView<TransactionsController> {
                   ),
                   _buildSmallBadge(
                     Icons.payment_rounded,
-                    tx.paymentMethod.toUpperCase(),
-                    AppColors.secondary,
+                    tx.isPending ? 'BELUM BAYAR' : tx.paymentMethod.toUpperCase(),
+                    tx.isPending ? AppColors.warning : AppColors.secondary,
                   ),
                   if (tx.customerName != null && tx.customerName!.isNotEmpty)
                     _buildSmallBadge(

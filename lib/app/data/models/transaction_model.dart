@@ -143,3 +143,36 @@ class TransactionModel {
     };
   }
 }
+
+class TransactionStatsModel {
+  final int all;
+  final int completed;
+  final int pending;
+  final int cancelled;
+
+  TransactionStatsModel({
+    required this.all,
+    required this.completed,
+    required this.pending,
+    required this.cancelled,
+  });
+
+  factory TransactionStatsModel.fromJson(Map<String, dynamic> json) {
+    return TransactionStatsModel(
+      all: (json['all'] as num?)?.toInt() ?? 0,
+      completed: (json['completed'] as num?)?.toInt() ?? 0,
+      pending: (json['pending'] as num?)?.toInt() ?? 0,
+      cancelled: (json['cancelled'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  factory TransactionStatsModel.empty() {
+    return TransactionStatsModel(
+      all: 0,
+      completed: 0,
+      pending: 0,
+      cancelled: 0,
+    );
+  }
+}
+

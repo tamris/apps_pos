@@ -171,22 +171,55 @@ class ApiProvider extends getx.GetxService {
     }
   }
 
-  /// Extract friendly error message from DioException
+  /// Ekstrak pesan kesalahan yang ramah pengguna (human-readable)
   static String getErrorMessage(dynamic error) {
+    if (error == null) return 'Terjadi kesalahan tidak terduga. Silakan coba lagi.';
+
+    final errorStr = error.toString().toLowerCase();
+
+    // 1. Deteksi kendala koneksi / jaringan / timeout / browser CORS
+    if (errorStr.contains('xmlhttprequest') ||
+        errorStr.contains('connection error') ||
+        errorStr.contains('connection refused') ||
+        errorStr.contains('connection timeout') ||
+        errorStr.contains('socketexception') ||
+        errorStr.contains('network layer') ||
+        errorStr.contains('cross-origin') ||
+        errorStr.contains('failed host lookup') ||
+        errorStr.contains('handshake') ||
+        errorStr.contains('clientexception')) {
+      return 'Gagal terhubung ke server. Periksa koneksi internet atau pastikan server backend aktif.';
+    }
+
     if (error is DioException) {
       if (error.type == DioExceptionType.connectionTimeout ||
           error.type == DioExceptionType.receiveTimeout ||
+          error.type == DioExceptionType.sendTimeout ||
           error.type == DioExceptionType.connectionError) {
-        return 'Koneksi ke server backend gagal. Periksa jaringan Wi-Fi toko atau IP backend di Pengaturan.';
+        return 'Gagal terhubung ke server. Periksa koneksi internet atau pastikan server backend aktif.';
       }
       if (error.response?.data != null && error.response?.data is Map) {
         final data = error.response!.data as Map;
-        if (data['message'] != null) {
+        if (data['message'] != null && data['message'].toString().isNotEmpty) {
           return data['message'].toString();
         }
       }
-      return 'Terjadi kesalahan server (${error.response?.statusCode ?? 'Network'}).';
+      if (error.response?.statusCode != null) {
+        final code = error.response!.statusCode;
+        if (code == 401) return 'Sesi login kasir telah kedaluwarsa. Silakan login ulang.';
+        if (code == 403) return 'Akses ditolak. Anda tidak memiliki izin untuk fitur ini.';
+        if (code == 404) return 'Data atau layanan yang diminta tidak ditemukan di server.';
+        if (code == 500) return 'Terjadi kendala pada server backend (Error 500). Silakan coba lagi.';
+        return 'Server memberikan respons tidak berhasil ($code).';
+      }
+      return 'Koneksi ke server terputus. Silakan coba beberapa saat lagi.';
     }
+
+    // 2. Jika pesan error teknis sistem (exception/crash), jangan tampilkan stack trace mentah ke pengguna
+    if (errorStr.contains('exception') || errorStr.contains('error:')) {
+      return 'Terjadi kendala saat memproses permintaan. Silakan coba lagi.';
+    }
+
     return error.toString();
   }
 }
