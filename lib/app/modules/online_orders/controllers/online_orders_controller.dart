@@ -187,7 +187,7 @@ class OnlineOrdersController extends GetxController {
     try {
       final response = await _apiProvider.get(ApiConstants.onlineOrderKitchen(order.id));
       if (response.statusCode == 200 && response.data != null && response.data['data'] != null) {
-        final kitchenPayload = response.data['data']['kitchen_payload'];
+        final kitchenPayload = response.data['data']['kitchen_payload'] ?? response.data['data'];
         if (kitchenPayload != null) {
           final success = await printerService.printKitchenReceipt(Map<String, dynamic>.from(kitchenPayload));
           if (success) {

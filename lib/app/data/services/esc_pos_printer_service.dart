@@ -116,6 +116,32 @@ class EscPosPrinterService extends GetxService {
     return buffer.toString();
   }
 
+  /// Encode string teks dan kode ESC/POS ke bytes secara aman tanpa crash karakter unicode/non-latin1.
+  /// Karakter khusus seperti bullet point (•), tanda petik lengkung, dan strip unicode diubah ke ASCII.
+  /// Karakter non-latin1 lainnya (> 255) diganti menjadi spasi (0x20) agar printer thermal tidak error.
+  static List<int> safeEncodeEscPos(String text) {
+    final cleanText = text
+        .replaceAll('•', '-')
+        .replaceAll('–', '-')
+        .replaceAll('—', '-')
+        .replaceAll('“', '"')
+        .replaceAll('”', '"')
+        .replaceAll('‘', "'")
+        .replaceAll('’', "'")
+        .replaceAll('…', '...');
+
+    final List<int> bytes = [];
+    for (int i = 0; i < cleanText.length; i++) {
+      final codeUnit = cleanText.codeUnitAt(i);
+      if (codeUnit <= 255) {
+        bytes.add(codeUnit);
+      } else {
+        bytes.add(0x20); // Ganti karakter unicode tinggi dengan spasi
+      }
+    }
+    return bytes;
+  }
+
   /// Konversi gambar menjadi ESC/POS Column Bit-Image (ESC * 33 - 24 Dot Double Density)
   /// Standar universal yang didukung oleh 100% printer thermal ESC/POS 58mm & 80mm
   static List<int> convertImageToEscPosBitImage(Uint8List imageBytes, {int maxWidth = 150, int maxHeight = 96}) {
@@ -255,12 +281,14 @@ class EscPosPrinterService extends GetxService {
     final List<int> outBytes = [];
 
     // Inisialisasi awal & bersihkan sisa tebal dari print sebelumnya
-    outBytes.addAll(latin1.encode(init + resetBold + fontNormal));
+    outBytes.addAll(safeEncodeEscPos(init + resetBold + fontNormal));
 
     // 0. LOGO CAFE ESC/POS (JIKA ADA)
+    bool hasLogo = false;
     if (header['logo_raster'] != null && header['logo_raster'] is List<int>) {
       outBytes.addAll(header['logo_raster'] as List<int>);
-      outBytes.addAll(latin1.encode(resetBold + fontNormal));
+      outBytes.addAll(safeEncodeEscPos(resetBold + fontNormal));
+      hasLogo = true;
     } else {
       // Fallback otomatis muat logo lokal cafe jika tidak ada raster di payload
       try {
@@ -268,7 +296,8 @@ class EscPosPrinterService extends GetxService {
         final logoBytes = convertImageToEscPosBitImage(byteData.buffer.asUint8List(), maxWidth: 200);
         if (logoBytes.isNotEmpty) {
           outBytes.addAll(logoBytes);
-          outBytes.addAll(latin1.encode(resetBold + fontNormal));
+          outBytes.addAll(safeEncodeEscPos(resetBold + fontNormal));
+          hasLogo = true;
         }
       } catch (_) {}
     }
@@ -277,6 +306,9 @@ class EscPosPrinterService extends GetxService {
 
     // 1. HEADER TOKO (CENTER & REGULAR CLEAN)
     buffer.write(alignCenter);
+    if (hasLogo) {
+      buffer.write('\x1b\x4a\x0a'); // Micro-feed tipis (10 dots ~1.2mm) agar pas dan tidak terlalu renggang
+    }
     buffer.write('$shopName\n');
     if (address.isNotEmpty) {
       buffer.write('$address\n');
@@ -401,7 +433,7 @@ class EscPosPrinterService extends GetxService {
     // FEED & CUT
     buffer.write(cutPaper);
 
-    outBytes.addAll(latin1.encode(buffer.toString()));
+    outBytes.addAll(safeEncodeEscPos(buffer.toString()));
     return List<int>.from(outBytes);
   }
 
@@ -504,7 +536,7 @@ class EscPosPrinterService extends GetxService {
     buffer.write('Dicetak: $nowStr\n');
     buffer.write(cutPaper);
 
-    return List<int>.from(latin1.encode(buffer.toString()));
+    return safeEncodeEscPos(buffer.toString());
   }
 
   /// Generate ESC/POS byte data untuk Struk Dapur / Kitchen Order Ticket (58mm)
@@ -542,7 +574,12 @@ class EscPosPrinterService extends GetxService {
     buffer.write(alignCenter);
     String orderTypeStr = orderType;
     if (orderType.contains('DINE')) {
-      orderTypeStr = 'DINE IN${tableNumber != null && tableNumber.isNotEmpty ? " ($tableNumber)" : ""}';
+      if (tableNumber != null && tableNumber.isNotEmpty) {
+        final cleanTable = tableNumber.toUpperCase().replaceAll('MEJA', '').trim();
+        orderTypeStr = 'DINE IN (MEJA $cleanTable)';
+      } else {
+        orderTypeStr = 'DINE IN';
+      }
     } else if (orderType.contains('TAKE')) {
       orderTypeStr = 'TAKE AWAY (BUNGKUS)';
     } else if (orderType.contains('DELIVERY')) {
@@ -569,7 +606,7 @@ class EscPosPrinterService extends GetxService {
       // Format addon di tiket dapur: '   [+] Extra Shot' persis standar F&B pos-inventory
       if (item['addons'] != null && item['addons'] is List) {
         for (var addon in (item['addons'] as List)) {
-          final aName = addon['name']?.toString() ?? '';
+          final aName = (addon is Map ? (addon['name']?.toString() ?? '') : addon.toString()).trim();
           if (aName.isNotEmpty) {
             buffer.write('   [+] $aName\n');
           }
@@ -577,7 +614,7 @@ class EscPosPrinterService extends GetxService {
       }
 
       if (notes != null && notes.trim().isNotEmpty) {
-        buffer.write(' >> CTTN: $notes\n');
+        buffer.write(' >> CATATAN: $notes\n');
       }
     }
 
@@ -591,7 +628,7 @@ class EscPosPrinterService extends GetxService {
     buffer.write('-- SEGERA DISIAPKAN --\n');
     buffer.write(cutPaper);
 
-    return List<int>.from(latin1.encode(buffer.toString()));
+    return safeEncodeEscPos(buffer.toString());
   }
 
   /// Eksekusi cetak struk dapur ke printer Bluetooth

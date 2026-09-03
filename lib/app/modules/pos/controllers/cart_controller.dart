@@ -298,14 +298,31 @@ class CartController extends GetxController {
           posCtrl.fetchOpenBillsCount();
         }
 
+        final kitchenItems = items.map((e) => {
+          'name': e.product.name,
+          'quantity': e.quantity,
+          'notes': e.fullNotesString,
+          'addons': e.addons.map((a) => {'name': a.name}).toList(),
+        }).toList();
+
+        final posCtrl = Get.isRegistered<PosController>() ? Get.find<PosController>() : null;
+        final cafeName = (posCtrl?.cafeSettings.value.shopName.isNotEmpty == true)
+            ? posCtrl!.cafeSettings.value.shopName
+            : 'NOLI COFFEE & SPACE';
+        final cashierName = _storageService.user?.name ?? 'Kasir';
+
         // Kitchen Payload untuk cetak struk dapur
         final kitchenPayload = {
+          'header': {
+            'shop_name': cafeName,
+          },
           'invoice_number': txData['invoice_number'] ?? 'INV',
           'date': DateTime.now().toString().substring(0, 16),
+          'cashier_name': cashierName,
           'order_type': currentOrderType,
           'table_number': savedTable.isNotEmpty ? savedTable : null,
           'customer_name': savedCustomer.isNotEmpty ? savedCustomer : null,
-          'items': itemsPayload,
+          'items': kitchenItems,
         };
 
         // Tampilkan dialog sukses transaksi
@@ -354,12 +371,21 @@ class CartController extends GetxController {
       final cashierName = _storageService.user?.name ?? 'Kasir';
 
       final offlineKitchenPayload = {
+        'header': {
+          'shop_name': cafeName,
+        },
         'invoice_number': offlineId,
         'date': DateTime.now().toString().substring(0, 16),
+        'cashier_name': cashierName,
         'order_type': currentOrderType,
         'table_number': savedTable.isNotEmpty ? savedTable : null,
         'customer_name': savedCustomer.isNotEmpty ? savedCustomer : null,
-        'items': itemsPayload,
+        'items': items.map((e) => {
+          'name': e.product.name,
+          'quantity': e.quantity,
+          'notes': e.fullNotesString,
+          'addons': e.addons.map((a) => {'name': a.name}).toList(),
+        }).toList(),
       };
 
       final offlineReceiptPayload = {

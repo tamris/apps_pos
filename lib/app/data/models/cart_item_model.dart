@@ -67,7 +67,7 @@ class CartItemModel {
     if (notes.trim().isNotEmpty) {
       parts.add(notes.trim());
     }
-    return parts.join(' • ');
+    return parts.join(' - ');
   }
 
   /// Format full notes string sent to backend

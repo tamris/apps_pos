@@ -60,7 +60,7 @@ class ReceiptViewDialog {
                   // Logo Cafe (Dinamis dari Backend URL / Fallback Asset)
                   if (showLogo)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 2.0),
+                      padding: const EdgeInsets.only(top: 2.0, bottom: 6.0),
                       child: (logoUrl != null && logoUrl.isNotEmpty)
                           ? CachedNetworkImage(
                               imageUrl: logoUrl,
@@ -207,107 +207,275 @@ class ReceiptViewDialog {
   }
 
   /// Digital preview untuk Struk Dapur (Kitchen Ticket)
+  /// Digital preview untuk Tiket Dapur (Kitchen Ticket) - Style Web pos-inventory
   static void showKitchen(Map<String, dynamic> payload) {
     final printerService = Get.find<EscPosPrinterService>();
 
-    final invoice = payload['invoice_number'] ?? '-';
-    final date = payload['date'] ?? '-';
-    final orderType = payload['order_type'] ?? 'DINE IN';
-    final tableNumber = payload['table_number'];
-    final customerName = payload['customer_name'];
+    final header = payload['header'] ?? {};
+    final shopName = (header['shop_name'] ?? 'NOLI COFFEE & SPACE').toString().toUpperCase();
+
+    final invoice = payload['invoice_number']?.toString() ?? '-';
+    final date = payload['date']?.toString() ?? DateTime.now().toString().substring(0, 16);
+    final cashier = payload['cashier_name']?.toString() ?? 'Kasir';
+    final orderType = payload['order_type']?.toString().toUpperCase() ?? 'DINE IN';
+    final tableNumber = payload['table_number']?.toString();
+    final customerName = payload['customer_name']?.toString();
     final List items = payload['items'] ?? [];
+
+    String orderTypeBanner = orderType;
+    if (orderType.contains('DINE')) {
+      if (tableNumber != null && tableNumber.isNotEmpty) {
+        final cleanTable = tableNumber.toUpperCase().replaceAll('MEJA', '').trim();
+        orderTypeBanner = 'DINE IN (MEJA $cleanTable)';
+      } else {
+        orderTypeBanner = 'DINE IN';
+      }
+    } else if (orderType.contains('TAKE')) {
+      orderTypeBanner = 'TAKE AWAY';
+    } else if (orderType.contains('DELIVERY')) {
+      orderTypeBanner = 'DELIVERY';
+    }
+
+    int totalItems = 0;
+    for (var it in items) {
+      final q = it['quantity'] is int ? it['quantity'] : int.tryParse(it['quantity']?.toString() ?? '1') ?? 1;
+      totalItems += q as int;
+    }
 
     Get.dialog(
       AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         contentPadding: const EdgeInsets.all(16),
         content: SizedBox(
-          width: 320,
+          width: 340,
           child: SingleChildScrollView(
             child: Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFFDF5),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.amber.shade300),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(8),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // 1. Header (Center)
                   const Text(
-                    '*** STRUK DAPUR ***',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.8),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.shade100,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      tableNumber != null && tableNumber.toString().isNotEmpty ? 'MEJA: $tableNumber' : 'TIPE: $orderType',
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.brown),
+                    '*** TIKET DAPUR ***',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.8,
+                      color: Color(0xFF0F172A),
                     ),
                   ),
+                  const SizedBox(height: 2),
+                  Text(
+                    shopName,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF334155),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Divider
+                  _buildDashedLine(),
                   const SizedBox(height: 8),
-                  const Text('========================================', style: TextStyle(fontSize: 10, color: Colors.black45)),
-                  Align(
-                    alignment: Alignment.centerLeft,
+
+                  // 2. Metadata (Left)
+                  _buildMetaRow('No. Inv', invoice),
+                  _buildMetaRow('Waktu  ', date),
+                  _buildMetaRow('Kasir  ', cashier),
+                  const SizedBox(height: 8),
+
+                  // 3. Order Banner (Box abu-abu dengan border halus persis web)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFCBD5E1)),
+                    ),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('No. Order : $invoice', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        Text('Waktu     : $date', style: const TextStyle(fontSize: 10, color: Colors.black87)),
-                        if (customerName != null && customerName.toString().isNotEmpty)
-                          Text('Pelanggan : $customerName', style: const TextStyle(fontSize: 10, color: Colors.black87)),
+                        Text(
+                          orderTypeBanner,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        if (customerName != null && customerName.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Pelanggan: $customerName',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 11.5,
+                              color: Color(0xFF334155),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
-                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black45)),
+                  const SizedBox(height: 8),
 
-                  // Items
+                  // Divider
+                  _buildDashedLine(),
+                  const SizedBox(height: 8),
+
+                  // 4. Daftar Item Pesanan
                   ...items.map((item) {
                     final name = item['name'] ?? 'Item';
-                    final int qty = item['quantity'] is int ? item['quantity'] : int.tryParse(item['quantity'].toString()) ?? 1;
+                    final int qty = item['quantity'] is int
+                        ? item['quantity']
+                        : int.tryParse(item['quantity']?.toString() ?? '1') ?? 1;
                     final notes = item['notes']?.toString();
+                    final addons = item['addons'] is List ? item['addons'] as List : [];
 
                     return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4.0),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('$qty x $name', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                            if (notes != null && notes.trim().isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(left: 12.0, top: 2.0),
-                                child: Text('-> $notes', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.red.shade700)),
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${qty}x  $name',
+                            style: const TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                          if (addons.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 14.0, top: 2.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: addons.map((addon) {
+                                  final aName = (addon is Map ? (addon['name']?.toString() ?? '') : addon.toString()).trim();
+                                  return Text(
+                                    '[+] $aName',
+                                    style: const TextStyle(
+                                      fontFamily: 'monospace',
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF1E293B),
+                                    ),
+                                  );
+                                }).toList(),
                               ),
-                          ],
-                        ),
+                            ),
+                          if (notes != null && notes.trim().isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 10.0, top: 2.0),
+                              child: Text(
+                                '>> CATATAN: $notes',
+                                style: const TextStyle(
+                                  fontFamily: 'monospace',
+                                  fontSize: 11,
+                                  fontStyle: FontStyle.italic,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     );
                   }),
 
-                  const Text('========================================', style: TextStyle(fontSize: 10, color: Colors.black45)),
-                  const Text('SEGERA DIPROSES', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                  // Divider
+                  _buildDashedLine(),
+                  const SizedBox(height: 8),
+
+                  // 5. Total Item
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'TOTAL ITEM:',
+                        style: TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                      Text(
+                        '$totalItems Menu',
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Divider
+                  _buildDashedLine(),
+                  const SizedBox(height: 12),
+
+                  // 6. Footer
+                  const Text(
+                    '-- SEGERA DISIAPKAN --',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
         ),
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         actions: [
           TextButton(
             onPressed: () => Get.back(),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF64748B),
+              textStyle: const TextStyle(fontWeight: FontWeight.bold),
+            ),
             child: const Text('Tutup'),
           ),
           ElevatedButton.icon(
-            icon: const Icon(Icons.print_rounded, size: 18),
+            icon: const Icon(Icons.print_rounded, size: 16),
             label: const Text('Cetak Dapur'),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.amber.shade800, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF059669), // Emerald Green persis .btn-direct web
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
             onPressed: () async {
               if (printerService.isConnected.value) {
                 await printerService.printKitchenReceipt(payload);
@@ -319,6 +487,51 @@ class ReceiptViewDialog {
                 );
               }
             },
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Widget _buildDashedLine() {
+    return const Text(
+      '--------------------------------',
+      textAlign: TextAlign.center,
+      maxLines: 1,
+      overflow: TextOverflow.clip,
+      style: TextStyle(
+        fontFamily: 'monospace',
+        fontSize: 10,
+        fontWeight: FontWeight.w500,
+        color: Color(0xFF94A3B8),
+        letterSpacing: 1.0,
+      ),
+    );
+  }
+
+  static Widget _buildMetaRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1.0),
+      child: Row(
+        children: [
+          Text(
+            '$label : ',
+            style: const TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF334155),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 11,
+                color: Color(0xFF0F172A),
+              ),
+            ),
           ),
         ],
       ),
