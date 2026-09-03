@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../data/models/addon_model.dart';
 import '../../../data/models/category_model.dart';
 import '../../../data/models/product_model.dart';
 import '../../../data/models/cafe_settings_model.dart';
@@ -16,6 +17,7 @@ class PosController extends GetxController {
 
   final RxList<CategoryModel> categories = <CategoryModel>[].obs;
   final RxList<ProductModel> products = <ProductModel>[].obs;
+  final RxList<AddonModel> allAddons = <AddonModel>[].obs;
   final RxList<String> occupiedTables = <String>[].obs;
   final RxInt activeOpenBillsCount = 0.obs;
   final Rx<CafeSettingsModel> cafeSettings = CafeSettingsModel().obs;
@@ -74,24 +76,59 @@ class PosController extends GetxController {
       );
     }
 
-    // 3. Occupied Tables
+    // 3. Addons
+    if (data['addons'] != null) {
+      final List addonList = data['addons'];
+      allAddons.assignAll(
+        addonList.map((e) => AddonModel.fromJson(e)).toList(),
+      );
+    }
+
+    // 4. Occupied Tables
     if (data['occupied_tables'] != null) {
       final List tables = data['occupied_tables'];
       occupiedTables.assignAll(tables.map((e) => e.toString()).toList());
     }
 
-    // 4. Cafe Settings
+    // 5. Cafe Settings
     if (data['settings'] != null) {
       cafeSettings.value = CafeSettingsModel.fromJson(data['settings']);
     }
 
-    // 5. Presets
+    // 6. Presets
     if (data['quick_cash_presets'] != null) {
       final List presets = data['quick_cash_presets'];
       quickCashPresets.assignAll(
         presets.map((e) => int.tryParse(e.toString()) ?? 0).toList(),
       );
     }
+  }
+
+  /// Ambil daftar add-ons yang tersedia untuk suatu produk menu.
+  /// Memprioritaskan product.availableAddons dari server.
+  /// Fallback cerdas: mencocokkan category_id produk ke allAddons jika cache offline
+  /// berasal dari versi sebelumnya.
+  List<AddonModel> getAddonsForProduct(ProductModel product) {
+    if (product.availableAddons.isNotEmpty) {
+      return product.availableAddons.where((a) => a.isActive).toList();
+    }
+    if (product.categoryId > 0 && allAddons.isNotEmpty) {
+      return allAddons
+          .where((a) => a.isActive && a.categoryIds.contains(product.categoryId))
+          .toList();
+    }
+    return const [];
+  }
+
+  /// Ambil ulang data add-ons langsung dari endpoint dedicated
+  Future<void> fetchAddons() async {
+    try {
+      final response = await _apiProvider.get(ApiConstants.addons);
+      if (response.data != null && response.data['success'] == true) {
+        final List list = response.data['data'];
+        allAddons.assignAll(list.map((e) => AddonModel.fromJson(e)).toList());
+      }
+    } catch (_) {}
   }
 
   /// Ambil data lengkap POS (Kategori, Produk, Meja Terisi, Info Kafe, Shift)

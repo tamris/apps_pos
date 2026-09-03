@@ -12,6 +12,7 @@ class ApiConstants {
 
   // POS Endpoints
   static const String bootstrap = '/pos/bootstrap';
+  static const String addons = '/pos/addons';
   
   // Shift Management
   static const String currentShift = '/pos/shift/current';

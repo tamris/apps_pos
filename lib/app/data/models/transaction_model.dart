@@ -1,9 +1,12 @@
+import 'addon_model.dart';
+
 class TransactionDetailModel {
   final String name;
   final int quantity;
   final double price;
   final double subtotal;
   final String? notes;
+  final List<AddonModel> addons;
 
   TransactionDetailModel({
     required this.name,
@@ -11,9 +14,17 @@ class TransactionDetailModel {
     required this.price,
     required this.subtotal,
     this.notes,
+    this.addons = const [],
   });
 
   factory TransactionDetailModel.fromJson(Map<String, dynamic> json) {
+    var addonsList = <AddonModel>[];
+    if (json['addons'] != null && json['addons'] is List) {
+      addonsList = (json['addons'] as List)
+          .map((i) => AddonModel.fromJson(Map<String, dynamic>.from(i)))
+          .toList();
+    }
+
     return TransactionDetailModel(
       name: json['name'] ?? 'Menu',
       quantity: json['quantity'] is int
@@ -26,6 +37,7 @@ class TransactionDetailModel {
           ? double.tryParse(json['subtotal'].toString()) ?? 0.0
           : 0.0,
       notes: json['notes']?.toString(),
+      addons: addonsList,
     );
   }
 
@@ -36,6 +48,7 @@ class TransactionDetailModel {
       'price': price,
       'subtotal': subtotal,
       'notes': notes,
+      'addons': addons.map((a) => a.toJson()).toList(),
     };
   }
 }

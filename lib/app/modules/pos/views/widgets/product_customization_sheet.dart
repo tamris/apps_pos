@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../../data/models/addon_model.dart';
 import '../../../../data/models/product_model.dart';
 import '../../../../data/models/cart_item_model.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../controllers/cart_controller.dart';
+import '../../controllers/pos_controller.dart';
 
 class ProductCustomizationSheet extends StatefulWidget {
   final ProductModel product;
@@ -42,10 +44,23 @@ class ProductCustomizationSheet extends StatefulWidget {
 class _ProductCustomizationSheetState extends State<ProductCustomizationSheet> {
   int _quantity = 1;
   String _sugarLevel = 'Normal';
-  String _iceLevel = 'Normal Ice';
+  String _iceLevel = 'Normal';
   String _spicyLevel = ''; // Single select: 'Tidak Pedas', 'Sedang', 'Pedas'
   final Set<String> _selectedFoodRequests = <String>{}; // Multi select: 'Pisah Saus', 'Tanpa Bawang', 'Bungkus Terpisah'
+  final Set<int> _selectedAddonIds = <int>{};
+  late List<AddonModel> _availableAddons;
   late TextEditingController _notesController;
+
+  List<AddonModel> get _selectedAddons {
+    return _availableAddons.where((a) => _selectedAddonIds.contains(a.id)).toList();
+  }
+
+  double get _totalAddonsPrice {
+    return _selectedAddons.fold(0.0, (sum, a) => sum + a.price);
+  }
+
+  double get _unitPrice => widget.product.price + _totalAddonsPrice;
+  double get _totalPrice => _unitPrice * _quantity;
 
   final List<String> _sugarOptions = [
     'Normal',
@@ -54,10 +69,10 @@ class _ProductCustomizationSheetState extends State<ProductCustomizationSheet> {
   ];
 
   final List<String> _iceOptions = [
-    'Normal Ice',
+    'Normal',
     'Less Ice',
     'No Ice',
-    'Hot / Hangat',
+    'Hot',
   ];
 
   final List<String> _spicyOptions = [
@@ -93,10 +108,19 @@ class _ProductCustomizationSheetState extends State<ProductCustomizationSheet> {
   @override
   void initState() {
     super.initState();
+    final posCtrl = Get.isRegistered<PosController>() ? Get.find<PosController>() : null;
+    _availableAddons = posCtrl != null
+        ? posCtrl.getAddonsForProduct(widget.product)
+        : widget.product.availableAddons;
+
     if (widget.existingItem != null) {
       _quantity = widget.existingItem!.quantity;
       _sugarLevel = widget.existingItem!.sugarLevel.isNotEmpty ? widget.existingItem!.sugarLevel : 'Normal';
-      _iceLevel = widget.existingItem!.iceLevel.isNotEmpty ? widget.existingItem!.iceLevel : 'Normal Ice';
+      _iceLevel = widget.existingItem!.iceLevel.isNotEmpty ? widget.existingItem!.iceLevel : 'Normal';
+      if (_iceLevel == 'Normal Ice') _iceLevel = 'Normal';
+      for (final a in widget.existingItem!.addons) {
+        _selectedAddonIds.add(a.id);
+      }
 
       final existingNotes = widget.existingItem!.notes;
       String remainingNotes = existingNotes;
@@ -251,13 +275,35 @@ class _ProductCustomizationSheetState extends State<ProductCustomizationSheet> {
                             ),
                           ),
                           const SizedBox(height: 3),
-                          Text(
-                            CurrencyFormatter.format(widget.product.price),
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primaryDark,
-                            ),
+                          Row(
+                            children: [
+                              Text(
+                                CurrencyFormatter.format(widget.product.price),
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primaryDark,
+                                ),
+                              ),
+                              if (_totalAddonsPrice > 0) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primarySoft,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '+ ${CurrencyFormatter.format(_totalAddonsPrice)}',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.primaryDark,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ],
                       ),
@@ -369,6 +415,54 @@ class _ProductCustomizationSheetState extends State<ProductCustomizationSheet> {
                   const SizedBox(height: 16),
                 ],
 
+                // 3. Add-ons & Topping Pilihan (Jika Tersedia)
+                if (_availableAddons.isNotEmpty) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Pilihan Add-on & Topping:',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      if (_selectedAddonIds.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                          decoration: BoxDecoration(
+                            color: AppColors.primarySoft,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: AppColors.primary.withAlpha(60),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Text(
+                            '${_selectedAddonIds.length} dipilih',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primaryDark,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Column(
+                    children: _availableAddons.map((addon) {
+                      final isSelected = _selectedAddonIds.contains(addon.id);
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 7.0),
+                        child: _buildAddonTile(addon, isSelected),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+
                 // Catatan Tambahan (Opsional)
                 const Text(
                   'Catatan Tambahan Manual (Opsional):',
@@ -377,9 +471,11 @@ class _ProductCustomizationSheetState extends State<ProductCustomizationSheet> {
                 const SizedBox(height: 8),
                 TextField(
                   controller: _notesController,
-                  decoration: const InputDecoration(
-                    hintText: 'Misal: Saus jangan dicampur, kuah sedikit...',
-                    prefixIcon: Icon(Icons.edit_note_rounded, color: AppColors.textSecondary),
+                  decoration: InputDecoration(
+                    hintText: _isDrink
+                        ? 'Misal: Kurang manis, tanpa sedotan...'
+                        : 'Misal: Saus jangan dicampur, kuah sedikit...',
+                    prefixIcon: const Icon(Icons.edit_note_rounded, color: AppColors.textSecondary),
                   ),
                 ),
                 const SizedBox(height: 22),
@@ -400,6 +496,7 @@ class _ProductCustomizationSheetState extends State<ProductCustomizationSheet> {
                       final sugar = _isDrink ? _sugarLevel : '';
                       final ice = _isDrink ? _iceLevel : '';
                       final finalNotes = _compileFinalNotes();
+                      final selectedAddons = _selectedAddons;
 
                       if (isEditMode && widget.itemIndex != null) {
                         // Update item existing
@@ -408,6 +505,7 @@ class _ProductCustomizationSheetState extends State<ProductCustomizationSheet> {
                           sugarLevel: sugar,
                           iceLevel: ice,
                           notes: finalNotes,
+                          addons: selectedAddons,
                         );
                         cartController.updateItem(widget.itemIndex!, updatedItem);
                       } else {
@@ -418,6 +516,7 @@ class _ProductCustomizationSheetState extends State<ProductCustomizationSheet> {
                           sugarLevel: sugar,
                           iceLevel: ice,
                           notes: finalNotes,
+                          addons: selectedAddons,
                         );
                       }
                       Navigator.of(context).pop();
@@ -430,7 +529,7 @@ class _ProductCustomizationSheetState extends State<ProductCustomizationSheet> {
                           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                         ),
                         Text(
-                          CurrencyFormatter.format(widget.product.price * _quantity),
+                          CurrencyFormatter.format(_totalPrice),
                           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                         ),
                       ],
@@ -457,7 +556,7 @@ class _ProductCustomizationSheetState extends State<ProductCustomizationSheet> {
         final isSelected = selectedValue == opt;
         return Expanded(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 3.0),
+            padding: const EdgeInsets.symmetric(horizontal: 2.5),
             child: Material(
               color: isSelected ? AppColors.primarySoft : AppColors.lightBackground,
               borderRadius: BorderRadius.circular(10),
@@ -465,13 +564,13 @@ class _ProductCustomizationSheetState extends State<ProductCustomizationSheet> {
                 borderRadius: BorderRadius.circular(10),
                 onTap: () => onChanged(opt),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
+                  padding: const EdgeInsets.symmetric(vertical: 9.5, horizontal: 3),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
                       color: isSelected ? AppColors.primary : AppColors.lightBorder,
-                      width: isSelected ? 1.5 : 1.0,
+                      width: isSelected ? 1.4 : 1.0,
                     ),
                   ),
                   child: Row(
@@ -479,18 +578,21 @@ class _ProductCustomizationSheetState extends State<ProductCustomizationSheet> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (isSelected) ...[
-                        const Icon(Icons.check_rounded, size: 14, color: AppColors.primaryDark),
-                        const SizedBox(width: 3),
+                        const Icon(Icons.check_rounded, size: 13, color: AppColors.primaryDark),
+                        const SizedBox(width: 2.5),
                       ],
                       Flexible(
-                        child: Text(
-                          opt,
-                          textAlign: TextAlign.center,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                            color: isSelected ? AppColors.primaryDark : AppColors.textPrimary,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            opt,
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                              color: isSelected ? AppColors.primaryDark : AppColors.textPrimary,
+                            ),
                           ),
                         ),
                       ),
@@ -561,6 +663,90 @@ class _ProductCustomizationSheetState extends State<ProductCustomizationSheet> {
           ),
         );
       }).toList(),
+    );
+  }
+
+  /// Card Pilihan Add-on & Topping Full-Width Elegan & Rapi
+  Widget _buildAddonTile(AddonModel addon, bool isSelected) {
+    return Material(
+      color: isSelected ? AppColors.primarySoft : Colors.white,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () {
+          setState(() {
+            if (isSelected) {
+              _selectedAddonIds.remove(addon.id);
+            } else {
+              _selectedAddonIds.add(addon.id);
+            }
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected ? AppColors.primary : AppColors.lightBorder,
+              width: isSelected ? 1.4 : 1.0,
+            ),
+          ),
+          child: Row(
+            children: [
+              // Custom Square Checkbox
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                width: 19,
+                height: 19,
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.primary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(5),
+                  border: Border.all(
+                    color: isSelected ? AppColors.primary : AppColors.textMuted.withAlpha(120),
+                    width: 1.5,
+                  ),
+                ),
+                child: isSelected
+                    ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
+                    : null,
+              ),
+              const SizedBox(width: 10),
+              // Nama Add-on
+              Expanded(
+                child: Text(
+                  addon.name,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    color: isSelected ? AppColors.primaryDark : AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Badge Harga Tambahan
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.white : AppColors.lightBackground,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: isSelected ? AppColors.primary.withAlpha(80) : AppColors.lightBorder,
+                    width: 0.8,
+                  ),
+                ),
+                child: Text(
+                  addon.formattedPriceWithPlus,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: isSelected ? AppColors.primaryDark : AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

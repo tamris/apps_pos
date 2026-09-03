@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'addon_model.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
 
@@ -67,6 +68,7 @@ class OnlineOrderItemModel {
   final double price;
   final double subtotal;
   final String notes;
+  final List<AddonModel> addons;
 
   OnlineOrderItemModel({
     required this.id,
@@ -77,9 +79,17 @@ class OnlineOrderItemModel {
     required this.price,
     required this.subtotal,
     required this.notes,
+    this.addons = const [],
   });
 
   factory OnlineOrderItemModel.fromJson(Map<String, dynamic> json) {
+    var addonsList = <AddonModel>[];
+    if (json['addons'] != null && json['addons'] is List) {
+      addonsList = (json['addons'] as List)
+          .map((i) => AddonModel.fromJson(Map<String, dynamic>.from(i)))
+          .toList();
+    }
+
     return OnlineOrderItemModel(
       id: json['id'] ?? 0,
       productId: json['product_id'] ?? 0,
@@ -89,6 +99,7 @@ class OnlineOrderItemModel {
       price: (json['price'] as num?)?.toDouble() ?? 0.0,
       subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0.0,
       notes: json['notes'] ?? '',
+      addons: addonsList,
     );
   }
 

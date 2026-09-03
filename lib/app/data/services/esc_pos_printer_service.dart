@@ -322,6 +322,18 @@ class EscPosPrinterService extends GetxService {
       final subStr = formatNumber(itemSub);
       buffer.write('${line32(qtyPrice, subStr)}\n');
 
+      // Add-ons / Toppings (format persis receipt backend: '  + Extra Shot (4.000)')
+      if (item['addons'] != null && item['addons'] is List) {
+        for (var addon in (item['addons'] as List)) {
+          final aName = addon['name']?.toString() ?? '';
+          final aPrice = (addon['price'] != null) ? double.tryParse(addon['price'].toString()) ?? 0 : 0;
+          if (aName.isNotEmpty) {
+            final addonLine = (aPrice > 0) ? '  + $aName (${formatNumber(aPrice)})' : '  + $aName';
+            buffer.write('$addonLine\n');
+          }
+        }
+      }
+
       if (notes != null && notes.trim().isNotEmpty) {
         buffer.write(' * $notes\n');
       }
@@ -553,6 +565,17 @@ class EscPosPrinterService extends GetxService {
       totalItems += qty;
 
       buffer.write('${qty}x  $name\n');
+
+      // Format addon di tiket dapur: '   [+] Extra Shot' persis standar F&B pos-inventory
+      if (item['addons'] != null && item['addons'] is List) {
+        for (var addon in (item['addons'] as List)) {
+          final aName = addon['name']?.toString() ?? '';
+          if (aName.isNotEmpty) {
+            buffer.write('   [+] $aName\n');
+          }
+        }
+      }
+
       if (notes != null && notes.trim().isNotEmpty) {
         buffer.write(' >> CTTN: $notes\n');
       }

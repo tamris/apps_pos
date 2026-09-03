@@ -1,3 +1,5 @@
+import 'addon_model.dart';
+
 class OpenBillDetailItem {
   final int id;
   final int productId;
@@ -6,6 +8,7 @@ class OpenBillDetailItem {
   final double price;
   final double subtotal;
   final String? notes;
+  final List<AddonModel> addons;
 
   OpenBillDetailItem({
     required this.id,
@@ -15,6 +18,7 @@ class OpenBillDetailItem {
     required this.price,
     required this.subtotal,
     this.notes,
+    this.addons = const [],
   });
 
   factory OpenBillDetailItem.fromJson(Map<String, dynamic> json) {
@@ -35,6 +39,13 @@ class OpenBillDetailItem {
     final prc = double.tryParse((json['price'] ?? json['unit_price'] ?? '0').toString()) ?? 0.0;
     final sub = double.tryParse((json['subtotal'] ?? json['total_price'] ?? (qty * prc)).toString()) ?? (qty * prc);
 
+    var addonsList = <AddonModel>[];
+    if (json['addons'] != null && json['addons'] is List) {
+      addonsList = (json['addons'] as List)
+          .map((i) => AddonModel.fromJson(Map<String, dynamic>.from(i)))
+          .toList();
+    }
+
     return OpenBillDetailItem(
       id: int.tryParse(json['id']?.toString() ?? '0') ?? 0,
       productId: prodId,
@@ -43,6 +54,7 @@ class OpenBillDetailItem {
       price: prc,
       subtotal: sub,
       notes: json['notes']?.toString() ?? json['note']?.toString(),
+      addons: addonsList,
     );
   }
 
@@ -55,6 +67,7 @@ class OpenBillDetailItem {
       'price': price,
       'subtotal': subtotal,
       'notes': notes,
+      'addons': addons.map((a) => a.toJson()).toList(),
     };
   }
 }

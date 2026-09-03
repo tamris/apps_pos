@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../data/models/addon_model.dart';
 import '../../../data/models/cart_item_model.dart';
 import '../../../data/models/product_model.dart';
 import '../../../data/models/open_bill_model.dart';
@@ -43,13 +44,14 @@ class CartController extends GetxController {
   int get totalItemsCount => items.fold(0, (sum, item) => sum + item.quantity);
   bool get isCartEmpty => items.isEmpty;
 
-  /// Tambah item ke keranjang (dengan custom gula, es, catatan)
+  /// Tambah item ke keranjang (dengan custom gula, es, catatan, dan add-ons)
   void addItem(
     ProductModel product, {
     int quantity = 1,
     String sugarLevel = 'Normal',
     String iceLevel = 'Normal Ice',
     String notes = '',
+    List<AddonModel> addons = const [],
   }) {
     final newItem = CartItemModel(
       product: product,
@@ -57,6 +59,7 @@ class CartController extends GetxController {
       sugarLevel: sugarLevel,
       iceLevel: iceLevel,
       notes: notes,
+      addons: addons,
     );
 
     // Cek apakah item dengan konfigurasi yang sama persis sudah ada di keranjang
@@ -168,7 +171,9 @@ class CartController extends GetxController {
       items.add(CartItemModel(
         product: finalProduct,
         quantity: detail.quantity,
+        basePrice: finalProduct.price,
         price: detail.price,
+        addons: detail.addons,
         notes: detail.notes ?? '',
       ));
     }
