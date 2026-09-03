@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -13,6 +14,8 @@ class ReceiptViewDialog {
     final shopName = header['shop_name'] ?? 'POS CAFE';
     final address = header['address'] ?? '';
     final phone = header['phone'] ?? '';
+    final String? logoUrl = header['logo_url']?.toString();
+    final bool showLogo = (header['show_logo'] is bool) ? header['show_logo'] as bool : true;
 
     final invoice = payload['invoice_number'] ?? '-';
     final date = payload['date'] ?? '-';
@@ -32,7 +35,7 @@ class ReceiptViewDialog {
     final double change = (summary['change'] != null) ? double.tryParse(summary['change'].toString()) ?? 0 : 0;
 
     final footer = payload['footer'] ?? {};
-    final footerMsg = footer['message'] ?? 'Terima Kasih Atas Kunjungan Anda!';
+    final footerMsg = footer['message'] ?? 'Terima Kasih Atas Kunjungannya!';
     final wifiName = footer['wifi_name'];
     final wifiPass = footer['wifi_password'];
 
@@ -54,17 +57,42 @@ class ReceiptViewDialog {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  // Logo Cafe (Dinamis dari Backend URL / Fallback Asset)
+                  if (showLogo)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2.0),
+                      child: (logoUrl != null && logoUrl.isNotEmpty)
+                          ? CachedNetworkImage(
+                              imageUrl: logoUrl,
+                              height: 52,
+                              fit: BoxFit.contain,
+                              placeholder: (_, __) => const SizedBox(height: 52),
+                              errorWidget: (_, __, ___) => Image.asset(
+                                'assets/icons/cafe_logo.png',
+                                height: 52,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                              ),
+                            )
+                          : Image.asset(
+                              'assets/icons/cafe_logo.png',
+                              height: 52,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                            ),
+                    ),
+
                   // Shop Header
                   Text(
-                    shopName,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                    shopName.toUpperCase(),
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                   ),
                   if (address.toString().isNotEmpty)
                     Text(address, textAlign: TextAlign.center, style: const TextStyle(fontSize: 10, color: Colors.black54)),
                   if (phone.toString().isNotEmpty)
                     Text('Telp: $phone', style: const TextStyle(fontSize: 10, color: Colors.black54)),
-                  const SizedBox(height: 8),
-                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black45)),
+                  const SizedBox(height: 6),
+                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black38)),
 
                   // Transaction Meta
                   Align(
@@ -72,22 +100,24 @@ class ReceiptViewDialog {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('No: $invoice', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('Tgl: $date', style: const TextStyle(fontSize: 10, color: Colors.black87)),
-                            Text('Ksr: $cashier', style: const TextStyle(fontSize: 10, color: Colors.black87)),
-                          ],
-                        ),
-                        Text(
-                          'Tipe: $orderType ${tableNumber != null ? '| $tableNumber' : ''} ${customerName != null ? '($customerName)' : ''}',
-                          style: const TextStyle(fontSize: 10, color: Colors.black87),
-                        ),
+                        _buildReceiptRow('No. Inv', invoice, isBold: true),
+                        _buildReceiptRow('Waktu', date),
+                        _buildReceiptRow('Kasir', cashier),
+                        if ((tableNumber != null && tableNumber.toString().isNotEmpty) || (customerName != null && customerName.toString().isNotEmpty)) ...[
+                          _buildReceiptRow(
+                            'Pesanan',
+                            orderType.contains('DINE')
+                                ? 'DINE IN ${tableNumber != null ? "(MEJA $tableNumber)" : ""}'
+                                : orderType,
+                            isBold: true,
+                          ),
+                          if (customerName != null && customerName.toString().isNotEmpty)
+                            _buildReceiptRow('Pelanggan', customerName.toString(), isBold: true),
+                        ],
                       ],
                     ),
                   ),
-                  const Text('========================================', style: TextStyle(fontSize: 10, color: Colors.black45)),
+                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black38)),
 
                   // Item Rows
                   ...items.map((item) {
@@ -102,42 +132,49 @@ class ReceiptViewDialog {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(name, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          Text(name, style: const TextStyle(fontSize: 11)),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('  $qty x ${CurrencyFormatter.formatWithoutSymbol(price)}', style: const TextStyle(fontSize: 10, color: Colors.black87)),
-                              Text(CurrencyFormatter.formatWithoutSymbol(itemSub), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                              Text('$qty x ${CurrencyFormatter.formatWithoutSymbol(price)}', style: const TextStyle(fontSize: 10, color: Colors.black87)),
+                              Text(CurrencyFormatter.formatWithoutSymbol(itemSub), style: const TextStyle(fontSize: 10)),
                             ],
                           ),
                           if (notes != null && notes.trim().isNotEmpty)
-                            Text('  * $notes', style: const TextStyle(fontSize: 9, fontStyle: FontStyle.italic, color: Colors.black54)),
+                            Text(' * $notes', style: const TextStyle(fontSize: 9, fontStyle: FontStyle.italic, color: Colors.black54)),
                         ],
                       ),
                     );
                   }),
 
-                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black45)),
+                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black38)),
 
                   // Totals
                   _buildReceiptRow('Subtotal', CurrencyFormatter.formatWithoutSymbol(subtotal)),
                   if (discount > 0) _buildReceiptRow('Diskon', '-${CurrencyFormatter.formatWithoutSymbol(discount)}'),
-                  if (tax > 0) _buildReceiptRow('Pajak (PB1)', CurrencyFormatter.formatWithoutSymbol(tax)),
-                  const Divider(height: 12, thickness: 1),
-                  _buildReceiptRow('TOTAL', CurrencyFormatter.formatWithoutSymbol(total), isBold: true, fontSize: 13),
-                  const SizedBox(height: 4),
-                  _buildReceiptRow('Metode Bayar', paymentMethod),
-                  _buildReceiptRow('Bayar', CurrencyFormatter.formatWithoutSymbol(paid)),
-                  if (paymentMethod.toUpperCase() == 'CASH')
-                    _buildReceiptRow('Kembalian', CurrencyFormatter.formatWithoutSymbol(change), isBold: true),
+                  if (tax > 0) _buildReceiptRow('Pajak', '+${CurrencyFormatter.formatWithoutSymbol(tax)}'),
+                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black38)),
+                  _buildReceiptRow('TOTAL', 'Rp ${CurrencyFormatter.formatWithoutSymbol(total)}', isBold: true, fontSize: 13),
+                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black38)),
+                  _buildReceiptRow('Bayar (${paymentMethod == "CASH" ? "TUNAI" : paymentMethod})', CurrencyFormatter.formatWithoutSymbol(paid)),
+                  _buildReceiptRow('Kembali', CurrencyFormatter.formatWithoutSymbol(change)),
 
-                  const SizedBox(height: 8),
-                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black45)),
+                  // WiFi
+                  if (wifiName != null && wifiName.toString().isNotEmpty) ...[
+                    const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black38)),
+                    Text(
+                      'WiFi: $wifiName ${wifiPass != null && wifiPass.toString().isNotEmpty ? "| Pass: $wifiPass" : ""}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 9, color: Colors.black54),
+                    ),
+                  ],
+
+                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black38)),
 
                   // Footer
                   Text(footerMsg, textAlign: TextAlign.center, style: const TextStyle(fontSize: 10, color: Colors.black54)),
-                  if (wifiName != null && wifiName.toString().isNotEmpty)
-                    Text('Wi-Fi: $wifiName | Pass: ${wifiPass ?? "-"}', style: const TextStyle(fontSize: 9, color: Colors.black54)),
+                  const SizedBox(height: 2),
+                  const Text('-- Have a Good Coffee Day --', textAlign: TextAlign.center, style: TextStyle(fontSize: 9, color: Colors.black45)),
                 ],
               ),
             ),
