@@ -31,17 +31,36 @@ class OpenBillsController extends GetxController {
   Future<void> fetchOpenBills() async {
     isLoading.value = true;
     try {
-      // 1. Ambil Open Bills yang tersimpan di penyimpanan offline lokal
+      final completedIds = _storageService.getOfflineCompletedServerBillIds();
+
+      // 1. Ambil Open Bills yang tersimpan di penyimpanan offline lokal (dibuat / diedit saat offline)
       final rawOffline = _storageService.getOfflineOpenBills();
       final offlineList = rawOffline
-          .map((e) => OpenBillModel.fromJson(e))
+          .map((e) {
+            final map = Map<String, dynamic>.from(e);
+            map['is_offline'] = true;
+            return OpenBillModel.fromJson(map);
+          })
+          .where((b) => !completedIds.contains(b.id))
           .toList();
 
-      // Filter pencarian offline
+      final offlineIds = offlineList.map((b) => b.id).toSet();
+
+      // 2. Ambil snapshot Open Bills server yang tersimpan di cache lokal
+      final rawCachedServer = _storageService.getCachedServerOpenBills();
+      final cachedServerList = rawCachedServer
+          .map((e) => OpenBillModel.fromJson(e))
+          .where((b) => !completedIds.contains(b.id) && !offlineIds.contains(b.id))
+          .toList();
+
+      // Gabungan lokal (offline + cached server)
+      final combinedLocal = [...offlineList, ...cachedServerList];
+
+      // Helper filter pencarian
       final query = searchQuery.value.trim().toLowerCase();
-      List<OpenBillModel> filteredOffline = offlineList;
-      if (query.isNotEmpty) {
-        filteredOffline = offlineList.where((b) {
+      List<OpenBillModel> filterList(List<OpenBillModel> source) {
+        if (query.isEmpty) return source;
+        return source.where((b) {
           final table = (b.tableNumber ?? '').toLowerCase();
           final cust = (b.customerName ?? '').toLowerCase();
           final inv = b.invoiceNumber.toLowerCase();
@@ -51,16 +70,16 @@ class OpenBillsController extends GetxController {
         }).toList();
       }
 
-      // Jika offline mode, langsung gunakan data lokal
+      // Jika offline mode, langsung gunakan gabungan data lokal (offline + cached server)
       if (_storageService.isOfflineToken) {
-        openBills.assignAll(filteredOffline);
+        openBills.assignAll(filterList(combinedLocal));
         if (Get.isRegistered<PosController>()) {
           Get.find<PosController>().fetchOpenBillsCount();
         }
         return;
       }
 
-      // 2. Jika online, ambil data dari server dan gabungkan dengan open bill offline
+      // 3. Jika online, ambil data dari server dan simpan snapshot-nya
       final response = await _apiProvider.get(
         ApiConstants.openBills,
         queryParameters: query.isNotEmpty ? {'search': query} : null,
@@ -68,28 +87,55 @@ class OpenBillsController extends GetxController {
 
       if (response.data != null && response.data['success'] == true) {
         final List list = response.data['data'] ?? [];
+
+        // Simpan snapshot server bills ke cache lokal jika tidak sedang search
+        if (query.isEmpty) {
+          final serverMaps = list.map((e) => Map<String, dynamic>.from(e)).toList();
+          await _storageService.saveCachedServerOpenBills(serverMaps);
+        }
+
         final serverList = list.map((e) => OpenBillModel.fromJson(e)).toList();
 
-        // Gabungkan: Bill offline di atas, disusul bill server
-        openBills.assignAll([...filteredOffline, ...serverList]);
+        // Filter out ID yang telah diselesaikan saat offline atau sedang aktif di offline bills
+        final activeServerList = serverList
+            .where((b) => !completedIds.contains(b.id) && !offlineIds.contains(b.id))
+            .toList();
+
+        // Gabungkan: Bill offline di atas, disusul bill server aktif
+        openBills.assignAll([...filterList(offlineList), ...filterList(activeServerList)]);
 
         // Update count di PosController
         if (Get.isRegistered<PosController>()) {
           Get.find<PosController>().fetchOpenBillsCount();
         }
       } else {
-        openBills.assignAll(filteredOffline);
+        openBills.assignAll(filterList(combinedLocal));
       }
     } catch (e) {
-      // Fallback offline saat request jaringan gagal
+      // Fallback offline saat request jaringan gagal: tampilkan gabungan offline + snapshot server
+      final completedIds = _storageService.getOfflineCompletedServerBillIds();
       final rawOffline = _storageService.getOfflineOpenBills();
       final offlineList = rawOffline
-          .map((e) => OpenBillModel.fromJson(e))
+          .map((e) {
+            final map = Map<String, dynamic>.from(e);
+            map['is_offline'] = true;
+            return OpenBillModel.fromJson(map);
+          })
+          .where((b) => !completedIds.contains(b.id))
           .toList();
+
+      final offlineIds = offlineList.map((b) => b.id).toSet();
+      final rawCachedServer = _storageService.getCachedServerOpenBills();
+      final cachedServerList = rawCachedServer
+          .map((e) => OpenBillModel.fromJson(e))
+          .where((b) => !completedIds.contains(b.id) && !offlineIds.contains(b.id))
+          .toList();
+      final combined = [...offlineList, ...cachedServerList];
+
       final query = searchQuery.value.trim().toLowerCase();
       if (query.isNotEmpty) {
         openBills.assignAll(
-          offlineList.where((b) {
+          combined.where((b) {
             final table = (b.tableNumber ?? '').toLowerCase();
             final cust = (b.customerName ?? '').toLowerCase();
             final inv = b.invoiceNumber.toLowerCase();
@@ -99,7 +145,7 @@ class OpenBillsController extends GetxController {
           }).toList(),
         );
       } else {
-        openBills.assignAll(offlineList);
+        openBills.assignAll(combined);
       }
     } finally {
       isLoading.value = false;
@@ -156,8 +202,8 @@ class OpenBillsController extends GetxController {
   Future<void> cancelBill(OpenBillModel bill) async {
     isLoading.value = true;
     try {
-      // Jika bill offline (ID < 0), hapus langsung dari local storage
-      if (bill.id < 0 || _storageService.isOfflineToken) {
+      // 1. Jika bill murni offline (ID < 0)
+      if (bill.id < 0) {
         await _storageService.removeOfflineOpenBill(bill.id);
 
         if (bill.tableNumber != null && bill.tableNumber!.isNotEmpty) {
@@ -174,10 +220,33 @@ class OpenBillsController extends GetxController {
         return;
       }
 
+      // 2. Jika offline mode tapi bill berasal dari server (ID > 0)
+      if (_storageService.isOfflineToken) {
+        await _storageService.removeOfflineOpenBill(bill.id);
+        await _storageService.removeCachedServerOpenBill(bill.id);
+        await _storageService.addOfflineCompletedServerBillId(bill.id);
+
+        if (bill.tableNumber != null && bill.tableNumber!.isNotEmpty) {
+          if (Get.isRegistered<PosController>()) {
+            Get.find<PosController>().freeTable(bill.tableNumber!);
+          }
+        }
+
+        AppSnackbar.success(
+          'Bill Dibatalkan',
+          'Bill server dibatalkan secara lokal (Offline).',
+        );
+        await fetchOpenBills();
+        return;
+      }
+
+      // 3. Jika online, batalkan ke server
       final response = await _apiProvider.post(
         ApiConstants.cancelOpenBill(bill.id),
       );
       if (response.data != null && response.data['success'] == true) {
+        await _storageService.removeOfflineOpenBill(bill.id);
+        await _storageService.removeCachedServerOpenBill(bill.id);
         if (bill.tableNumber != null && bill.tableNumber!.isNotEmpty) {
           if (Get.isRegistered<PosController>()) {
             Get.find<PosController>().freeTable(bill.tableNumber!);
@@ -188,7 +257,7 @@ class OpenBillsController extends GetxController {
           'Bill Dibatalkan',
           response.data['message'] ?? 'Bill berhasil dibatalkan.',
         );
-        fetchOpenBills();
+        await fetchOpenBills();
       } else {
         AppSnackbar.danger(
           'Gagal Membatalkan',
@@ -196,22 +265,23 @@ class OpenBillsController extends GetxController {
         );
       }
     } catch (e) {
-      // Jika request server gagal tapi bill ada di local offline, hapus dari local
-      if (bill.id < 0) {
-        await _storageService.removeOfflineOpenBill(bill.id);
-        if (bill.tableNumber != null && bill.tableNumber!.isNotEmpty) {
-          if (Get.isRegistered<PosController>()) {
-            Get.find<PosController>().freeTable(bill.tableNumber!);
-          }
-        }
-        AppSnackbar.success(
-          'Bill Dibatalkan',
-          'Bill offline berhasil dibatalkan.',
-        );
-        await fetchOpenBills();
-      } else {
-        AppSnackbar.danger('Gagal Membatalkan', ApiProvider.getErrorMessage(e));
+      // Fallback jika request server gagal: hapus dari penyimpanan lokal
+      await _storageService.removeOfflineOpenBill(bill.id);
+      if (bill.id > 0) {
+        await _storageService.removeCachedServerOpenBill(bill.id);
+        await _storageService.addOfflineCompletedServerBillId(bill.id);
       }
+
+      if (bill.tableNumber != null && bill.tableNumber!.isNotEmpty) {
+        if (Get.isRegistered<PosController>()) {
+          Get.find<PosController>().freeTable(bill.tableNumber!);
+        }
+      }
+      AppSnackbar.warning(
+        'Bill Dibatalkan (Offline)',
+        'Kendala koneksi. Bill dibatalkan di penyimpanan lokal kasir.',
+      );
+      await fetchOpenBills();
     } finally {
       isLoading.value = false;
     }

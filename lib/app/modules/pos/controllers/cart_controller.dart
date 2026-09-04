@@ -11,10 +11,12 @@ import '../../../data/services/offline_sync_service.dart';
 import '../../../data/services/esc_pos_printer_service.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/app_snackbar.dart';
+import '../../../core/utils/date_formatter.dart';
 import 'pos_controller.dart';
 import '../views/widgets/payment_success_dialog.dart';
 import '../../shift/controllers/shift_controller.dart';
 import '../../shift/views/shift_dialogs.dart';
+import '../../open_bills/controllers/open_bills_controller.dart';
 
 class CartController extends GetxController {
   final ApiProvider _apiProvider = Get.find<ApiProvider>();
@@ -202,6 +204,10 @@ class CartController extends GetxController {
     }
 
     isProcessing.value = true;
+    final now = DateTime.now();
+    final timeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    final dateStr = DateFormatter.formatDate(now);
+
     final billId = (activeOpenBillId.value != null && activeOpenBillId.value != 0)
         ? activeOpenBillId.value!
         : -(DateTime.now().millisecondsSinceEpoch % 1000000);
@@ -219,7 +225,9 @@ class CartController extends GetxController {
       'discount_percent': discountPercent.value,
       'tax_percent': taxPercent.value,
       'items_count': totalItemsCount,
-      'created_at': DateTime.now().toIso8601String(),
+      'created_at': now.toIso8601String(),
+      'time': timeStr,
+      'date': dateStr,
       'is_offline': true,
       'details': items.map((e) => {
         'id': 0,
@@ -241,6 +249,9 @@ class CartController extends GetxController {
       if (_storageService.isOfflineToken) {
         // Mode Offline: Simpan langsung ke penyimpanan lokal
         await _storageService.saveOfflineOpenBill(offlineOpenBill);
+        if (billId > 0) {
+          await _storageService.removeCachedServerOpenBill(billId);
+        }
 
         if (Get.isRegistered<PosController>()) {
           final posCtrl = Get.find<PosController>();
@@ -248,6 +259,10 @@ class CartController extends GetxController {
             posCtrl.markTableOccupied(tableNumber.value);
           }
           posCtrl.fetchOpenBillsCount();
+        }
+
+        if (Get.isRegistered<OpenBillsController>()) {
+          Get.find<OpenBillsController>().fetchOpenBills();
         }
 
         AppSnackbar.warning('Bill Tersimpan (Offline)', 'Pesanan open bill tersimpan di memori kasir (Offline).');
@@ -272,12 +287,20 @@ class CartController extends GetxController {
       );
 
       if (response.data != null && response.data['success'] == true) {
+        if (activeOpenBillId.value != null) {
+          await _storageService.removeOfflineOpenBill(activeOpenBillId.value!);
+        }
+
         if (Get.isRegistered<PosController>()) {
           final posCtrl = Get.find<PosController>();
           if (tableNumber.value.isNotEmpty) {
             posCtrl.markTableOccupied(tableNumber.value);
           }
           posCtrl.fetchOpenBillsCount();
+        }
+
+        if (Get.isRegistered<OpenBillsController>()) {
+          Get.find<OpenBillsController>().fetchOpenBills();
         }
 
         AppSnackbar.success('Bill Tersimpan', 'Pesanan open bill meja berhasil disimpan.');
@@ -290,6 +313,9 @@ class CartController extends GetxController {
     } catch (e) {
       // Fallback offline saat request jaringan gagal
       await _storageService.saveOfflineOpenBill(offlineOpenBill);
+      if (billId > 0) {
+        await _storageService.removeCachedServerOpenBill(billId);
+      }
 
       if (Get.isRegistered<PosController>()) {
         final posCtrl = Get.find<PosController>();
@@ -297,6 +323,10 @@ class CartController extends GetxController {
           posCtrl.markTableOccupied(tableNumber.value);
         }
         posCtrl.fetchOpenBillsCount();
+      }
+
+      if (Get.isRegistered<OpenBillsController>()) {
+        Get.find<OpenBillsController>().fetchOpenBills();
       }
 
       AppSnackbar.warning(
@@ -326,6 +356,7 @@ class CartController extends GetxController {
     final itemsPayload = items.map((e) => e.toApiJson()).toList();
     final savedTable = tableNumber.value;
     final savedCustomer = customerName.value;
+    final savedOpenBillId = activeOpenBillId.value;
     final currentOrderType = orderType.value;
     final currentPaymentMethod = paymentMethod.value;
     final currentPaid = (currentPaymentMethod == 'cash') ? paidAmount.value : grandTotal;
@@ -364,6 +395,16 @@ class CartController extends GetxController {
             posCtrl.freeTable(savedTable);
           }
           posCtrl.fetchOpenBillsCount();
+        }
+
+        // Hapus open bill jika transaksi ini menyelesaikan bill tersebut
+        await _storageService.removeOpenBillOnCheckout(
+          billId: savedOpenBillId,
+          tableNumber: savedTable,
+        );
+
+        if (Get.isRegistered<OpenBillsController>()) {
+          Get.find<OpenBillsController>().fetchOpenBills();
         }
 
         final kitchenItems = items.map((e) => {
@@ -422,6 +463,7 @@ class CartController extends GetxController {
         taxPercent: taxPercent.value,
         paid: currentPaid,
         items: itemsPayload,
+        openBillId: activeOpenBillId.value,
       );
 
       AppSnackbar.warning(
@@ -490,10 +532,11 @@ class CartController extends GetxController {
         },
       };
 
-      // Hapus open bill offline jika transaksi ini menyelesaikan bill tersebut
-      if (activeOpenBillId.value != null && activeOpenBillId.value! < 0) {
-        await _storageService.removeOfflineOpenBill(activeOpenBillId.value!);
-      }
+      // Hapus open bill jika transaksi ini menyelesaikan bill tersebut
+      await _storageService.removeOpenBillOnCheckout(
+        billId: savedOpenBillId,
+        tableNumber: savedTable,
+      );
 
       // Bebaskan meja jika sebelumnya open bill / dine in saat offline
       if (Get.isRegistered<PosController>()) {
@@ -502,6 +545,10 @@ class CartController extends GetxController {
           posCtrl.freeTable(savedTable);
         }
         posCtrl.fetchOpenBillsCount();
+      }
+
+      if (Get.isRegistered<OpenBillsController>()) {
+        Get.find<OpenBillsController>().fetchOpenBills();
       }
 
       PaymentSuccessDialog.show(

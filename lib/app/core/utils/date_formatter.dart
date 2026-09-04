@@ -92,18 +92,20 @@ class DateFormatter {
       final trimmed = dateTime.trim();
       if (trimmed.isEmpty) return '-';
 
-      // 1. Regex untuk mendeteksi jam:menit seperti '13:30', '13:30:45', atau '13:30 · 04 Sep 2026'
-      final timeRegex = RegExp(r'\b([01]?\d|2[0-3]):([0-5]\d)\b');
-      final match = timeRegex.firstMatch(trimmed);
-      if (match != null) {
-        return match.group(0)!;
-      }
-
-      // 2. Parse sebagai DateTime (ISO string)
+      // 1. Coba parse sebagai DateTime terlebih dahulu (ISO 8601, string tanggal lengkap)
       final dt = DateTime.tryParse(trimmed);
       if (dt != null) {
         final local = dt.toLocal();
         return '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+      }
+
+      // 2. Regex fallback jika string murni berupa jam:menit (misal '13:30' atau '13:30:45')
+      final timeRegex = RegExp(r'(?:^|\D)([01]?\d|2[0-3]):([0-5]\d)(?:\D|$)');
+      final match = timeRegex.firstMatch(trimmed);
+      if (match != null) {
+        final h = match.group(1)!.padLeft(2, '0');
+        final m = match.group(2)!;
+        return '$h:$m';
       }
 
       return trimmed;

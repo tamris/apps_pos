@@ -93,6 +93,7 @@ class OpenBillModel {
   final String? date;
   final String? timeAgo;
   final List<OpenBillDetailItem> details;
+  final bool isOffline;
 
   OpenBillModel({
     required this.id,
@@ -110,6 +111,7 @@ class OpenBillModel {
     this.date,
     this.timeAgo,
     this.details = const [],
+    this.isOffline = false,
   });
 
   bool get isDineIn => orderType.toLowerCase() == 'dine_in';
@@ -142,7 +144,7 @@ class OpenBillModel {
   /// Format jam tampilan (HH:mm, misal 14:30)
   String get formattedTime {
     if (time != null && time!.trim().isNotEmpty) {
-      return time!.trim();
+      return DateFormatter.formatHourMinute(time!.trim());
     }
     return DateFormatter.formatHourMinute(createdAt);
   }
@@ -218,6 +220,9 @@ class OpenBillModel {
       date: json['date']?.toString(),
       timeAgo: json['time_ago']?.toString(),
       details: detailsList,
+      isOffline: json['is_offline'] == true ||
+          (json['id'] is int && (json['id'] as int) < 0) ||
+          (int.tryParse(json['id']?.toString() ?? '0') ?? 0) < 0,
     );
   }
 
@@ -237,6 +242,7 @@ class OpenBillModel {
       'time': time,
       'date': date,
       'time_ago': timeAgo,
+      'is_offline': isOffline,
       'details': details.map((d) => d.toJson()).toList(),
     };
   }

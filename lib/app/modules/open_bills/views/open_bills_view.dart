@@ -11,6 +11,12 @@ class OpenBillsView extends GetView<OpenBillsController> {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!controller.isLoading.value) {
+        controller.fetchOpenBills();
+      }
+    });
+
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
       appBar: AppBar(
@@ -370,7 +376,7 @@ class OpenBillsView extends GetView<OpenBillsController> {
                                 ),
                               ),
                             ),
-                            if (bill.id < 0) ...[
+                            if (bill.isOffline || bill.id < 0) ...[
                               const SizedBox(width: 6),
                               Container(
                                 padding: const EdgeInsets.symmetric(

@@ -40,6 +40,7 @@ class OfflineSyncService extends GetxService {
     double taxPercent = 0.0,
     required double paid,
     required List<Map<String, dynamic>> items,
+    int? openBillId,
   }) async {
     final offlineId = 'OFF-${DateTime.now().millisecondsSinceEpoch}-${_uuid.v4().substring(0, 5).toUpperCase()}';
     final payload = {
@@ -53,6 +54,7 @@ class OfflineSyncService extends GetxService {
       'paid': paid,
       'items': items,
       'created_at': DateTime.now().toIso8601String(),
+      if (openBillId != null) 'open_bill_id': openBillId,
     };
 
     await _storageService.addOfflineTransaction(payload);
@@ -190,12 +192,14 @@ class OfflineSyncService extends GetxService {
       if (offlineBills.isNotEmpty) {
         for (final bill in offlineBills) {
           try {
+            final bId = int.tryParse(bill['id']?.toString() ?? '0') ?? 0;
             final billPayload = {
               'order_type': bill['order_type'] ?? 'dine_in',
               'table_number': bill['table_number'],
               'customer_name': bill['customer_name'],
               'discount_percent': bill['discount_percent'] ?? 0.0,
               'tax_percent': bill['tax_percent'] ?? 0.0,
+              if (bId > 0) 'open_bill_id': bId,
               'items': (bill['details'] as List? ?? []).map((d) {
                 int pId = int.tryParse(d['product_id']?.toString() ?? d['id']?.toString() ?? '0') ?? 0;
                 if (pId <= 0 && Get.isRegistered<PosController>()) {
@@ -220,23 +224,25 @@ class OfflineSyncService extends GetxService {
 
             final billRes = await _apiProvider.post(ApiConstants.openBills, data: billPayload);
             if (billRes.data != null && billRes.data['success'] == true) {
-              await _storageService.removeOfflineOpenBill(bill['id']);
+              await _storageService.removeOfflineOpenBill(bId);
             }
           } catch (_) {}
         }
       }
 
-      // Jika hanya ada shift offline tanpa transaksi
+      // Jika hanya ada shift/bill offline tanpa transaksi pembayaran
       if (queue.isEmpty) {
+        await _storageService.clearOfflineCompletedServerBillIds();
         if (Get.isRegistered<PosController>()) {
           Get.find<PosController>().fetchBootstrap(isSilent: true);
+          Get.find<PosController>().fetchOpenBillsCount();
         }
         if (Get.isRegistered<OpenBillsController>()) {
           Get.find<OpenBillsController>().fetchOpenBills();
         }
         AppSnackbar.success(
-          'Sinkronisasi Shift Berhasil',
-          'Shift dan data kasir offline berhasil disinkronkan ke server.',
+          'Sinkronisasi Berhasil',
+          'Shift dan data bill offline berhasil disinkronkan ke server.',
         );
         return true;
       }
@@ -277,6 +283,7 @@ class OfflineSyncService extends GetxService {
 
       if (response.data != null && response.data['success'] == true) {
         await _storageService.clearOfflineQueue();
+        await _storageService.clearOfflineCompletedServerBillIds();
         _refreshCount();
         final syncedCount = response.data['synced_count'] ?? queue.length;
         AppSnackbar.success(
@@ -287,6 +294,7 @@ class OfflineSyncService extends GetxService {
         // 5. Refresh master data & status shift dari server
         if (Get.isRegistered<PosController>()) {
           Get.find<PosController>().fetchBootstrap(isSilent: true);
+          Get.find<PosController>().fetchOpenBillsCount();
         }
         if (Get.isRegistered<ShiftController>()) {
           Get.find<ShiftController>().fetchCurrentShift();
