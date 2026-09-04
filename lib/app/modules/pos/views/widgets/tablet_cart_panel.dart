@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
@@ -43,48 +44,55 @@ class TabletCartPanel extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.primarySoft,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.shopping_bag_outlined,
-                        size: 20,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Pesanan Aktif',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primarySoft,
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        Obx(() => Text(
-                              '${cartController.totalItemsCount} item dalam keranjang',
-                              style: const TextStyle(
-                                fontSize: 11.5,
-                                color: AppColors.textSecondary,
+                        child: const Icon(
+                          Icons.shopping_bag_outlined,
+                          size: 20,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Pesanan Aktif',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary,
                               ),
-                            )),
-                      ],
-                    ),
-                  ],
+                            ),
+                            Obx(() => Text(
+                                  '${cartController.totalItemsCount} item dalam keranjang',
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                )),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 Obx(() {
                   if (cartController.isCartEmpty) return const SizedBox.shrink();
                   return InkWell(
                     borderRadius: BorderRadius.circular(8),
-                    onTap: () => _confirmClearCart(context),
+                    onTap: () {
+                      HapticFeedback.mediumImpact();
+                      _confirmClearCart(context);
+                    },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
@@ -463,7 +471,14 @@ class TabletCartPanel extends StatelessWidget {
                                   // Minus / Delete button
                                   InkWell(
                                     borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
-                                    onTap: () => cartController.decreaseQuantity(index),
+                                    onTap: () {
+                                      if (item.quantity == 1) {
+                                        HapticFeedback.mediumImpact();
+                                      } else {
+                                        HapticFeedback.lightImpact();
+                                      }
+                                      cartController.decreaseQuantity(index);
+                                    },
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                                       child: Icon(
@@ -493,7 +508,10 @@ class TabletCartPanel extends StatelessWidget {
                                   // Plus button
                                   InkWell(
                                     borderRadius: const BorderRadius.horizontal(right: Radius.circular(8)),
-                                    onTap: () => cartController.increaseQuantity(index),
+                                    onTap: () {
+                                      HapticFeedback.lightImpact();
+                                      cartController.increaseQuantity(index);
+                                    },
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                                       child: const Icon(
@@ -602,7 +620,10 @@ class TabletCartPanel extends StatelessWidget {
                         child: OutlinedButton.icon(
                           onPressed: cartController.isCartEmpty
                               ? null
-                              : () => cartController.saveOpenBill(context: context),
+                              : () {
+                                  HapticFeedback.lightImpact();
+                                  cartController.saveOpenBill(context: context);
+                                },
                           icon: const Icon(Icons.bookmark_border_rounded, size: 16),
                           label: const Text(
                             'Simpan Bill',
@@ -623,7 +644,10 @@ class TabletCartPanel extends StatelessWidget {
                         child: ElevatedButton.icon(
                           onPressed: cartController.isCartEmpty
                               ? null
-                              : () => PaymentModalView.show(context),
+                              : () {
+                                  HapticFeedback.lightImpact();
+                                  PaymentModalView.show(context);
+                                },
                           icon: const Icon(Icons.payments_outlined, size: 18),
                           label: Text(
                             'Bayar ${CurrencyFormatter.format(cartController.grandTotal)}',

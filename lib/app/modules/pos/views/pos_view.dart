@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../controllers/pos_controller.dart';
 import '../controllers/cart_controller.dart';
@@ -333,7 +334,7 @@ class PosView extends GetView<PosController> {
       children: [
         const SizedBox(height: 8),
 
-        // Search Bar
+        // Search Bar (Gaya asli dengan border nyala/fokus AppColors.primary)
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: TextField(
@@ -505,6 +506,7 @@ class PosView extends GetView<PosController> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 10,
@@ -513,7 +515,10 @@ class PosView extends GetView<PosController> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              onPressed: () => CartBottomSheet.show(context),
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                CartBottomSheet.show(context);
+              },
               child: const Row(
                 children: [
                   Text(
