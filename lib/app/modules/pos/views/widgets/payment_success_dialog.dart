@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
@@ -18,6 +19,9 @@ class PaymentSuccessDialog {
     Map<String, dynamic>? kitchenPayload,
   }) {
     final printerService = Get.find<EscPosPrinterService>();
+
+    // Tactile confirmation upon successful transaction
+    HapticFeedback.mediumImpact();
 
     Get.dialog(
       Dialog(
@@ -43,12 +47,19 @@ class PaymentSuccessDialog {
               children: [
                 // 1. Success Animated Circle Icon
                 Container(
-                  width: 68,
-                  height: 68,
+                  width: 70,
+                  height: 70,
                   decoration: BoxDecoration(
                     color: AppColors.primarySoft,
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.primaryLight, width: 2),
+                    border: Border.all(color: AppColors.primaryLight, width: 2.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withAlpha(25),
+                        blurRadius: 18,
+                        spreadRadius: 2,
+                      ),
+                    ],
                   ),
                   child: const Icon(
                     Icons.check_rounded,
@@ -106,28 +117,43 @@ class PaymentSuccessDialog {
                 if (paymentMethod.toUpperCase().contains('CASH') || paymentMethod.toUpperCase().contains('TUNAI')) ...[
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                     decoration: BoxDecoration(
                       color: AppColors.primarySoft,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.primaryLight),
+                      border: Border.all(
+                        color: change > 0 ? AppColors.primary : AppColors.primaryLight,
+                        width: change > 0 ? 1.5 : 1.0,
+                      ),
                     ),
                     child: Column(
                       children: [
-                        const Text(
-                          'KEMBALIAN',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primaryDark,
-                            letterSpacing: 1.2,
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              change > 0 ? Icons.payments_rounded : Icons.check_circle_rounded,
+                              size: 15,
+                              color: AppColors.primaryDark,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              change > 0 ? 'KEMBALIAN KASIR' : 'STATUS PEMBAYARAN',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryDark,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 4),
                         Text(
-                          CurrencyFormatter.format(change),
-                          style: const TextStyle(
-                            fontSize: 24,
+                          change > 0 ? CurrencyFormatter.format(change) : 'UANG PAS (LUNAS)',
+                          style: TextStyle(
+                            fontSize: change > 0 ? 26 : 16,
                             fontWeight: FontWeight.w900,
                             color: AppColors.primaryDark,
                           ),
@@ -167,6 +193,7 @@ class PaymentSuccessDialog {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () async {
+                          HapticFeedback.lightImpact();
                           if (receiptPayload != null) {
                             if (printerService.isConnected.value) {
                               await printerService.printReceipt(receiptPayload);
@@ -210,6 +237,7 @@ class PaymentSuccessDialog {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () async {
+                          HapticFeedback.lightImpact();
                           if (kitchenPayload != null) {
                             if (printerService.isConnected.value) {
                               await printerService.printKitchenReceipt(kitchenPayload);
@@ -249,6 +277,7 @@ class PaymentSuccessDialog {
                   height: 48,
                   child: ElevatedButton(
                     onPressed: () {
+                      HapticFeedback.mediumImpact();
                       Get.back();
                       if (Get.isBottomSheetOpen ?? false) {
                         Get.back();

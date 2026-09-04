@@ -296,8 +296,28 @@ class PosController extends GetxController {
 
   /// Ambil jumlah open bill aktif (Server + Offline Lokal)
   Future<void> fetchOpenBillsCount() async {
-    final offlineBills = _storageService.getOfflineOpenBills();
-    final offlineTables = offlineBills
+    final completedIds = _storageService.getOfflineCompletedServerBillIds();
+    final offlineBills = _storageService.getOfflineOpenBills()
+        .where((e) {
+          final id = int.tryParse(e['id']?.toString() ?? '0') ?? 0;
+          return !completedIds.contains(id);
+        })
+        .toList();
+
+    final offlineIds = offlineBills
+        .map((e) => int.tryParse(e['id']?.toString() ?? '0') ?? 0)
+        .toSet();
+
+    final cachedServerBills = _storageService.getCachedServerOpenBills()
+        .where((e) {
+          final id = int.tryParse(e['id']?.toString() ?? '0') ?? 0;
+          return !completedIds.contains(id) && !offlineIds.contains(id);
+        })
+        .toList();
+
+    // Gabungan lokal (offline + snapshot server yang tersimpan tanpa duplikat)
+    final allLocalBills = [...offlineBills, ...cachedServerBills];
+    final localTables = allLocalBills
         .map((e) => e['table_number']?.toString())
         .where((t) => t != null && t.isNotEmpty)
         .cast<String>()
@@ -305,19 +325,36 @@ class PosController extends GetxController {
 
     try {
       if (_storageService.isOfflineToken) {
-        updateOpenBillsCount(offlineBills.length);
-        occupiedTables.assignAll(offlineTables.toList());
+        updateOpenBillsCount(allLocalBills.length);
+        occupiedTables.assignAll(localTables.toList());
         return;
       }
 
       final response = await _apiProvider.get(ApiConstants.openBills);
       if (response.data != null && response.data['success'] == true) {
         final List list = response.data['data'] ?? [];
-        final totalCount = list.length + offlineBills.length;
+
+        // Simpan snapshot server bills ke cache lokal
+        final serverMaps = list.map((e) => Map<String, dynamic>.from(e)).toList();
+        await _storageService.saveCachedServerOpenBills(serverMaps);
+
+        // Filter out ID yang sudah diselesaikan offline atau sedang aktif di offline bills
+        final activeServerList = serverMaps.where((e) {
+          final id = int.tryParse(e['id']?.toString() ?? '0') ?? 0;
+          return !completedIds.contains(id) && !offlineIds.contains(id);
+        }).toList();
+
+        final totalCount = activeServerList.length + offlineBills.length;
         updateOpenBillsCount(totalCount);
 
-        // Update occupiedTables gabungan server + offline
-        final serverTables = list
+        // Update occupiedTables gabungan server + offline (tanpa duplikat)
+        final serverTables = activeServerList
+            .map((e) => e['table_number']?.toString())
+            .where((t) => t != null && t.isNotEmpty)
+            .cast<String>()
+            .toSet();
+
+        final offlineTables = offlineBills
             .map((e) => e['table_number']?.toString())
             .where((t) => t != null && t.isNotEmpty)
             .cast<String>()
@@ -325,12 +362,13 @@ class PosController extends GetxController {
 
         occupiedTables.assignAll({...serverTables, ...offlineTables}.toList());
       } else {
-        updateOpenBillsCount(offlineBills.length);
-        occupiedTables.assignAll(offlineTables.toList());
+        updateOpenBillsCount(allLocalBills.length);
+        occupiedTables.assignAll(localTables.toList());
       }
     } catch (_) {
-      updateOpenBillsCount(offlineBills.length);
-      occupiedTables.assignAll(offlineTables.toList());
+      // Fallback offline: gunakan data lokal gabungan (offline + cached server)
+      updateOpenBillsCount(allLocalBills.length);
+      occupiedTables.assignAll(localTables.toList());
     }
   }
 }
