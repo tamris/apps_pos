@@ -254,6 +254,25 @@ class TransactionsView extends GetView<TransactionsController> {
                             ),
                           ),
                         ),
+                        if (tx.id < 0) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.warningSoft,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: AppColors.warning.withAlpha(120)),
+                            ),
+                            child: const Text(
+                              'OFFLINE',
+                              style: TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.warning,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

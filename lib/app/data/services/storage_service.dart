@@ -25,6 +25,7 @@ class StorageService extends GetxService {
   static const String _keyBootstrapTimestamp = 'pos_bootstrap_timestamp';
   static const String _keyCachedCashiers = 'cached_cashiers_list';
   static const String _keyCashierPinHashes = 'cashier_pin_hashes';
+  static const String _keyOfflineOpenBills = 'offline_open_bills_queue';
 
   Future<StorageService> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -155,6 +156,44 @@ class StorageService extends GetxService {
 
   Future<void> clearOfflineQueue() async {
     await _prefs.remove(_keyOfflineQueue);
+  }
+
+  // --- Offline Open Bills Storage ---
+  List<Map<String, dynamic>> getOfflineOpenBills() {
+    final raw = _prefs.getString(_keyOfflineOpenBills);
+    if (raw == null) return [];
+    try {
+      final List decoded = jsonDecode(raw);
+      return decoded.map((e) => Map<String, dynamic>.from(e)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> saveOfflineOpenBills(List<Map<String, dynamic>> bills) async {
+    await _prefs.setString(_keyOfflineOpenBills, jsonEncode(bills));
+  }
+
+  Future<void> saveOfflineOpenBill(Map<String, dynamic> bill) async {
+    final current = getOfflineOpenBills();
+    final billId = bill['id'];
+    final existingIndex = current.indexWhere((b) => b['id'] == billId);
+    if (existingIndex >= 0) {
+      current[existingIndex] = bill;
+    } else {
+      current.add(bill);
+    }
+    await saveOfflineOpenBills(current);
+  }
+
+  Future<void> removeOfflineOpenBill(int id) async {
+    final current = getOfflineOpenBills();
+    current.removeWhere((b) => b['id'] == id);
+    await saveOfflineOpenBills(current);
+  }
+
+  Future<void> clearOfflineOpenBills() async {
+    await _prefs.remove(_keyOfflineOpenBills);
   }
 
   // --- SHA-256 Helper ---

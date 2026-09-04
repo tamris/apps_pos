@@ -306,10 +306,10 @@ class SettingsView extends GetView<SettingsController> {
                 prefixIcon: const Icon(Icons.link_rounded),
                 hintText: 'https://alamat-server-toko.com/api',
                 suffixIcon: Tooltip(
-                  message: 'Kembalikan ke Default',
+                  message: 'Hapus / Kosongkan',
                   child: IconButton(
-                    icon: const Icon(Icons.restore_rounded, size: 20, color: AppColors.textMuted),
-                    onPressed: () => controller.resetBaseUrlToDefault(),
+                    icon: const Icon(Icons.clear_rounded, size: 20, color: AppColors.textMuted),
+                    onPressed: () => controller.clearBaseUrl(),
                   ),
                 ),
               ),

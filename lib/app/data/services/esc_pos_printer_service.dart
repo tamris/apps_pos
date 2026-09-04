@@ -5,6 +5,7 @@ import 'package:image/image.dart' as img;
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'storage_service.dart';
 import '../../core/utils/app_snackbar.dart';
+import '../../modules/pos/controllers/pos_controller.dart';
 
 class EscPosPrinterService extends GetxService {
   final StorageService _storageService = Get.find<StorageService>();
@@ -239,6 +240,45 @@ class EscPosPrinterService extends GetxService {
   static const String resetBold = '\x1bE\x00\x1bG\x00';
   static const String cutPaper = '\n\n\n\n\x1d\x56\x00';
 
+  /// Format tanggal & waktu ke susunan standar Indonesia (hari/bulan/tahun jam:menit)
+  static String formatDateTimeDMY(String raw) {
+    if (raw.isEmpty || raw == '-') return '-';
+    try {
+      final dt = DateTime.tryParse(raw);
+      if (dt != null) {
+        final day = dt.day.toString().padLeft(2, '0');
+        final month = dt.month.toString().padLeft(2, '0');
+        final year = dt.year.toString();
+        final hour = dt.hour.toString().padLeft(2, '0');
+        final min = dt.minute.toString().padLeft(2, '0');
+        return '$day/$month/$year $hour:$min';
+      }
+    } catch (_) {}
+
+    // Fallback parsing jika string sudah seperti '2026-09-03 14:50:00' atau '2026-09-03 14:50'
+    try {
+      final parts = raw.split(' ');
+      if (parts.isNotEmpty && parts[0].contains('-')) {
+        final dParts = parts[0].split('-');
+        if (dParts.length == 3 && dParts[0].length == 4) {
+          final dateFormatted = '${dParts[2].padLeft(2, '0')}/${dParts[1].padLeft(2, '0')}/${dParts[0]}';
+          String timeFormatted = '';
+          if (parts.length > 1) {
+            final tParts = parts[1].split(':');
+            if (tParts.length >= 2) {
+              timeFormatted = '${tParts[0].padLeft(2, '0')}:${tParts[1].padLeft(2, '0')}';
+            } else {
+              timeFormatted = parts[1];
+            }
+          }
+          return timeFormatted.isNotEmpty ? '$dateFormatted $timeFormatted' : dateFormatted;
+        }
+      }
+    } catch (_) {}
+
+    return raw;
+  }
+
   /// Generate ESC/POS byte data untuk Struk Transaksi Pelanggan (58mm / 32 kolom)
   /// Format identik 100% dengan ReceiptPrintService.php pada pos-inventory backend
   Future<List<int>> generateCustomerReceiptBytes(Map<String, dynamic> payload) async {
@@ -256,7 +296,8 @@ class EscPosPrinterService extends GetxService {
     final phone = header['phone']?.toString() ?? '';
 
     final invoice = payload['invoice_number']?.toString() ?? '-';
-    final date = payload['date']?.toString() ?? '-';
+    final rawDate = payload['date']?.toString() ?? '-';
+    final date = formatDateTimeDMY(rawDate);
     final cashier = payload['cashier_name']?.toString() ?? 'Staff';
     final orderType = payload['order_type']?.toString().toUpperCase() ?? 'DINE IN';
     final tableNumber = payload['table_number']?.toString();
@@ -343,11 +384,35 @@ class EscPosPrinterService extends GetxService {
 
     // 3. DAFTAR ITEM PESANAN (TIDAK BOLD, FORMAT PERSIS BACKEND)
     for (var item in items) {
-      final name = item['name'] ?? 'Item';
-      final int qty = item['quantity'] is int ? item['quantity'] : int.tryParse(item['quantity'].toString()) ?? 1;
-      final double price = (item['price'] != null) ? double.tryParse(item['price'].toString()) ?? 0 : 0;
-      final double itemSub = (item['subtotal'] != null) ? double.tryParse(item['subtotal'].toString()) ?? (price * qty) : (price * qty);
-      final notes = item['notes']?.toString();
+      String name = '';
+      if (item is Map) {
+        name = item['name']?.toString() ??
+               item['product_name']?.toString() ??
+               (item['product'] is Map ? item['product']['name']?.toString() : null) ??
+               item['title']?.toString() ??
+               '';
+        if (name.isEmpty || name == 'Item' || name == 'Menu') {
+          final pId = int.tryParse((item['product_id'] ?? item['id'] ?? '0').toString()) ?? 0;
+          if (pId > 0 && Get.isRegistered<PosController>()) {
+            final found = Get.find<PosController>().products.firstWhereOrNull((p) => p.id == pId);
+            if (found != null && found.name.isNotEmpty) {
+              name = found.name;
+            }
+          }
+        }
+      }
+      if (name.isEmpty) name = 'Item';
+
+      final int qty = (item is Map && item['quantity'] != null)
+          ? (item['quantity'] is int ? item['quantity'] : int.tryParse(item['quantity'].toString()) ?? 1)
+          : 1;
+      final double price = (item is Map && item['price'] != null)
+          ? double.tryParse(item['price'].toString()) ?? 0
+          : 0;
+      final double itemSub = (item is Map && item['subtotal'] != null)
+          ? double.tryParse(item['subtotal'].toString()) ?? (price * qty)
+          : (price * qty);
+      final notes = (item is Map) ? item['notes']?.toString() : null;
 
       buffer.write('$name\n');
       final qtyPrice = '$qty x ${formatNumber(price)}';
@@ -355,10 +420,10 @@ class EscPosPrinterService extends GetxService {
       buffer.write('${line32(qtyPrice, subStr)}\n');
 
       // Add-ons / Toppings (format persis receipt backend: '  + Extra Shot (4.000)')
-      if (item['addons'] != null && item['addons'] is List) {
+      if (item is Map && item['addons'] != null && item['addons'] is List) {
         for (var addon in (item['addons'] as List)) {
-          final aName = addon['name']?.toString() ?? '';
-          final aPrice = (addon['price'] != null) ? double.tryParse(addon['price'].toString()) ?? 0 : 0;
+          final aName = (addon is Map ? addon['name']?.toString() : addon.toString()) ?? '';
+          final aPrice = (addon is Map && addon['price'] != null) ? double.tryParse(addon['price'].toString()) ?? 0 : 0;
           if (aName.isNotEmpty) {
             final addonLine = (aPrice > 0) ? '  + $aName (${formatNumber(aPrice)})' : '  + $aName';
             buffer.write('$addonLine\n');
@@ -401,8 +466,8 @@ class EscPosPrinterService extends GetxService {
       buffer.write('(BELUM LUNAS / OPEN BILL)\n');
       buffer.write(alignLeft);
     } else {
-      String payMethod = paymentMethod;
-      if (payMethod == 'CASH' || payMethod == 'TUNAI') {
+      String payMethod = paymentMethod.replaceAll('(OFFLINE)', '').replaceAll('OFFLINE', '').trim();
+      if (payMethod.isEmpty || payMethod == 'CASH' || payMethod == 'TUNAI') {
         payMethod = 'TUNAI';
       } else if (payMethod == 'QRIS') {
         payMethod = 'QRIS';
@@ -545,7 +610,8 @@ class EscPosPrinterService extends GetxService {
     final shopName = (header['shop_name'] ?? 'POS CAFE').toString().toUpperCase();
 
     final invoice = payload['invoice_number']?.toString() ?? '-';
-    final date = payload['date']?.toString() ?? DateTime.now().toString().substring(0, 16);
+    final rawDate = payload['date']?.toString() ?? DateTime.now().toString().substring(0, 16);
+    final date = formatDateTimeDMY(rawDate);
     final cashier = payload['cashier_name']?.toString() ?? 'Kasir';
     final orderType = payload['order_type']?.toString().toUpperCase() ?? 'DINE IN';
     final tableNumber = payload['table_number']?.toString();
@@ -596,15 +662,35 @@ class EscPosPrinterService extends GetxService {
     buffer.write(alignLeft);
     int totalItems = 0;
     for (var item in items) {
-      final name = item['name'] ?? 'Item';
-      final int qty = item['quantity'] is int ? item['quantity'] : int.tryParse(item['quantity'].toString()) ?? 1;
-      final notes = item['notes']?.toString();
+      String name = '';
+      if (item is Map) {
+        name = item['name']?.toString() ??
+               item['product_name']?.toString() ??
+               (item['product'] is Map ? item['product']['name']?.toString() : null) ??
+               item['title']?.toString() ??
+               '';
+        if (name.isEmpty || name == 'Item' || name == 'Menu') {
+          final pId = int.tryParse((item['product_id'] ?? item['id'] ?? '0').toString()) ?? 0;
+          if (pId > 0 && Get.isRegistered<PosController>()) {
+            final found = Get.find<PosController>().products.firstWhereOrNull((p) => p.id == pId);
+            if (found != null && found.name.isNotEmpty) {
+              name = found.name;
+            }
+          }
+        }
+      }
+      if (name.isEmpty) name = 'Item';
+
+      final int qty = (item is Map && item['quantity'] != null)
+          ? (item['quantity'] is int ? item['quantity'] : int.tryParse(item['quantity'].toString()) ?? 1)
+          : 1;
+      final notes = (item is Map) ? item['notes']?.toString() : null;
       totalItems += qty;
 
       buffer.write('${qty}x  $name\n');
 
       // Format addon di tiket dapur: '   [+] Extra Shot' persis standar F&B pos-inventory
-      if (item['addons'] != null && item['addons'] is List) {
+      if (item is Map && item['addons'] != null && item['addons'] is List) {
         for (var addon in (item['addons'] as List)) {
           final aName = (addon is Map ? (addon['name']?.toString() ?? '') : addon.toString()).trim();
           if (aName.isNotEmpty) {

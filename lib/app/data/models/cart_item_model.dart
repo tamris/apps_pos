@@ -80,8 +80,12 @@ class CartItemModel {
   Map<String, dynamic> toApiJson() {
     return {
       'id': product.id,
+      'product_id': product.id,
+      'name': product.name,
       'quantity': quantity,
       'price': price,
+      'unit_price': price,
+      'total_price': subtotal,
       'notes': fullNotesString.isEmpty ? null : fullNotesString,
       'addons': addons.map((a) => a.toApiJson()).toList(),
     };
