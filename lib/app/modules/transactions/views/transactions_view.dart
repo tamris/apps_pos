@@ -12,6 +12,10 @@ class TransactionsView extends GetView<TransactionsController> {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.fetchTodayTransactions(silent: true);
+    });
+
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
       appBar: AppBar(

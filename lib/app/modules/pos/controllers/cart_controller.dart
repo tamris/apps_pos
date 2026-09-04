@@ -17,6 +17,7 @@ import '../views/widgets/payment_success_dialog.dart';
 import '../../shift/controllers/shift_controller.dart';
 import '../../shift/views/shift_dialogs.dart';
 import '../../open_bills/controllers/open_bills_controller.dart';
+import '../../transactions/controllers/transactions_controller.dart';
 
 class CartController extends GetxController {
   final ApiProvider _apiProvider = Get.find<ApiProvider>();
@@ -407,6 +408,10 @@ class CartController extends GetxController {
           Get.find<OpenBillsController>().fetchOpenBills();
         }
 
+        if (Get.isRegistered<TransactionsController>()) {
+          Get.find<TransactionsController>().fetchTodayTransactions(silent: true);
+        }
+
         final kitchenItems = items.map((e) => {
           'name': e.product.name,
           'quantity': e.quantity,
@@ -549,6 +554,10 @@ class CartController extends GetxController {
 
       if (Get.isRegistered<OpenBillsController>()) {
         Get.find<OpenBillsController>().fetchOpenBills();
+      }
+
+      if (Get.isRegistered<TransactionsController>()) {
+        Get.find<TransactionsController>().fetchTodayTransactions(silent: true);
       }
 
       PaymentSuccessDialog.show(

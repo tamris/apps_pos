@@ -28,6 +28,8 @@ class StorageService extends GetxService {
   static const String _keyOfflineOpenBills = 'offline_open_bills_queue';
   static const String _keyCachedServerOpenBills = 'cached_server_open_bills';
   static const String _keyOfflineCompletedServerBillIds = 'offline_completed_server_bill_ids';
+  static const String _keyCachedTodayTransactions = 'cached_today_transactions';
+  static const String _keyCachedTodayStats = 'cached_today_stats';
 
   Future<StorageService> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -310,6 +312,41 @@ class StorageService extends GetxService {
 
   Future<void> clearOfflineCompletedServerBillIds() async {
     await _prefs.remove(_keyOfflineCompletedServerBillIds);
+  }
+
+  // --- Cached Today's Transactions (Snapshot saat online) ---
+  List<Map<String, dynamic>> getCachedTodayTransactions() {
+    final raw = _prefs.getString(_keyCachedTodayTransactions);
+    if (raw == null) return [];
+    try {
+      final List decoded = jsonDecode(raw);
+      return decoded.map((e) => Map<String, dynamic>.from(e)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> saveCachedTodayTransactions(List<Map<String, dynamic>> txs) async {
+    await _prefs.setString(_keyCachedTodayTransactions, jsonEncode(txs));
+  }
+
+  Map<String, dynamic>? getCachedTodayStats() {
+    final raw = _prefs.getString(_keyCachedTodayStats);
+    if (raw == null) return null;
+    try {
+      return Map<String, dynamic>.from(jsonDecode(raw));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> saveCachedTodayStats(Map<String, dynamic> stats) async {
+    await _prefs.setString(_keyCachedTodayStats, jsonEncode(stats));
+  }
+
+  Future<void> clearCachedTodayTransactions() async {
+    await _prefs.remove(_keyCachedTodayTransactions);
+    await _prefs.remove(_keyCachedTodayStats);
   }
 
   // --- SHA-256 Helper ---

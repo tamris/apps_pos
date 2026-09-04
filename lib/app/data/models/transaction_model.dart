@@ -96,7 +96,8 @@ class TransactionModel {
     var detailsList = <TransactionDetailModel>[];
     if (json['details'] != null && json['details'] is List) {
       detailsList = (json['details'] as List)
-          .map((i) => TransactionDetailModel.fromJson(i))
+          .map((i) => TransactionDetailModel.fromJson(
+              i is Map<String, dynamic> ? i : Map<String, dynamic>.from(i)))
           .toList();
     }
 

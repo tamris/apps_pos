@@ -129,14 +129,57 @@ class TransactionsController extends GetxController {
     return result;
   }
 
-  /// Hitung statistik transaksi saat offline
+  /// Ambil dan filter transaksi server yang tersimpan di cache lokal saat offline
+  List<TransactionModel> _loadCachedServerTransactions() {
+    final cachedRaw = _storageService.getCachedTodayTransactions();
+    if (cachedRaw.isEmpty) return [];
+
+    final list = cachedRaw.map((e) => TransactionModel.fromJson(e)).toList();
+
+    return list.where((t) {
+      // 1. Filter Status / Tab
+      if (selectedTab.value == 'completed' && !t.isCompleted) return false;
+      if (selectedTab.value == 'pending' && !t.isPending) return false;
+      if (selectedTab.value == 'cancelled' && !t.isCancelled) return false;
+
+      // 2. Filter Search Query
+      if (searchQuery.value.trim().isNotEmpty) {
+        final q = searchQuery.value.trim().toLowerCase();
+        final inv = t.invoiceNumber.toLowerCase();
+        final table = (t.tableNumber ?? '').toLowerCase();
+        final cust = (t.customerName ?? '').toLowerCase();
+        return inv.contains(q) || table.contains(q) || cust.contains(q);
+      }
+
+      return true;
+    }).toList();
+  }
+
+  /// Hitung statistik transaksi saat offline (menggunakan snapshot server + offline queue)
   void _computeOfflineStats(List<TransactionModel> offlineTxs) {
-    stats.value = TransactionStatsModel(
-      all: offlineTxs.length,
-      completed: offlineTxs.length,
-      pending: 0,
-      cancelled: 0,
-    );
+    final cachedStats = _storageService.getCachedTodayStats();
+    if (cachedStats != null) {
+      final serverStats = TransactionStatsModel.fromJson(cachedStats);
+      stats.value = TransactionStatsModel(
+        all: serverStats.all + offlineTxs.length,
+        completed: serverStats.completed + offlineTxs.length,
+        pending: serverStats.pending,
+        cancelled: serverStats.cancelled,
+      );
+    } else {
+      final cachedRaw = _storageService.getCachedTodayTransactions();
+      final cachedTxs = cachedRaw.map((e) => TransactionModel.fromJson(e)).toList();
+      final comp = cachedTxs.where((t) => t.isCompleted).length;
+      final pend = cachedTxs.where((t) => t.isPending).length;
+      final canc = cachedTxs.where((t) => t.isCancelled).length;
+
+      stats.value = TransactionStatsModel(
+        all: cachedTxs.length + offlineTxs.length,
+        completed: comp + offlineTxs.length,
+        pending: pend,
+        cancelled: canc,
+      );
+    }
   }
 
   /// Susun payload struk untuk transaksi offline
@@ -216,7 +259,10 @@ class TransactionsController extends GetxController {
       }
 
       if (_storageService.isOfflineToken) {
-        transactions.assignAll(filteredOffline);
+        final cachedServerTxs = _loadCachedServerTransactions();
+        final offlineInvoices = filteredOffline.map((t) => t.invoiceNumber.trim().toLowerCase()).toSet();
+        final deduplicatedCached = cachedServerTxs.where((t) => !offlineInvoices.contains(t.invoiceNumber.trim().toLowerCase())).toList();
+        transactions.assignAll([...filteredOffline, ...deduplicatedCached]);
         _computeOfflineStats(offlineTxs);
         return;
       }
@@ -232,13 +278,45 @@ class TransactionsController extends GetxController {
       if (response.data != null && response.data['success'] == true) {
         final data = response.data['data'];
         final List list = (data is Map && data['data'] != null) ? data['data'] : (data is List ? data : []);
-        final serverTxs = list.map((e) => TransactionModel.fromJson(e)).toList();
+        final serverTxs = list.map((e) => TransactionModel.fromJson(Map<String, dynamic>.from(e))).toList();
 
-        // Gabungkan: Transaksi offline di paling atas
-        transactions.assignAll([...filteredOffline, ...serverTxs]);
+        // Gabungkan: Transaksi offline di paling atas, deduplikasi jika ada nomor invoice yang sama
+        final offlineInvoices = filteredOffline.map((t) => t.invoiceNumber.trim().toLowerCase()).toSet();
+        final deduplicatedServer = serverTxs.where((t) => !offlineInvoices.contains(t.invoiceNumber.trim().toLowerCase())).toList();
+        transactions.assignAll([...filteredOffline, ...deduplicatedServer]);
+
+        // Simpan snapshot server secara kumulatif agar saat offline transaksi hari ini tetap muncul
+        if (searchQuery.value.trim().isEmpty) {
+          final existingCached = _storageService.getCachedTodayTransactions();
+          final mapByInvoice = <String, Map<String, dynamic>>{};
+          for (final item in existingCached) {
+            final inv = (item['invoice_number'] ?? item['invoiceNumber'] ?? item['id'])?.toString();
+            if (inv != null && inv.isNotEmpty) {
+              mapByInvoice[inv.toLowerCase()] = item;
+            }
+          }
+          for (final item in list) {
+            if (item is Map) {
+              final mapItem = Map<String, dynamic>.from(item);
+              final inv = (mapItem['invoice_number'] ?? mapItem['invoiceNumber'] ?? mapItem['id'])?.toString();
+              if (inv != null && inv.isNotEmpty) {
+                mapByInvoice[inv.toLowerCase()] = mapItem;
+              }
+            }
+          }
+          final mergedList = mapByInvoice.values.toList();
+          mergedList.sort((a, b) {
+            final idA = int.tryParse(a['id']?.toString() ?? '0') ?? 0;
+            final idB = int.tryParse(b['id']?.toString() ?? '0') ?? 0;
+            return idB.compareTo(idA);
+          });
+          await _storageService.saveCachedTodayTransactions(mergedList);
+        }
 
         if (response.data['stats'] != null) {
-          final serverStats = TransactionStatsModel.fromJson(response.data['stats']);
+          final serverStatsRaw = Map<String, dynamic>.from(response.data['stats']);
+          await _storageService.saveCachedTodayStats(serverStatsRaw);
+          final serverStats = TransactionStatsModel.fromJson(serverStatsRaw);
           stats.value = TransactionStatsModel(
             all: serverStats.all + offlineTxs.length,
             completed: serverStats.completed + offlineTxs.length,
@@ -247,12 +325,32 @@ class TransactionsController extends GetxController {
           );
         }
       } else {
-        transactions.assignAll(filteredOffline);
+        final cachedServerTxs = _loadCachedServerTransactions();
+        final offlineInvoices = filteredOffline.map((t) => t.invoiceNumber.trim().toLowerCase()).toSet();
+        final deduplicatedCached = cachedServerTxs.where((t) => !offlineInvoices.contains(t.invoiceNumber.trim().toLowerCase())).toList();
+        transactions.assignAll([...filteredOffline, ...deduplicatedCached]);
         _computeOfflineStats(offlineTxs);
       }
     } catch (e) {
       final offlineTxs = _buildOfflineTransactionsList();
-      transactions.assignAll(offlineTxs);
+      List<TransactionModel> filteredOffline = offlineTxs;
+      if (selectedTab.value == 'cancelled' || selectedTab.value == 'pending') {
+        filteredOffline = [];
+      }
+      if (searchQuery.value.trim().isNotEmpty) {
+        final q = searchQuery.value.trim().toLowerCase();
+        filteredOffline = filteredOffline.where((t) {
+          final inv = t.invoiceNumber.toLowerCase();
+          final table = (t.tableNumber ?? '').toLowerCase();
+          final cust = (t.customerName ?? '').toLowerCase();
+          return inv.contains(q) || table.contains(q) || cust.contains(q);
+        }).toList();
+      }
+
+      final cachedServerTxs = _loadCachedServerTransactions();
+      final offlineInvoices = filteredOffline.map((t) => t.invoiceNumber.trim().toLowerCase()).toSet();
+      final deduplicatedCached = cachedServerTxs.where((t) => !offlineInvoices.contains(t.invoiceNumber.trim().toLowerCase())).toList();
+      transactions.assignAll([...filteredOffline, ...deduplicatedCached]);
       _computeOfflineStats(offlineTxs);
     } finally {
       if (!silent) isLoading.value = false;
@@ -261,14 +359,14 @@ class TransactionsController extends GetxController {
 
   /// Ambil data struk dan cetak ulang / tampilkan preview (Offline & Online)
   Future<void> printOrPreviewReceipt(int transactionId) async {
-    // 1. Jika transaksi offline (ID < 0)
-    if (transactionId < 0) {
-      final offlineTx = transactions.firstWhereOrNull((t) => t.id == transactionId);
-      if (offlineTx != null) {
-        final payload = _buildOfflineReceiptPayload(offlineTx);
+    // 1. Jika transaksi offline (ID < 0) atau saat sedang mode offline
+    if (transactionId < 0 || _storageService.isOfflineToken) {
+      final localTx = transactions.firstWhereOrNull((t) => t.id == transactionId);
+      if (localTx != null) {
+        final payload = _buildOfflineReceiptPayload(localTx);
         if (_printerService.isConnected.value) {
           await _printerService.printReceipt(payload);
-          AppSnackbar.success('Cetak Struk', 'Struk transaksi offline dicetak.');
+          AppSnackbar.success('Cetak Struk', 'Struk transaksi dicetak.');
         } else {
           ReceiptViewDialog.show(payload);
         }
@@ -289,11 +387,12 @@ class TransactionsController extends GetxController {
       }
     } catch (e) {
       // Fallback ke data lokal jika API gagal
-      final offlineTx = transactions.firstWhereOrNull((t) => t.id == transactionId);
-      if (offlineTx != null) {
-        final payload = _buildOfflineReceiptPayload(offlineTx);
+      final localTx = transactions.firstWhereOrNull((t) => t.id == transactionId);
+      if (localTx != null) {
+        final payload = _buildOfflineReceiptPayload(localTx);
         if (_printerService.isConnected.value) {
           await _printerService.printReceipt(payload);
+          AppSnackbar.success('Cetak Struk', 'Struk transaksi dicetak.');
         } else {
           ReceiptViewDialog.show(payload);
         }
@@ -305,11 +404,11 @@ class TransactionsController extends GetxController {
 
   /// Tampilkan Pratinjau Kertas Struk (Offline & Online)
   Future<void> previewReceipt(int transactionId) async {
-    // 1. Jika transaksi offline (ID < 0)
-    if (transactionId < 0) {
-      final offlineTx = transactions.firstWhereOrNull((t) => t.id == transactionId);
-      if (offlineTx != null) {
-        final payload = _buildOfflineReceiptPayload(offlineTx);
+    // 1. Jika transaksi offline (ID < 0) atau saat sedang mode offline
+    if (transactionId < 0 || _storageService.isOfflineToken) {
+      final localTx = transactions.firstWhereOrNull((t) => t.id == transactionId);
+      if (localTx != null) {
+        final payload = _buildOfflineReceiptPayload(localTx);
         ReceiptViewDialog.show(payload);
         return;
       }
@@ -323,9 +422,9 @@ class TransactionsController extends GetxController {
         ReceiptViewDialog.show(payload);
       }
     } catch (e) {
-      final offlineTx = transactions.firstWhereOrNull((t) => t.id == transactionId);
-      if (offlineTx != null) {
-        final payload = _buildOfflineReceiptPayload(offlineTx);
+      final localTx = transactions.firstWhereOrNull((t) => t.id == transactionId);
+      if (localTx != null) {
+        final payload = _buildOfflineReceiptPayload(localTx);
         ReceiptViewDialog.show(payload);
       } else {
         AppSnackbar.danger('Gagal Pratinjau Struk', ApiProvider.getErrorMessage(e));
