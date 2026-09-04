@@ -293,6 +293,7 @@ class _PaymentModalViewState extends State<PaymentModalView> {
                             suffixIcon: IconButton(
                               icon: const Icon(Icons.clear_rounded, size: 18),
                               onPressed: () {
+                                HapticFeedback.lightImpact();
                                 _paidInputController.clear();
                                 cartController.setPaidAmount(0);
                               },
@@ -309,50 +310,8 @@ class _PaymentModalViewState extends State<PaymentModalView> {
                         _buildQuickCashRow(grandTotal),
                         const SizedBox(height: 16),
 
-                        // Kembalian Box
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: cartController.paidAmount.value >= cartController.grandTotal
-                                ? AppColors.primarySoft
-                                : AppColors.dangerSoft,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: cartController.paidAmount.value >= cartController.grandTotal
-                                  ? AppColors.primary
-                                  : AppColors.danger,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                cartController.paidAmount.value >= cartController.grandTotal
-                                    ? 'UANG KEMBALIAN:'
-                                    : 'KURANG BAYAR:',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: cartController.paidAmount.value >= cartController.grandTotal
-                                      ? AppColors.primaryDark
-                                      : AppColors.danger,
-                                ),
-                              ),
-                              Text(
-                                cartController.paidAmount.value >= cartController.grandTotal
-                                    ? CurrencyFormatter.format(cartController.changeAmount)
-                                    : CurrencyFormatter.format(cartController.grandTotal - cartController.paidAmount.value),
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: cartController.paidAmount.value >= cartController.grandTotal
-                                      ? AppColors.primaryDark
-                                      : AppColors.danger,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        // Kembalian Box Dinamis (Kurang Bayar / Uang Pas / Kembalian Kasir)
+                        _buildCashChangeBox(),
                       ],
                     );
                   }),
@@ -374,6 +333,7 @@ class _PaymentModalViewState extends State<PaymentModalView> {
               child: ElevatedButton(
                 onPressed: (canProceed && !cartController.isProcessing.value)
                     ? () async {
+                        HapticFeedback.mediumImpact();
                         // Tutup modal pembayaran terlebih dahulu agar tidak menumpuk di latar belakang dialog sukses
                         Navigator.of(context).pop();
                         await cartController.processCheckout(context: context);
@@ -417,6 +377,67 @@ class _PaymentModalViewState extends State<PaymentModalView> {
     );
   }
 
+  /// Kembalian Box dengan 3 status jelas: Kurang Bayar, Uang Pas (Lunas), Kembalian Kasir
+  Widget _buildCashChangeBox() {
+    final paid = cartController.paidAmount.value;
+    final total = cartController.grandTotal;
+    final isShort = paid < total;
+    final isExact = paid == total;
+
+    final bgColor = isShort ? AppColors.dangerSoft : AppColors.primarySoft;
+    final borderColor = isShort ? AppColors.danger.withAlpha(150) : AppColors.primary;
+    final textColor = isShort ? AppColors.danger : AppColors.primaryDark;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: borderColor, width: isExact ? 1.0 : 1.5),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isShort
+                    ? Icons.warning_amber_rounded
+                    : (isExact ? Icons.check_circle_rounded : Icons.payments_rounded),
+                color: textColor,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                isShort
+                    ? 'KURANG BAYAR:'
+                    : (isExact ? 'UANG PAS (LUNAS):' : 'KEMBALIAN KASIR:'),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          Text(
+            isShort
+                ? CurrencyFormatter.format(total - paid)
+                : (isExact ? 'Rp 0' : CurrencyFormatter.format(cartController.changeAmount)),
+            style: TextStyle(
+              fontSize: isExact ? 16 : 20,
+              fontWeight: FontWeight.bold,
+              color: textColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Komponen Rekomendasi Uang Cepat (4 Tombol Sama Lebar)
   Widget _buildQuickCashRow(double total) {
     final suggestions = _getSmartCashSuggestions(total);
@@ -424,11 +445,12 @@ class _PaymentModalViewState extends State<PaymentModalView> {
 
     return Row(
       children: [
-        // 1. Tombol Uang Pas (Teks satu baris bersih)
+        // 1. Tombol Uang Pas
         Expanded(
           child: _buildCashPresetButton(
             label: 'Uang Pas',
             isSelected: isExactSelected,
+            showCheck: true,
             onTap: () {
               cartController.setPaidAmount(total);
               _paidInputController.text = CurrencyFormatter.formatWithoutSymbol(total);
@@ -466,13 +488,17 @@ class _PaymentModalViewState extends State<PaymentModalView> {
     required String label,
     required bool isSelected,
     required VoidCallback onTap,
+    bool showCheck = false,
   }) {
     return Material(
       color: isSelected ? AppColors.primarySoft : AppColors.lightBackground,
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
-        onTap: onTap,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
         child: Container(
           height: 42,
           padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -484,15 +510,27 @@ class _PaymentModalViewState extends State<PaymentModalView> {
               width: isSelected ? 1.5 : 1.0,
             ),
           ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-              color: isSelected ? AppColors.primaryDark : AppColors.textPrimary,
-            ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (showCheck && isSelected) ...[
+                const Icon(Icons.check_circle_rounded, size: 13, color: AppColors.primary),
+                const SizedBox(width: 3),
+              ],
+              Flexible(
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                    color: isSelected ? AppColors.primaryDark : AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -507,7 +545,10 @@ class _PaymentModalViewState extends State<PaymentModalView> {
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: () => cartController.paymentMethod.value = key,
+          onTap: () {
+            HapticFeedback.selectionClick();
+            cartController.paymentMethod.value = key;
+          },
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 12),
             decoration: BoxDecoration(
@@ -517,18 +558,31 @@ class _PaymentModalViewState extends State<PaymentModalView> {
                 width: isSelected ? 1.5 : 1.0,
               ),
             ),
-            child: Column(
+            child: Stack(
+              clipBehavior: Clip.none,
               children: [
-                Icon(icon, color: isSelected ? AppColors.primary : AppColors.textSecondary, size: 22),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                    color: isSelected ? AppColors.primaryDark : AppColors.textSecondary,
+                Center(
+                  child: Column(
+                    children: [
+                      Icon(icon, color: isSelected ? AppColors.primary : AppColors.textSecondary, size: 22),
+                      const SizedBox(height: 4),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          color: isSelected ? AppColors.primaryDark : AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+                if (isSelected)
+                  const Positioned(
+                    top: -4,
+                    right: 4,
+                    child: Icon(Icons.check_circle_rounded, size: 12, color: AppColors.primary),
+                  ),
               ],
             ),
           ),

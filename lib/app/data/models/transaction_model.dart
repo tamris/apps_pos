@@ -1,3 +1,4 @@
+import '../../core/utils/date_formatter.dart';
 import 'addon_model.dart';
 
 class TransactionDetailModel {
@@ -89,6 +90,7 @@ class TransactionModel {
   bool get isCompleted => status.toLowerCase() == 'completed';
   bool get isPending => status.toLowerCase() == 'pending';
   bool get isCancelled => status.toLowerCase() == 'cancelled';
+  String get formattedTime => DateFormatter.formatHourMinute(time);
 
   factory TransactionModel.fromJson(Map<String, dynamic> json) {
     var detailsList = <TransactionDetailModel>[];
