@@ -356,9 +356,16 @@ class PinLoginView extends StatelessWidget {
             const SizedBox(height: 12),
             TextField(
               controller: textController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'https://alamat-server-toko.com/api',
-                prefixIcon: Icon(Icons.link_rounded, size: 20),
+                prefixIcon: const Icon(Icons.link_rounded, size: 20),
+                suffixIcon: Tooltip(
+                  message: 'Hapus / Kosongkan',
+                  child: IconButton(
+                    icon: const Icon(Icons.clear_rounded, size: 20, color: AppColors.textMuted),
+                    onPressed: () => textController.clear(),
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 10),

@@ -9,6 +9,8 @@ import '../../core/theme/app_colors.dart';
 import '../../core/utils/app_snackbar.dart';
 import '../../modules/pos/controllers/pos_controller.dart';
 import '../../modules/shift/controllers/shift_controller.dart';
+import '../../modules/transactions/controllers/transactions_controller.dart';
+import '../../modules/open_bills/controllers/open_bills_controller.dart';
 
 class OfflineSyncService extends GetxService {
   final StorageService _storageService = Get.find<StorageService>();
@@ -183,11 +185,58 @@ class OfflineSyncService extends GetxService {
         }
       }
 
+      // 2b. Sinkronisasi Offline Open Bills (jika ada bill meja offline yang masih aktif)
+      final offlineBills = _storageService.getOfflineOpenBills();
+      if (offlineBills.isNotEmpty) {
+        for (final bill in offlineBills) {
+          try {
+            final billPayload = {
+              'order_type': bill['order_type'] ?? 'dine_in',
+              'table_number': bill['table_number'],
+              'customer_name': bill['customer_name'],
+              'discount_percent': bill['discount_percent'] ?? 0.0,
+              'tax_percent': bill['tax_percent'] ?? 0.0,
+              'items': (bill['details'] as List? ?? []).map((d) {
+                int pId = int.tryParse(d['product_id']?.toString() ?? d['id']?.toString() ?? '0') ?? 0;
+                if (pId <= 0 && Get.isRegistered<PosController>()) {
+                  final pos = Get.find<PosController>();
+                  final name = d['name']?.toString() ?? '';
+                  final match = pos.products.firstWhereOrNull((p) => p.name.toLowerCase() == name.toLowerCase());
+                  if (match != null) {
+                    pId = match.id;
+                  } else if (pos.products.isNotEmpty) {
+                    pId = pos.products.first.id;
+                  }
+                }
+                if (pId <= 0) pId = 1;
+                return {
+                  'id': pId,
+                  'quantity': d['quantity'] ?? 1,
+                  'notes': d['notes'],
+                  'addons': d['addons'] ?? [],
+                };
+              }).toList(),
+            };
+
+            final billRes = await _apiProvider.post(ApiConstants.openBills, data: billPayload);
+            if (billRes.data != null && billRes.data['success'] == true) {
+              await _storageService.removeOfflineOpenBill(bill['id']);
+            }
+          } catch (_) {}
+        }
+      }
+
       // Jika hanya ada shift offline tanpa transaksi
       if (queue.isEmpty) {
+        if (Get.isRegistered<PosController>()) {
+          Get.find<PosController>().fetchBootstrap(isSilent: true);
+        }
+        if (Get.isRegistered<OpenBillsController>()) {
+          Get.find<OpenBillsController>().fetchOpenBills();
+        }
         AppSnackbar.success(
           'Sinkronisasi Shift Berhasil',
-          'Shift kasir offline berhasil disinkronkan ke server.',
+          'Shift dan data kasir offline berhasil disinkronkan ke server.',
         );
         return true;
       }
@@ -241,6 +290,12 @@ class OfflineSyncService extends GetxService {
         }
         if (Get.isRegistered<ShiftController>()) {
           Get.find<ShiftController>().fetchCurrentShift();
+        }
+        if (Get.isRegistered<TransactionsController>()) {
+          Get.find<TransactionsController>().fetchTodayTransactions(silent: true);
+        }
+        if (Get.isRegistered<OpenBillsController>()) {
+          Get.find<OpenBillsController>().fetchOpenBills();
         }
 
         return true;

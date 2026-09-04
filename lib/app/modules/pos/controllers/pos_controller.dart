@@ -294,23 +294,43 @@ class PosController extends GetxController {
     activeOpenBillsCount.value = newCount;
   }
 
-  /// Ambil jumlah open bill aktif dari server
+  /// Ambil jumlah open bill aktif (Server + Offline Lokal)
   Future<void> fetchOpenBillsCount() async {
+    final offlineBills = _storageService.getOfflineOpenBills();
+    final offlineTables = offlineBills
+        .map((e) => e['table_number']?.toString())
+        .where((t) => t != null && t.isNotEmpty)
+        .cast<String>()
+        .toSet();
+
     try {
+      if (_storageService.isOfflineToken) {
+        updateOpenBillsCount(offlineBills.length);
+        occupiedTables.assignAll(offlineTables.toList());
+        return;
+      }
+
       final response = await _apiProvider.get(ApiConstants.openBills);
       if (response.data != null && response.data['success'] == true) {
         final List list = response.data['data'] ?? [];
-        updateOpenBillsCount(list.length);
+        final totalCount = list.length + offlineBills.length;
+        updateOpenBillsCount(totalCount);
 
-        // Update occupiedTables otomatis jika ada perubahan dari server
-        final tables = list
+        // Update occupiedTables gabungan server + offline
+        final serverTables = list
             .map((e) => e['table_number']?.toString())
             .where((t) => t != null && t.isNotEmpty)
             .cast<String>()
-            .toSet()
-            .toList();
-        occupiedTables.assignAll(tables);
+            .toSet();
+
+        occupiedTables.assignAll({...serverTables, ...offlineTables}.toList());
+      } else {
+        updateOpenBillsCount(offlineBills.length);
+        occupiedTables.assignAll(offlineTables.toList());
       }
-    } catch (_) {}
+    } catch (_) {
+      updateOpenBillsCount(offlineBills.length);
+      occupiedTables.assignAll(offlineTables.toList());
+    }
   }
 }

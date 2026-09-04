@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../data/services/esc_pos_printer_service.dart';
 import '../../../../core/utils/app_snackbar.dart';
+import '../../../pos/controllers/pos_controller.dart';
 
 class ReceiptViewDialog {
   static void show(Map<String, dynamic> payload) {
@@ -18,7 +19,7 @@ class ReceiptViewDialog {
     final bool showLogo = (header['show_logo'] is bool) ? header['show_logo'] as bool : true;
 
     final invoice = payload['invoice_number'] ?? '-';
-    final date = payload['date'] ?? '-';
+    final date = EscPosPrinterService.formatDateTimeDMY(payload['date']?.toString() ?? '-');
     final cashier = payload['cashier_name'] ?? 'Kasir';
     final orderType = payload['order_type'] ?? 'DINE IN';
     final tableNumber = payload['table_number'];
@@ -30,7 +31,11 @@ class ReceiptViewDialog {
     final double discount = (summary['discount'] != null) ? double.tryParse(summary['discount'].toString()) ?? 0 : 0;
     final double tax = (summary['tax'] != null) ? double.tryParse(summary['tax'].toString()) ?? 0 : 0;
     final double total = (summary['total'] != null) ? double.tryParse(summary['total'].toString()) ?? 0 : 0;
-    final String paymentMethod = summary['payment_method'] ?? 'CASH';
+    final String rawPaymentMethod = (summary['payment_method'] ?? 'CASH').toString();
+    String cleanPaymentMethod = rawPaymentMethod.replaceAll('(OFFLINE)', '').replaceAll('OFFLINE', '').trim();
+    if (cleanPaymentMethod.isEmpty || cleanPaymentMethod == 'CASH' || cleanPaymentMethod == 'TUNAI') {
+      cleanPaymentMethod = 'TUNAI';
+    }
     final double paid = (summary['paid'] != null) ? double.tryParse(summary['paid'].toString()) ?? 0 : 0;
     final double change = (summary['change'] != null) ? double.tryParse(summary['change'].toString()) ?? 0 : 0;
 
@@ -121,18 +126,42 @@ class ReceiptViewDialog {
 
                   // Item Rows
                   ...items.map((item) {
-                    final name = item['name'] ?? 'Item';
-                    final int qty = item['quantity'] is int ? item['quantity'] : int.tryParse(item['quantity'].toString()) ?? 1;
-                    final double price = (item['price'] != null) ? double.tryParse(item['price'].toString()) ?? 0 : 0;
-                    final double itemSub = (item['subtotal'] != null) ? double.tryParse(item['subtotal'].toString()) ?? (price * qty) : (price * qty);
-                    final notes = item['notes']?.toString();
+                    String name = '';
+                    if (item is Map) {
+                      name = item['name']?.toString() ??
+                             item['product_name']?.toString() ??
+                             (item['product'] is Map ? item['product']['name']?.toString() : null) ??
+                             item['title']?.toString() ??
+                             '';
+                      if (name.isEmpty || name == 'Item' || name == 'Menu') {
+                        final pId = int.tryParse((item['product_id'] ?? item['id'] ?? '0').toString()) ?? 0;
+                        if (pId > 0 && Get.isRegistered<PosController>()) {
+                          final found = Get.find<PosController>().products.firstWhereOrNull((p) => p.id == pId);
+                          if (found != null && found.name.isNotEmpty) {
+                            name = found.name;
+                          }
+                        }
+                      }
+                    }
+                    if (name.isEmpty) name = 'Item';
+
+                    final int qty = (item is Map && item['quantity'] != null)
+                        ? (item['quantity'] is int ? item['quantity'] : int.tryParse(item['quantity'].toString()) ?? 1)
+                        : 1;
+                    final double price = (item is Map && item['price'] != null)
+                        ? double.tryParse(item['price'].toString()) ?? 0
+                        : 0;
+                    final double itemSub = (item is Map && item['subtotal'] != null)
+                        ? double.tryParse(item['subtotal'].toString()) ?? (price * qty)
+                        : (price * qty);
+                    final notes = (item is Map) ? item['notes']?.toString() : null;
 
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 2.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(name, style: const TextStyle(fontSize: 11)),
+                          Text(name, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -140,6 +169,19 @@ class ReceiptViewDialog {
                               Text(CurrencyFormatter.formatWithoutSymbol(itemSub), style: const TextStyle(fontSize: 10)),
                             ],
                           ),
+                          if (item is Map && item['addons'] != null && item['addons'] is List)
+                            ...((item['addons'] as List).map((a) {
+                              final aName = (a is Map ? a['name']?.toString() : a.toString()) ?? '';
+                              final aPrice = (a is Map && a['price'] != null) ? double.tryParse(a['price'].toString()) ?? 0 : 0;
+                              if (aName.isEmpty) return const SizedBox.shrink();
+                              return Padding(
+                                padding: const EdgeInsets.only(left: 6, top: 1),
+                                child: Text(
+                                  '+ $aName${aPrice > 0 ? " (${CurrencyFormatter.formatWithoutSymbol(aPrice)})" : ""}',
+                                  style: const TextStyle(fontSize: 9, color: Colors.black54),
+                                ),
+                              );
+                            })),
                           if (notes != null && notes.trim().isNotEmpty)
                             Text(' * $notes', style: const TextStyle(fontSize: 9, fontStyle: FontStyle.italic, color: Colors.black54)),
                         ],
@@ -156,7 +198,7 @@ class ReceiptViewDialog {
                   const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black38)),
                   _buildReceiptRow('TOTAL', 'Rp ${CurrencyFormatter.formatWithoutSymbol(total)}', isBold: true, fontSize: 13),
                   const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black38)),
-                  _buildReceiptRow('Bayar (${paymentMethod == "CASH" ? "TUNAI" : paymentMethod})', CurrencyFormatter.formatWithoutSymbol(paid)),
+                  _buildReceiptRow('Bayar ($cleanPaymentMethod)', CurrencyFormatter.formatWithoutSymbol(paid)),
                   _buildReceiptRow('Kembali', CurrencyFormatter.formatWithoutSymbol(change)),
 
                   // WiFi

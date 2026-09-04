@@ -27,6 +27,10 @@ class SettingsController extends GetxController {
     baseUrlController.text = ApiConstants.defaultBaseUrl;
   }
 
+  void clearBaseUrl() {
+    baseUrlController.clear();
+  }
+
   // State Audio Notifikasi Kustom & Presets
   final RxString selectedPreset = 'bell_classic'.obs;
   final RxString customSoundName = ''.obs;
