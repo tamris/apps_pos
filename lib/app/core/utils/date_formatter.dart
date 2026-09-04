@@ -80,4 +80,72 @@ class DateFormatter {
       return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
     }
   }
+
+  /// Format hanya jam & menit: `13:30`
+  /// Aman mem-parse string ISO, pola jam di dalam string, atau objek DateTime.
+  static String formatHourMinute(dynamic dateTime) {
+    if (dateTime == null) return '-';
+    if (dateTime is DateTime) {
+      return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+    }
+    if (dateTime is String) {
+      final trimmed = dateTime.trim();
+      if (trimmed.isEmpty) return '-';
+
+      // 1. Regex untuk mendeteksi jam:menit seperti '13:30', '13:30:45', atau '13:30 · 04 Sep 2026'
+      final timeRegex = RegExp(r'\b([01]?\d|2[0-3]):([0-5]\d)\b');
+      final match = timeRegex.firstMatch(trimmed);
+      if (match != null) {
+        return match.group(0)!;
+      }
+
+      // 2. Parse sebagai DateTime (ISO string)
+      final dt = DateTime.tryParse(trimmed);
+      if (dt != null) {
+        final local = dt.toLocal();
+        return '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+      }
+
+      return trimmed;
+    }
+    return '-';
+  }
+
+  /// Format waktu relatif: `Baru saja`, `5 mnt lalu`, `1 jam lalu`, dll.
+  static String timeAgo(dynamic dateTime) {
+    if (dateTime == null) return '';
+    DateTime? dt;
+    if (dateTime is DateTime) {
+      dt = dateTime;
+    } else if (dateTime is String) {
+      dt = DateTime.tryParse(dateTime);
+      if (dt == null) {
+        // Coba bersihkan jika ada format dd/MM/yyyy atau spasi
+        try {
+          final trimmed = dateTime.trim();
+          final parts = trimmed.split(RegExp(r'[T ]'));
+          if (parts.length >= 2) {
+            dt = DateTime.tryParse('${parts[0]}T${parts[1]}');
+          }
+        } catch (_) {}
+      }
+    }
+    if (dt == null) return '';
+
+    final now = DateTime.now();
+    final difference = now.difference(dt.toLocal());
+
+    if (difference.isNegative || difference.inSeconds < 45) {
+      return 'Baru saja';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes} mnt lalu';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours} jam lalu';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} hr lalu';
+    } else {
+      return formatDate(dt);
+    }
+  }
 }
+
