@@ -126,7 +126,8 @@ class TransactionsController extends GetxController {
       ));
     }
 
-    return result;
+    // Urutkan dari yang terbaru ke terlama (DESC) agar konsisten dengan server
+    return result.reversed.toList();
   }
 
   /// Ambil dan filter transaksi server yang tersimpan di cache lokal saat offline
