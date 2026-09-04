@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
@@ -65,6 +66,7 @@ class CartBottomSheet extends StatelessWidget {
                       tooltip: 'Kosongkan Keranjang',
                       onPressed: () {
                         if (!cartController.isCartEmpty) {
+                          HapticFeedback.mediumImpact();
                           _confirmClearCart(context);
                         }
                       },
@@ -105,6 +107,9 @@ class CartBottomSheet extends StatelessWidget {
                     onTap: () {
                       cartController.activeOpenBillId.value = null;
                       cartController.clearCart();
+                      if (context.mounted && Navigator.canPop(context)) {
+                        Navigator.of(context).pop();
+                      }
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -129,7 +134,10 @@ class CartBottomSheet extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: InkWell(
               borderRadius: BorderRadius.circular(12),
-              onTap: () => TableSelectorSheet.show(context),
+              onTap: () {
+                HapticFeedback.selectionClick();
+                TableSelectorSheet.show(context);
+              },
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
@@ -254,7 +262,13 @@ class CartBottomSheet extends StatelessWidget {
                               constraints: const BoxConstraints(),
                               icon: const Icon(Icons.delete_outline_rounded, color: AppColors.danger, size: 20),
                               tooltip: 'Hapus Item',
-                              onPressed: () => cartController.removeItem(index),
+                              onPressed: () {
+                                HapticFeedback.mediumImpact();
+                                cartController.removeItem(index);
+                                if (cartController.isCartEmpty && context.mounted && Navigator.canPop(context)) {
+                                  Navigator.of(context).pop();
+                                }
+                              },
                             ),
                           ],
                         ),
@@ -275,7 +289,17 @@ class CartBottomSheet extends StatelessWidget {
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(),
                                   icon: const Icon(Icons.remove_circle_outline, color: AppColors.textSecondary, size: 22),
-                                  onPressed: () => cartController.decreaseQuantity(index),
+                                  onPressed: () {
+                                    if (item.quantity == 1) {
+                                      HapticFeedback.mediumImpact();
+                                    } else {
+                                      HapticFeedback.lightImpact();
+                                    }
+                                    cartController.decreaseQuantity(index);
+                                    if (cartController.isCartEmpty && context.mounted && Navigator.canPop(context)) {
+                                      Navigator.of(context).pop();
+                                    }
+                                  },
                                 ),
                                 Padding(
                                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -289,7 +313,10 @@ class CartBottomSheet extends StatelessWidget {
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(),
                                   icon: const Icon(Icons.add_circle, color: AppColors.primary, size: 22),
-                                  onPressed: () => cartController.increaseQuantity(index),
+                                  onPressed: () {
+                                    HapticFeedback.lightImpact();
+                                    cartController.increaseQuantity(index);
+                                  },
                                 ),
                               ],
                             ),
@@ -367,8 +394,9 @@ class CartBottomSheet extends StatelessWidget {
                           onPressed: cartController.isCartEmpty
                               ? null
                               : () async {
-                                  final success = await cartController.saveOpenBill(context: context);
-                                  if (success) Get.back();
+                                  HapticFeedback.lightImpact();
+                                  Navigator.of(context).pop();
+                                  await cartController.saveOpenBill(context: context);
                                 },
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
@@ -384,8 +412,13 @@ class CartBottomSheet extends StatelessWidget {
                           onPressed: cartController.isCartEmpty
                               ? null
                               : () {
-                                  Get.back();
-                                  PaymentModalView.show(context);
+                                  HapticFeedback.lightImpact();
+                                  Navigator.of(context).pop();
+                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                    if (Get.context != null) {
+                                      PaymentModalView.show(Get.context!);
+                                    }
+                                  });
                                 },
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
@@ -523,10 +556,17 @@ class CartBottomSheet extends StatelessWidget {
         actions: [
           TextButton(onPressed: () => Get.back(), child: const Text('Batal')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
             onPressed: () {
               cartController.clearCart();
-              Get.back();
+              Get.back(); // Tutup dialog konfirmasi
+              if (context.mounted && Navigator.canPop(context)) {
+                Navigator.of(context).pop(); // Tutup bottom sheet keranjang agar meluncur turun ke bawah
+              }
             },
             child: const Text('Kosongkan'),
           ),

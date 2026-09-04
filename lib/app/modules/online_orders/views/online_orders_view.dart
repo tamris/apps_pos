@@ -14,16 +14,23 @@ class OnlineOrdersView extends GetView<OnlineOrdersController> {
       backgroundColor: AppColors.lightBackground,
       appBar: AppBar(
         titleSpacing: 0,
-        title: const Row(
-          children: [
-            Icon(Icons.delivery_dining_rounded, color: AppColors.primary, size: 24),
-            SizedBox(width: 8),
-            Text(
-              'Pesanan Online',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
+        title: Obx(() {
+          final isActive = controller.isStoreOnlineActive.value;
+          return Row(
+            children: [
+              Icon(
+                isActive ? Icons.delivery_dining_rounded : Icons.pause_circle_outline_rounded,
+                color: isActive ? AppColors.primary : AppColors.danger,
+                size: 24,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Pesanan Online',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ],
+          );
+        }),
         actions: [
           // Toggle Toko Online Buka / Jeda
           Obx(() {
@@ -84,6 +91,9 @@ class OnlineOrdersView extends GetView<OnlineOrdersController> {
       ),
       body: Column(
         children: [
+          // Banner Status Toko Dijeda
+          _buildPausedBanner(),
+
           // 1. Search Bar & Status Filter Tabs
           Container(
             color: Colors.white,
@@ -318,5 +328,49 @@ class OnlineOrdersView extends GetView<OnlineOrdersController> {
         ),
       ),
     );
+  }
+
+  Widget _buildPausedBanner() {
+    return Obx(() {
+      if (controller.isStoreOnlineActive.value) return const SizedBox.shrink();
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        color: AppColors.dangerSoft,
+        child: Row(
+          children: [
+            const Icon(Icons.pause_circle_filled_rounded, color: AppColors.danger, size: 18),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Penerimaan Pesanan Online sedang DIJEDA. Pelanggan tidak dapat membuat pesanan baru.',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.danger,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () => controller.toggleOnlineOrderStoreActive(),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text(
+                'Buka Toko',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.danger,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    });
   }
 }

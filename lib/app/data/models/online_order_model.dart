@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'addon_model.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
 
@@ -27,6 +28,9 @@ class OnlineOrderStatsModel {
 
   factory OnlineOrderStatsModel.fromJson(Map<String, dynamic> json) {
     final revenue = (json['revenue_today'] as num?)?.toDouble() ?? 0.0;
+    final rawActive = json['is_online_order_active'] ?? json['is_active'];
+    final bool active = rawActive == null ? true : (rawActive == true || rawActive == 1 || rawActive == '1');
+
     return OnlineOrderStatsModel(
       active: (json['active'] as num?)?.toInt() ?? 0,
       pending: (json['pending'] as num?)?.toInt() ?? 0,
@@ -36,7 +40,7 @@ class OnlineOrderStatsModel {
       cancelledToday: (json['cancelled_today'] as num?)?.toInt() ?? 0,
       revenueToday: revenue,
       formattedRevenueToday: json['formatted_revenue_today'] ?? CurrencyFormatter.format(revenue),
-      isOnlineOrderActive: json['is_online_order_active'] == true,
+      isOnlineOrderActive: active,
     );
   }
 
@@ -64,6 +68,7 @@ class OnlineOrderItemModel {
   final double price;
   final double subtotal;
   final String notes;
+  final List<AddonModel> addons;
 
   OnlineOrderItemModel({
     required this.id,
@@ -74,9 +79,17 @@ class OnlineOrderItemModel {
     required this.price,
     required this.subtotal,
     required this.notes,
+    this.addons = const [],
   });
 
   factory OnlineOrderItemModel.fromJson(Map<String, dynamic> json) {
+    var addonsList = <AddonModel>[];
+    if (json['addons'] != null && json['addons'] is List) {
+      addonsList = (json['addons'] as List)
+          .map((i) => AddonModel.fromJson(Map<String, dynamic>.from(i)))
+          .toList();
+    }
+
     return OnlineOrderItemModel(
       id: json['id'] ?? 0,
       productId: json['product_id'] ?? 0,
@@ -86,6 +99,7 @@ class OnlineOrderItemModel {
       price: (json['price'] as num?)?.toDouble() ?? 0.0,
       subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0.0,
       notes: json['notes'] ?? '',
+      addons: addonsList,
     );
   }
 

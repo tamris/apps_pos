@@ -1,3 +1,5 @@
+import 'addon_model.dart';
+
 class ProductModel {
   final int id;
   final int categoryId;
@@ -11,6 +13,7 @@ class ProductModel {
   final String? imageUrl;
   final bool isActive;
   final int totalSold;
+  final List<AddonModel> availableAddons;
 
   ProductModel({
     required this.id,
@@ -25,6 +28,7 @@ class ProductModel {
     this.imageUrl,
     this.isActive = true,
     this.totalSold = 0,
+    this.availableAddons = const [],
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
@@ -56,6 +60,11 @@ class ProductModel {
       totalSold: json['total_sold'] is int
           ? json['total_sold']
           : int.tryParse(json['total_sold']?.toString() ?? '0') ?? 0,
+      availableAddons: (json['available_addons'] != null && json['available_addons'] is List)
+          ? (json['available_addons'] as List)
+              .map((i) => AddonModel.fromJson(Map<String, dynamic>.from(i)))
+              .toList()
+          : const [],
     );
   }
 
@@ -73,6 +82,7 @@ class ProductModel {
       'image_url': imageUrl,
       'is_active': isActive,
       'total_sold': totalSold,
+      'available_addons': availableAddons.map((a) => a.toJson()).toList(),
     };
   }
 
@@ -89,6 +99,7 @@ class ProductModel {
     String? imageUrl,
     bool? isActive,
     int? totalSold,
+    List<AddonModel>? availableAddons,
   }) {
     return ProductModel(
       id: id ?? this.id,
@@ -103,6 +114,7 @@ class ProductModel {
       imageUrl: imageUrl ?? this.imageUrl,
       isActive: isActive ?? this.isActive,
       totalSold: totalSold ?? this.totalSold,
+      availableAddons: availableAddons ?? this.availableAddons,
     );
   }
 }

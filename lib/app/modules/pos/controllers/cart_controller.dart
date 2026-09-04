@@ -1,21 +1,27 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../data/models/addon_model.dart';
 import '../../../data/models/cart_item_model.dart';
 import '../../../data/models/product_model.dart';
 import '../../../data/models/open_bill_model.dart';
 import '../../../data/providers/api_provider.dart';
+import '../../../data/services/storage_service.dart';
 import '../../../data/services/offline_sync_service.dart';
 import '../../../data/services/esc_pos_printer_service.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/app_snackbar.dart';
+import '../../../core/utils/date_formatter.dart';
 import 'pos_controller.dart';
 import '../views/widgets/payment_success_dialog.dart';
 import '../../shift/controllers/shift_controller.dart';
 import '../../shift/views/shift_dialogs.dart';
+import '../../open_bills/controllers/open_bills_controller.dart';
+import '../../transactions/controllers/transactions_controller.dart';
 
 class CartController extends GetxController {
   final ApiProvider _apiProvider = Get.find<ApiProvider>();
+  final StorageService _storageService = Get.find<StorageService>();
   final OfflineSyncService _offlineSyncService = Get.find<OfflineSyncService>();
   final EscPosPrinterService _printerService = Get.find<EscPosPrinterService>();
 
@@ -41,13 +47,14 @@ class CartController extends GetxController {
   int get totalItemsCount => items.fold(0, (sum, item) => sum + item.quantity);
   bool get isCartEmpty => items.isEmpty;
 
-  /// Tambah item ke keranjang (dengan custom gula, es, catatan)
+  /// Tambah item ke keranjang (dengan custom gula, es, catatan, dan add-ons)
   void addItem(
     ProductModel product, {
     int quantity = 1,
     String sugarLevel = 'Normal',
     String iceLevel = 'Normal Ice',
     String notes = '',
+    List<AddonModel> addons = const [],
   }) {
     final newItem = CartItemModel(
       product: product,
@@ -55,6 +62,7 @@ class CartController extends GetxController {
       sugarLevel: sugarLevel,
       iceLevel: iceLevel,
       notes: notes,
+      addons: addons,
     );
 
     // Cek apakah item dengan konfigurasi yang sama persis sudah ada di keranjang
@@ -105,6 +113,7 @@ class CartController extends GetxController {
   /// Kosongkan seluruh keranjang & reset bill aktif
   void clearCart() {
     items.clear();
+    items.refresh();
     discountPercent.value = 0.0;
     taxPercent.value = 0.0;
     paidAmount.value = 0.0;
@@ -166,10 +175,13 @@ class CartController extends GetxController {
       items.add(CartItemModel(
         product: finalProduct,
         quantity: detail.quantity,
+        basePrice: finalProduct.price,
         price: detail.price,
+        addons: detail.addons,
         notes: detail.notes ?? '',
       ));
     }
+    items.refresh();
   }
 
   /// Simpan / Tahan Pesanan sebagai Open Bill (Meja / Nama Pelanggan)
@@ -193,7 +205,72 @@ class CartController extends GetxController {
     }
 
     isProcessing.value = true;
+    final now = DateTime.now();
+    final timeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    final dateStr = DateFormatter.formatDate(now);
+
+    final billId = (activeOpenBillId.value != null && activeOpenBillId.value != 0)
+        ? activeOpenBillId.value!
+        : -(DateTime.now().millisecondsSinceEpoch % 1000000);
+
+    final offlineOpenBill = {
+      'id': billId,
+      'invoice_number': 'BILL-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
+      'order_type': orderType.value,
+      'table_number': tableNumber.value.isNotEmpty ? tableNumber.value : null,
+      'customer_name': customerName.value.isNotEmpty ? customerName.value : null,
+      'total': grandTotal,
+      'subtotal': subtotal,
+      'discount': discountAmount,
+      'tax': taxAmount,
+      'discount_percent': discountPercent.value,
+      'tax_percent': taxPercent.value,
+      'items_count': totalItemsCount,
+      'created_at': now.toIso8601String(),
+      'time': timeStr,
+      'date': dateStr,
+      'is_offline': true,
+      'details': items.map((e) => {
+        'id': 0,
+        'product_id': e.product.id,
+        'name': e.product.name,
+        'quantity': e.quantity,
+        'price': e.price,
+        'subtotal': e.subtotal,
+        'notes': e.fullNotesString,
+        'addons': e.addons.map((a) => a.toJson()).toList(),
+      }).toList(),
+    };
+
     try {
+      if (_storageService.isOfflineToken) {
+        await _apiProvider.ensureAuthenticated();
+      }
+
+      if (_storageService.isOfflineToken) {
+        // Mode Offline: Simpan langsung ke penyimpanan lokal
+        await _storageService.saveOfflineOpenBill(offlineOpenBill);
+        if (billId > 0) {
+          await _storageService.removeCachedServerOpenBill(billId);
+        }
+
+        if (Get.isRegistered<PosController>()) {
+          final posCtrl = Get.find<PosController>();
+          if (tableNumber.value.isNotEmpty) {
+            posCtrl.markTableOccupied(tableNumber.value);
+          }
+          posCtrl.fetchOpenBillsCount();
+        }
+
+        if (Get.isRegistered<OpenBillsController>()) {
+          Get.find<OpenBillsController>().fetchOpenBills();
+        }
+
+        AppSnackbar.warning('Bill Tersimpan (Offline)', 'Pesanan open bill tersimpan di memori kasir (Offline).');
+        clearCart();
+        return true;
+      }
+
       final payload = {
         'order_type': orderType.value,
         'table_number': tableNumber.value.isNotEmpty ? tableNumber.value : null,
@@ -201,7 +278,8 @@ class CartController extends GetxController {
         'discount_percent': discountPercent.value,
         'tax_percent': taxPercent.value,
         'items': items.map((e) => e.toApiJson()).toList(),
-        if (activeOpenBillId.value != null) 'open_bill_id': activeOpenBillId.value,
+        if (activeOpenBillId.value != null && activeOpenBillId.value! > 0)
+          'open_bill_id': activeOpenBillId.value,
       };
 
       final response = await _apiProvider.post(
@@ -210,11 +288,20 @@ class CartController extends GetxController {
       );
 
       if (response.data != null && response.data['success'] == true) {
+        if (activeOpenBillId.value != null) {
+          await _storageService.removeOfflineOpenBill(activeOpenBillId.value!);
+        }
+
         if (Get.isRegistered<PosController>()) {
           final posCtrl = Get.find<PosController>();
           if (tableNumber.value.isNotEmpty) {
             posCtrl.markTableOccupied(tableNumber.value);
           }
+          posCtrl.fetchOpenBillsCount();
+        }
+
+        if (Get.isRegistered<OpenBillsController>()) {
+          Get.find<OpenBillsController>().fetchOpenBills();
         }
 
         AppSnackbar.success('Bill Tersimpan', 'Pesanan open bill meja berhasil disimpan.');
@@ -225,8 +312,30 @@ class CartController extends GetxController {
         return false;
       }
     } catch (e) {
-      AppSnackbar.danger('Gagal Simpan Bill', ApiProvider.getErrorMessage(e));
-      return false;
+      // Fallback offline saat request jaringan gagal
+      await _storageService.saveOfflineOpenBill(offlineOpenBill);
+      if (billId > 0) {
+        await _storageService.removeCachedServerOpenBill(billId);
+      }
+
+      if (Get.isRegistered<PosController>()) {
+        final posCtrl = Get.find<PosController>();
+        if (tableNumber.value.isNotEmpty) {
+          posCtrl.markTableOccupied(tableNumber.value);
+        }
+        posCtrl.fetchOpenBillsCount();
+      }
+
+      if (Get.isRegistered<OpenBillsController>()) {
+        Get.find<OpenBillsController>().fetchOpenBills();
+      }
+
+      AppSnackbar.warning(
+        'Bill Tersimpan (Offline)',
+        'Koneksi server terputus. Pesanan meja disimpan di memori kasir (Offline).',
+      );
+      clearCart();
+      return true;
     } finally {
       isProcessing.value = false;
     }
@@ -248,6 +357,7 @@ class CartController extends GetxController {
     final itemsPayload = items.map((e) => e.toApiJson()).toList();
     final savedTable = tableNumber.value;
     final savedCustomer = customerName.value;
+    final savedOpenBillId = activeOpenBillId.value;
     final currentOrderType = orderType.value;
     final currentPaymentMethod = paymentMethod.value;
     final currentPaid = (currentPaymentMethod == 'cash') ? paidAmount.value : grandTotal;
@@ -285,16 +395,48 @@ class CartController extends GetxController {
           if (savedTable.isNotEmpty) {
             posCtrl.freeTable(savedTable);
           }
+          posCtrl.fetchOpenBillsCount();
         }
+
+        // Hapus open bill jika transaksi ini menyelesaikan bill tersebut
+        await _storageService.removeOpenBillOnCheckout(
+          billId: savedOpenBillId,
+          tableNumber: savedTable,
+        );
+
+        if (Get.isRegistered<OpenBillsController>()) {
+          Get.find<OpenBillsController>().fetchOpenBills();
+        }
+
+        if (Get.isRegistered<TransactionsController>()) {
+          Get.find<TransactionsController>().fetchTodayTransactions(silent: true);
+        }
+
+        final kitchenItems = items.map((e) => {
+          'name': e.product.name,
+          'quantity': e.quantity,
+          'notes': e.fullNotesString,
+          'addons': e.addons.map((a) => {'name': a.name}).toList(),
+        }).toList();
+
+        final posCtrl = Get.isRegistered<PosController>() ? Get.find<PosController>() : null;
+        final cafeName = (posCtrl?.cafeSettings.value.shopName.isNotEmpty == true)
+            ? posCtrl!.cafeSettings.value.shopName
+            : 'NOLI COFFEE & SPACE';
+        final cashierName = _storageService.user?.name ?? 'Kasir';
 
         // Kitchen Payload untuk cetak struk dapur
         final kitchenPayload = {
+          'header': {
+            'shop_name': cafeName,
+          },
           'invoice_number': txData['invoice_number'] ?? 'INV',
           'date': DateTime.now().toString().substring(0, 16),
+          'cashier_name': cashierName,
           'order_type': currentOrderType,
           'table_number': savedTable.isNotEmpty ? savedTable : null,
           'customer_name': savedCustomer.isNotEmpty ? savedCustomer : null,
-          'items': itemsPayload,
+          'items': kitchenItems,
         };
 
         // Tampilkan dialog sukses transaksi
@@ -326,6 +468,7 @@ class CartController extends GetxController {
         taxPercent: taxPercent.value,
         paid: currentPaid,
         items: itemsPayload,
+        openBillId: activeOpenBillId.value,
       );
 
       AppSnackbar.warning(
@@ -333,41 +476,96 @@ class CartController extends GetxController {
         'Transaksi disimpan di antrean offline lokal ($offlineId) karena kendala koneksi.',
       );
 
+      final posCtrl = Get.isRegistered<PosController>() ? Get.find<PosController>() : null;
+      final cafeName = (posCtrl?.cafeSettings.value.shopName.isNotEmpty == true)
+          ? posCtrl!.cafeSettings.value.shopName
+          : 'NOLI COFFEE & SPACE';
+      final cafeAddress = (posCtrl?.cafeSettings.value.address.isNotEmpty == true)
+          ? posCtrl!.cafeSettings.value.address
+          : '';
+      final cashierName = _storageService.user?.name ?? 'Kasir';
+
+      final now = DateTime.now();
+      final formattedNow = '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+
+      final cleanPaymentMethod = (currentPaymentMethod == 'cash') ? 'TUNAI' : currentPaymentMethod.toUpperCase();
+
       final offlineKitchenPayload = {
+        'header': {
+          'shop_name': cafeName,
+        },
         'invoice_number': offlineId,
-        'date': DateTime.now().toString().substring(0, 16),
+        'date': formattedNow,
+        'cashier_name': cashierName,
         'order_type': currentOrderType,
         'table_number': savedTable.isNotEmpty ? savedTable : null,
         'customer_name': savedCustomer.isNotEmpty ? savedCustomer : null,
-        'items': itemsPayload,
+        'items': items.map((e) => {
+          'name': e.product.name,
+          'quantity': e.quantity,
+          'notes': e.fullNotesString,
+          'addons': e.addons.map((a) => {'name': a.name}).toList(),
+        }).toList(),
       };
 
       final offlineReceiptPayload = {
-        'header': {'shop_name': 'NOLI COFFE & SPACE', 'address': 'POS Kasir (Offline)'},
+        'header': {'shop_name': cafeName, 'address': cafeAddress},
         'invoice_number': offlineId,
-        'date': DateTime.now().toString().substring(0, 16),
-        'cashier_name': 'Kasir',
+        'date': formattedNow,
+        'cashier_name': cashierName,
         'order_type': currentOrderType,
         'table_number': savedTable.isNotEmpty ? savedTable : null,
         'customer_name': savedCustomer.isNotEmpty ? savedCustomer : null,
-        'items': itemsPayload,
+        'items': items.map((e) => {
+          'id': e.product.id,
+          'product_id': e.product.id,
+          'name': e.product.name,
+          'quantity': e.quantity,
+          'price': e.price,
+          'subtotal': e.subtotal,
+          'notes': e.fullNotesString,
+          'addons': e.addons.map((a) => {'name': a.name, 'price': a.price}).toList(),
+        }).toList(),
         'summary': {
           'subtotal': subtotal,
           'discount': discountAmount,
           'tax': taxAmount,
           'total': grandTotal,
-          'payment_method': currentPaymentMethod.toUpperCase(),
+          'payment_method': cleanPaymentMethod,
           'paid': currentPaid,
           'change': (currentPaymentMethod == 'cash') ? max(0.0, currentPaid - grandTotal) : 0.0,
         },
       };
+
+      // Hapus open bill jika transaksi ini menyelesaikan bill tersebut
+      await _storageService.removeOpenBillOnCheckout(
+        billId: savedOpenBillId,
+        tableNumber: savedTable,
+      );
+
+      // Bebaskan meja jika sebelumnya open bill / dine in saat offline
+      if (Get.isRegistered<PosController>()) {
+        final posCtrl = Get.find<PosController>();
+        if (savedTable.isNotEmpty) {
+          posCtrl.freeTable(savedTable);
+        }
+        posCtrl.fetchOpenBillsCount();
+      }
+
+      if (Get.isRegistered<OpenBillsController>()) {
+        Get.find<OpenBillsController>().fetchOpenBills();
+      }
+
+      if (Get.isRegistered<TransactionsController>()) {
+        Get.find<TransactionsController>().fetchTodayTransactions(silent: true);
+      }
 
       PaymentSuccessDialog.show(
         invoiceNumber: offlineId,
         total: grandTotal,
         paid: currentPaid,
         change: (currentPaymentMethod == 'cash') ? max(0.0, currentPaid - grandTotal) : 0.0,
-        paymentMethod: '$currentPaymentMethod (OFFLINE)'.toUpperCase(),
+        paymentMethod: cleanPaymentMethod,
         isOffline: true,
         receiptPayload: offlineReceiptPayload,
         kitchenPayload: offlineKitchenPayload,

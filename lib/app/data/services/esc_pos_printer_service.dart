@@ -1,10 +1,11 @@
-import 'dart:typed_data';
-import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
+import 'dart:convert';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:image/image.dart' as img;
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'storage_service.dart';
-import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/app_snackbar.dart';
+import '../../modules/pos/controllers/pos_controller.dart';
 
 class EscPosPrinterService extends GetxService {
   final StorageService _storageService = Get.find<StorageService>();
@@ -42,7 +43,7 @@ class EscPosPrinterService extends GetxService {
       availableDevices.assignAll(devices);
       return devices;
     } catch (e) {
-      AppSnackbar.danger('Bluetooth Error', 'Gagal memindai perangkat bluetooth: $e');
+      AppSnackbar.danger('Bluetooth Error', 'Gagal memindai printer. Pastikan Bluetooth dan lokasi perangkat aktif.');
       return [];
     } finally {
       isScanning.value = false;
@@ -67,7 +68,7 @@ class EscPosPrinterService extends GetxService {
       }
     } catch (e) {
       isConnected.value = false;
-      AppSnackbar.danger('Koneksi Error', e.toString());
+      AppSnackbar.danger('Koneksi Error', 'Gagal menghubungkan ke printer. Pastikan printer menyala dan dalam jangkauan.');
       return false;
     }
   }
@@ -84,340 +85,636 @@ class EscPosPrinterService extends GetxService {
     } catch (_) {}
   }
 
-  /// Generate ESC/POS byte data untuk Struk Transaksi Pelanggan (58mm / 32 kolom)
-  Future<List<int>> generateCustomerReceiptBytes(Map<String, dynamic> payload) async {
-    final profile = await CapabilityProfile.load();
-    final generator = Generator(PaperSize.mm58, profile);
-    List<int> bytes = [];
+  /// Format baris 32 kolom presisi untuk thermal printer 58mm (Font A Standard)
+  static String line32(String left, String right, {int width = 32}) {
+    left = left.trim();
+    right = right.trim();
+    final int leftLen = left.length;
+    final int rightLen = right.length;
 
-    // 1. Header Toko
-    final header = payload['header'] ?? {};
-    final shopName = header['shop_name'] ?? 'POS CAFE';
-    final address = header['address'] ?? '';
-    final phone = header['phone'] ?? '';
-
-    bytes += generator.reset();
-    bytes += generator.text(
-      shopName,
-      styles: const PosStyles(
-        align: PosAlign.center,
-        bold: true,
-        height: PosTextSize.size2,
-        width: PosTextSize.size2,
-      ),
-    );
-
-    if (address.toString().isNotEmpty) {
-      bytes += generator.text(
-        address,
-        styles: const PosStyles(align: PosAlign.center, fontType: PosFontType.fontB),
-      );
+    if (leftLen + rightLen >= width) {
+      final int maxLeft = width - rightLen - 1;
+      if (maxLeft > 0) {
+        left = left.substring(0, maxLeft);
+      }
+      return '$left $right';
+    } else {
+      final int spaces = width - leftLen - rightLen;
+      return '$left${' ' * spaces}$right';
     }
-    if (phone.toString().isNotEmpty) {
-      bytes += generator.text(
-        'Telp: $phone',
-        styles: const PosStyles(align: PosAlign.center, fontType: PosFontType.fontB),
-      );
+  }
+
+  /// Format angka ribuan (e.g. 25000 -> 25.000)
+  static String formatNumber(num value) {
+    final parts = value.toStringAsFixed(0);
+    final buffer = StringBuffer();
+    for (int i = 0; i < parts.length; i++) {
+      if (i > 0 && (parts.length - i) % 3 == 0) {
+        buffer.write('.');
+      }
+      buffer.write(parts[i]);
     }
+    return buffer.toString();
+  }
 
-    bytes += generator.hr(ch: '-');
+  /// Encode string teks dan kode ESC/POS ke bytes secara aman tanpa crash karakter unicode/non-latin1.
+  /// Karakter khusus seperti bullet point (•), tanda petik lengkung, dan strip unicode diubah ke ASCII.
+  /// Karakter non-latin1 lainnya (> 255) diganti menjadi spasi (0x20) agar printer thermal tidak error.
+  static List<int> safeEncodeEscPos(String text) {
+    final cleanText = text
+        .replaceAll('•', '-')
+        .replaceAll('–', '-')
+        .replaceAll('—', '-')
+        .replaceAll('“', '"')
+        .replaceAll('”', '"')
+        .replaceAll('‘', "'")
+        .replaceAll('’', "'")
+        .replaceAll('…', '...');
 
-    // 2. Info Transaksi
-    final invoice = payload['invoice_number'] ?? '-';
-    final date = payload['date'] ?? '-';
-    final cashier = payload['cashier_name'] ?? 'Kasir';
-    final orderType = payload['order_type'] ?? 'DINE IN';
-    final tableNumber = payload['table_number'];
-    final customerName = payload['customer_name'];
-
-    bytes += generator.text('No: $invoice', styles: const PosStyles(bold: true));
-    bytes += generator.row([
-      PosColumn(text: 'Tgl : $date', width: 7, styles: const PosStyles(fontType: PosFontType.fontB)),
-      PosColumn(text: 'Ksr: $cashier', width: 5, styles: const PosStyles(align: PosAlign.right, fontType: PosFontType.fontB)),
-    ]);
-
-    String orderDesc = 'Tipe: $orderType';
-    if (tableNumber != null && tableNumber.toString().isNotEmpty) {
-      orderDesc += ' | $tableNumber';
-    }
-    if (customerName != null && customerName.toString().isNotEmpty) {
-      orderDesc += ' ($customerName)';
-    }
-    bytes += generator.text(orderDesc, styles: const PosStyles(fontType: PosFontType.fontB));
-
-    bytes += generator.hr(ch: '=');
-
-    // 3. Item List
-    final List items = payload['items'] ?? [];
-    for (var item in items) {
-      final name = item['name'] ?? 'Item';
-      final int qty = item['quantity'] is int ? item['quantity'] : int.tryParse(item['quantity'].toString()) ?? 1;
-      final double price = (item['price'] != null) ? double.tryParse(item['price'].toString()) ?? 0 : 0;
-      final double subtotal = (item['subtotal'] != null) ? double.tryParse(item['subtotal'].toString()) ?? (price * qty) : (price * qty);
-      final notes = item['notes']?.toString();
-
-      // Nama Item
-      bytes += generator.text(name, styles: const PosStyles(bold: true));
-
-      // Baris Qty x Harga = Subtotal
-      bytes += generator.row([
-        PosColumn(
-          text: '  $qty x ${CurrencyFormatter.formatWithoutSymbol(price)}',
-          width: 7,
-          styles: const PosStyles(fontType: PosFontType.fontB),
-        ),
-        PosColumn(
-          text: CurrencyFormatter.formatWithoutSymbol(subtotal),
-          width: 5,
-          styles: const PosStyles(align: PosAlign.right, fontType: PosFontType.fontB),
-        ),
-      ]);
-
-      if (notes != null && notes.trim().isNotEmpty) {
-        bytes += generator.text(
-          '  * $notes',
-          styles: const PosStyles(fontType: PosFontType.fontB),
-        );
+    final List<int> bytes = [];
+    for (int i = 0; i < cleanText.length; i++) {
+      final codeUnit = cleanText.codeUnitAt(i);
+      if (codeUnit <= 255) {
+        bytes.add(codeUnit);
+      } else {
+        bytes.add(0x20); // Ganti karakter unicode tinggi dengan spasi
       }
     }
+    return bytes;
+  }
 
-    bytes += generator.hr(ch: '-');
+  /// Konversi gambar menjadi ESC/POS Column Bit-Image (ESC * 33 - 24 Dot Double Density)
+  /// Standar universal yang didukung oleh 100% printer thermal ESC/POS 58mm & 80mm
+  static List<int> convertImageToEscPosBitImage(Uint8List imageBytes, {int maxWidth = 150, int maxHeight = 96}) {
+    try {
+      final img.Image? decoded = img.decodeImage(imageBytes);
+      if (decoded == null) return [];
 
-    // 4. Summary & Payment
+      int origWidth = decoded.width;
+      int origHeight = decoded.height;
+      if (origWidth <= 0 || origHeight <= 0) return [];
+
+      // Skala proporsional pas di tengah (sweet spot ~150px / 19mm)
+      double scaleW = maxWidth / origWidth;
+      double scaleH = maxHeight / origHeight;
+      double scale = scaleW < scaleH ? scaleW : scaleH;
+      if (scale > 1.0) scale = 1.0;
+
+      int targetWidth = (origWidth * scale).round();
+      int targetHeight = (origHeight * scale).round();
+      if (targetWidth <= 0 || targetHeight <= 0) return [];
+
+      final img.Image resized = img.copyResize(
+        decoded,
+        width: targetWidth,
+        height: targetHeight,
+        interpolation: img.Interpolation.linear,
+      );
+
+      final List<int> bytes = [];
+
+      // Align center: \x1ba\x01
+      bytes.addAll([0x1B, 0x61, 0x01]);
+
+      // Set line spacing to 24 dots (0.33mm * 24 dots): \x1b3\x18 (24)
+      bytes.addAll([0x1B, 0x33, 24]);
+
+      final int width = resized.width;
+      final int height = resized.height;
+
+      final int nL = width % 256;
+      final int nH = width ~/ 256;
+
+      // Loop through 24-dot vertical bands
+      for (int y = 0; y < height; y += 24) {
+        // ESC * 33 (24-dot double-density) nL nH
+        bytes.addAll([0x1B, 0x2A, 33, nL, nH]);
+
+        for (int x = 0; x < width; x++) {
+          for (int k = 0; k < 3; k++) {
+            int byteVal = 0;
+            for (int bit = 0; bit < 8; bit++) {
+              int currentY = y + (k * 8) + bit;
+              int isBlack = 0;
+
+              if (currentY < height) {
+                final pixel = resized.getPixel(x, currentY);
+                if (pixel.a > 80) {
+                  double luminance = (0.299 * pixel.r) + (0.587 * pixel.g) + (0.114 * pixel.b);
+                  if (luminance < 180) {
+                    isBlack = 1;
+                  }
+                }
+              }
+              byteVal = (byteVal << 1) | isBlack;
+            }
+            bytes.add(byteVal);
+          }
+        }
+        // Rapatkan jarak baris di band terakhir agar teks nama cafe naik lebih dekat ke logo
+        if (y + 24 >= height) {
+          bytes.addAll([0x1B, 0x33, 4]);
+        }
+        // Line feed: \n
+        bytes.add(0x0A);
+      }
+
+      // Reset line spacing to default (1/6 inch): \x1b2
+      bytes.addAll([0x1B, 0x32]);
+      // Reset alignment to center: \x1ba\x01
+      bytes.addAll([0x1B, 0x61, 0x01]);
+
+      return bytes;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  // ESC/POS Commands
+  static const String esc = '\x1b';
+  static const String init = '\x1b@';
+  static const String alignCenter = '\x1ba\x01';
+  static const String alignLeft = '\x1ba\x00';
+  static const String fontNormal = '\x1b!\x00';
+  static const String doubleHeight = '\x1b!\x10';
+  static const String resetBold = '\x1bE\x00\x1bG\x00';
+  static const String cutPaper = '\n\n\n\n\x1d\x56\x00';
+
+  /// Format tanggal & waktu ke susunan standar Indonesia (hari/bulan/tahun jam:menit)
+  static String formatDateTimeDMY(String raw) {
+    if (raw.isEmpty || raw == '-') return '-';
+    try {
+      final dt = DateTime.tryParse(raw);
+      if (dt != null) {
+        final day = dt.day.toString().padLeft(2, '0');
+        final month = dt.month.toString().padLeft(2, '0');
+        final year = dt.year.toString();
+        final hour = dt.hour.toString().padLeft(2, '0');
+        final min = dt.minute.toString().padLeft(2, '0');
+        return '$day/$month/$year $hour:$min';
+      }
+    } catch (_) {}
+
+    // Fallback parsing jika string sudah seperti '2026-09-03 14:50:00' atau '2026-09-03 14:50'
+    try {
+      final parts = raw.split(' ');
+      if (parts.isNotEmpty && parts[0].contains('-')) {
+        final dParts = parts[0].split('-');
+        if (dParts.length == 3 && dParts[0].length == 4) {
+          final dateFormatted = '${dParts[2].padLeft(2, '0')}/${dParts[1].padLeft(2, '0')}/${dParts[0]}';
+          String timeFormatted = '';
+          if (parts.length > 1) {
+            final tParts = parts[1].split(':');
+            if (tParts.length >= 2) {
+              timeFormatted = '${tParts[0].padLeft(2, '0')}:${tParts[1].padLeft(2, '0')}';
+            } else {
+              timeFormatted = parts[1];
+            }
+          }
+          return timeFormatted.isNotEmpty ? '$dateFormatted $timeFormatted' : dateFormatted;
+        }
+      }
+    } catch (_) {}
+
+    return raw;
+  }
+
+  /// Generate ESC/POS byte data untuk Struk Transaksi Pelanggan (58mm / 32 kolom)
+  /// Format identik 100% dengan ReceiptPrintService.php pada pos-inventory backend
+  Future<List<int>> generateCustomerReceiptBytes(Map<String, dynamic> payload) async {
+    // Jika backend sudah mengirimkan rawbt_base64 string secara langsung, langsung decode
+    if (payload['rawbt_base64'] != null && payload['rawbt_base64'].toString().isNotEmpty) {
+      try {
+        final decoded = base64Decode(payload['rawbt_base64'].toString());
+        if (decoded.isNotEmpty) return List<int>.from(decoded);
+      } catch (_) {}
+    }
+
+    final header = payload['header'] ?? {};
+    final shopName = (header['shop_name'] ?? 'POS CAFE').toString().toUpperCase();
+    final address = header['address']?.toString() ?? '';
+    final phone = header['phone']?.toString() ?? '';
+
+    final invoice = payload['invoice_number']?.toString() ?? '-';
+    final rawDate = payload['date']?.toString() ?? '-';
+    final date = formatDateTimeDMY(rawDate);
+    final cashier = payload['cashier_name']?.toString() ?? 'Staff';
+    final orderType = payload['order_type']?.toString().toUpperCase() ?? 'DINE IN';
+    final tableNumber = payload['table_number']?.toString();
+    final customerName = payload['customer_name']?.toString();
+
+    final List items = payload['items'] ?? [];
     final summary = payload['summary'] ?? {};
     final double subtotal = (summary['subtotal'] != null) ? double.tryParse(summary['subtotal'].toString()) ?? 0 : 0;
     final double discount = (summary['discount'] != null) ? double.tryParse(summary['discount'].toString()) ?? 0 : 0;
     final double tax = (summary['tax'] != null) ? double.tryParse(summary['tax'].toString()) ?? 0 : 0;
     final double total = (summary['total'] != null) ? double.tryParse(summary['total'].toString()) ?? 0 : 0;
-    final String paymentMethod = summary['payment_method'] ?? 'CASH';
+    final String paymentMethod = summary['payment_method']?.toString().toUpperCase() ?? 'CASH';
     final double paid = (summary['paid'] != null) ? double.tryParse(summary['paid'].toString()) ?? 0 : 0;
     final double change = (summary['change'] != null) ? double.tryParse(summary['change'].toString()) ?? 0 : 0;
+    final String status = payload['status']?.toString().toLowerCase() ?? 'completed';
 
-    bytes += generator.row([
-      PosColumn(text: 'Subtotal', width: 6),
-      PosColumn(text: CurrencyFormatter.format(subtotal), width: 6, styles: const PosStyles(align: PosAlign.right)),
-    ]);
+    final footer = payload['footer'] ?? {};
+    final footerMsg = footer['message']?.toString() ?? 'Terima kasih atas kunjungannya!';
+    final wifiName = footer['wifi_name']?.toString();
+    final wifiPass = footer['wifi_password']?.toString();
+
+    final List<int> outBytes = [];
+
+    // Inisialisasi awal & bersihkan sisa tebal dari print sebelumnya
+    outBytes.addAll(safeEncodeEscPos(init + resetBold + fontNormal));
+
+    // 0. LOGO CAFE ESC/POS (JIKA ADA)
+    bool hasLogo = false;
+    if (header['logo_raster'] != null && header['logo_raster'] is List<int>) {
+      outBytes.addAll(header['logo_raster'] as List<int>);
+      outBytes.addAll(safeEncodeEscPos(resetBold + fontNormal));
+      hasLogo = true;
+    } else {
+      // Fallback otomatis muat logo lokal cafe jika tidak ada raster di payload
+      try {
+        final ByteData byteData = await rootBundle.load('assets/icons/cafe_logo.png');
+        final logoBytes = convertImageToEscPosBitImage(byteData.buffer.asUint8List(), maxWidth: 200);
+        if (logoBytes.isNotEmpty) {
+          outBytes.addAll(logoBytes);
+          outBytes.addAll(safeEncodeEscPos(resetBold + fontNormal));
+          hasLogo = true;
+        }
+      } catch (_) {}
+    }
+
+    final buffer = StringBuffer();
+
+    // 1. HEADER TOKO (CENTER & REGULAR CLEAN)
+    buffer.write(alignCenter);
+    if (hasLogo) {
+      buffer.write('\x1b\x4a\x0a'); // Micro-feed tipis (10 dots ~1.2mm) agar pas dan tidak terlalu renggang
+    }
+    buffer.write('$shopName\n');
+    if (address.isNotEmpty) {
+      buffer.write('$address\n');
+    }
+    if (phone.isNotEmpty) {
+      buffer.write('Telp: $phone\n');
+    }
+    buffer.write('--------------------------------\n');
+
+    // 2. METADATA TRANSAKSI (LEFT)
+    buffer.write(alignLeft);
+    buffer.write('${line32("No. Inv", invoice)}\n');
+    buffer.write('${line32("Waktu", date)}\n');
+    buffer.write('${line32("Kasir", cashier)}\n');
+
+    if ((tableNumber != null && tableNumber.isNotEmpty) || (customerName != null && customerName.isNotEmpty)) {
+      String orderTypeStr = orderType;
+      if (orderType.contains('DINE')) {
+        orderTypeStr = 'DINE IN${tableNumber != null && tableNumber.isNotEmpty ? " ($tableNumber)" : ""}';
+      } else if (orderType.contains('TAKE')) {
+        orderTypeStr = 'TAKE AWAY';
+      } else if (orderType.contains('DELIVERY')) {
+        orderTypeStr = 'DELIVERY';
+      }
+      buffer.write('${line32("Pesanan", orderTypeStr)}\n');
+
+      if (customerName != null && customerName.isNotEmpty) {
+        buffer.write('${line32("Pelanggan", customerName)}\n');
+      }
+    }
+    buffer.write('--------------------------------\n');
+
+    // 3. DAFTAR ITEM PESANAN (TIDAK BOLD, FORMAT PERSIS BACKEND)
+    for (var item in items) {
+      String name = '';
+      if (item is Map) {
+        name = item['name']?.toString() ??
+               item['product_name']?.toString() ??
+               (item['product'] is Map ? item['product']['name']?.toString() : null) ??
+               item['title']?.toString() ??
+               '';
+        if (name.isEmpty || name == 'Item' || name == 'Menu') {
+          final pId = int.tryParse((item['product_id'] ?? item['id'] ?? '0').toString()) ?? 0;
+          if (pId > 0 && Get.isRegistered<PosController>()) {
+            final found = Get.find<PosController>().products.firstWhereOrNull((p) => p.id == pId);
+            if (found != null && found.name.isNotEmpty) {
+              name = found.name;
+            }
+          }
+        }
+      }
+      if (name.isEmpty) name = 'Item';
+
+      final int qty = (item is Map && item['quantity'] != null)
+          ? (item['quantity'] is int ? item['quantity'] : int.tryParse(item['quantity'].toString()) ?? 1)
+          : 1;
+      final double price = (item is Map && item['price'] != null)
+          ? double.tryParse(item['price'].toString()) ?? 0
+          : 0;
+      final double itemSub = (item is Map && item['subtotal'] != null)
+          ? double.tryParse(item['subtotal'].toString()) ?? (price * qty)
+          : (price * qty);
+      final notes = (item is Map) ? item['notes']?.toString() : null;
+
+      buffer.write('$name\n');
+      final qtyPrice = '$qty x ${formatNumber(price)}';
+      final subStr = formatNumber(itemSub);
+      buffer.write('${line32(qtyPrice, subStr)}\n');
+
+      // Add-ons / Toppings (format persis receipt backend: '  + Extra Shot (4.000)')
+      if (item is Map && item['addons'] != null && item['addons'] is List) {
+        for (var addon in (item['addons'] as List)) {
+          final aName = (addon is Map ? addon['name']?.toString() : addon.toString()) ?? '';
+          final aPrice = (addon is Map && addon['price'] != null) ? double.tryParse(addon['price'].toString()) ?? 0 : 0;
+          if (aName.isNotEmpty) {
+            final addonLine = (aPrice > 0) ? '  + $aName (${formatNumber(aPrice)})' : '  + $aName';
+            buffer.write('$addonLine\n');
+          }
+        }
+      }
+
+      if (notes != null && notes.trim().isNotEmpty) {
+        buffer.write(' * $notes\n');
+      }
+    }
+    buffer.write('--------------------------------\n');
+
+    // 4. SUB TOTAL & DISKON & PAJAK
+    buffer.write('${line32("Subtotal", formatNumber(subtotal))}\n');
 
     if (discount > 0) {
-      bytes += generator.row([
-        PosColumn(text: 'Diskon', width: 6),
-        PosColumn(text: '-${CurrencyFormatter.format(discount)}', width: 6, styles: const PosStyles(align: PosAlign.right)),
-      ]);
+      final double discNominal = (discount <= 100) ? (subtotal * discount / 100) : discount;
+      final String discLabel = 'Diskon${discount <= 100 ? " (${discount.toInt()}%)" : ""}';
+      buffer.write('${line32(discLabel, "-${formatNumber(discNominal)}")}\n');
     }
 
     if (tax > 0) {
-      bytes += generator.row([
-        PosColumn(text: 'Pajak (PB1)', width: 6),
-        PosColumn(text: CurrencyFormatter.format(tax), width: 6, styles: const PosStyles(align: PosAlign.right)),
-      ]);
+      final double taxNominal = (tax <= 100) ? (subtotal * tax / 100) : tax;
+      final String taxLabel = 'Pajak${tax <= 100 ? " (${tax.toInt()}%)" : ""}';
+      buffer.write('${line32(taxLabel, "+${formatNumber(taxNominal)}")}\n');
     }
 
-    bytes += generator.row([
-      PosColumn(text: 'TOTAL', width: 5, styles: const PosStyles(bold: true, height: PosTextSize.size2)),
-      PosColumn(text: CurrencyFormatter.format(total), width: 7, styles: const PosStyles(bold: true, align: PosAlign.right, height: PosTextSize.size2)),
-    ]);
+    // 5. GRAND TOTAL (DOUBLE HEIGHT, BUKAN BOLD)
+    buffer.write('--------------------------------\n');
+    buffer.write(doubleHeight);
+    buffer.write('${line32("TOTAL", "Rp ${formatNumber(total)}")}\n');
+    buffer.write(fontNormal);
+    buffer.write('--------------------------------\n');
 
-    bytes += generator.row([
-      PosColumn(text: 'Metode Bayar', width: 6),
-      PosColumn(text: paymentMethod, width: 6, styles: const PosStyles(align: PosAlign.right, bold: true)),
-    ]);
-
-    bytes += generator.row([
-      PosColumn(text: 'Bayar', width: 6),
-      PosColumn(text: CurrencyFormatter.format(paid), width: 6, styles: const PosStyles(align: PosAlign.right)),
-    ]);
-
-    if (paymentMethod.toUpperCase() == 'CASH') {
-      bytes += generator.row([
-        PosColumn(text: 'Kembalian', width: 6, styles: const PosStyles(bold: true)),
-        PosColumn(text: CurrencyFormatter.format(change), width: 6, styles: const PosStyles(align: PosAlign.right, bold: true)),
-      ]);
+    // 6. PEMBAYARAN & KEMBALIAN
+    if (status == 'pending') {
+      buffer.write(alignCenter);
+      buffer.write('*** TAGIHAN SEMENTARA ***\n');
+      buffer.write('(BELUM LUNAS / OPEN BILL)\n');
+      buffer.write(alignLeft);
+    } else {
+      String payMethod = paymentMethod.replaceAll('(OFFLINE)', '').replaceAll('OFFLINE', '').trim();
+      if (payMethod.isEmpty || payMethod == 'CASH' || payMethod == 'TUNAI') {
+        payMethod = 'TUNAI';
+      } else if (payMethod == 'QRIS') {
+        payMethod = 'QRIS';
+      } else if (payMethod == 'TRANSFER') {
+        payMethod = 'TRANSFER';
+      }
+      buffer.write('${line32("Bayar ($payMethod)", formatNumber(paid))}\n');
+      buffer.write('${line32("Kembali", formatNumber(change))}\n');
     }
 
-    bytes += generator.hr(ch: '-');
-
-    // 5. Footer Toko
-    final footer = payload['footer'] ?? {};
-    final footerMsg = footer['message'] ?? 'Terima Kasih Atas Kunjungan Anda!';
-    final wifiName = footer['wifi_name'];
-    final wifiPass = footer['wifi_password'];
-
-    bytes += generator.text(
-      footerMsg,
-      styles: const PosStyles(align: PosAlign.center, fontType: PosFontType.fontB),
-    );
-
-    if (wifiName != null && wifiName.toString().isNotEmpty) {
-      bytes += generator.text(
-        'Wi-Fi: $wifiName | Pass: ${wifiPass ?? "-"}',
-        styles: const PosStyles(align: PosAlign.center, fontType: PosFontType.fontB),
-      );
+    // 7. WIFI CAFE (JIKA ADA)
+    if ((wifiName != null && wifiName.isNotEmpty) || (wifiPass != null && wifiPass.isNotEmpty)) {
+      buffer.write('--------------------------------\n');
+      buffer.write(alignCenter);
+      String wifiStr = 'WiFi: ${wifiName ?? "-"}';
+      if (wifiPass != null && wifiPass.isNotEmpty) {
+        wifiStr += ' | Pass: $wifiPass';
+      }
+      buffer.write('$wifiStr\n');
     }
 
-    bytes += generator.feed(2);
-    bytes += generator.cut();
-    return bytes;
+    // 8. FOOTER
+    buffer.write('--------------------------------\n');
+    buffer.write(alignCenter);
+    buffer.write('$footerMsg\n');
+    buffer.write('-- Have a Good Coffee Day --\n');
+
+    // FEED & CUT
+    buffer.write(cutPaper);
+
+    outBytes.addAll(safeEncodeEscPos(buffer.toString()));
+    return List<int>.from(outBytes);
   }
 
   /// Generate ESC/POS byte data untuk Laporan Tutup Shift Kasir (58mm)
   Future<List<int>> generateShiftReportBytes(Map<String, dynamic> payload) async {
-    final profile = await CapabilityProfile.load();
-    final generator = Generator(PaperSize.mm58, profile);
-    List<int> bytes = [];
-
     final header = payload['header'] ?? {};
-    final shopName = header['shop_name'] ?? 'POS CAFE';
-    final title = header['title'] ?? 'REKAP TUTUP SHIFT';
+    final shopName = (header['shop_name'] ?? 'POS CAFE').toString().toUpperCase();
+    final address = header['address']?.toString() ?? '';
+    final phone = header['phone']?.toString() ?? '';
 
-    bytes += generator.reset();
-    bytes += generator.text(
-      shopName,
-      styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2),
-    );
-    bytes += generator.text(
-      title,
-      styles: const PosStyles(align: PosAlign.center, bold: true),
-    );
-    bytes += generator.hr(ch: '=');
-
-    final cashier = payload['cashier_name'] ?? 'Kasir';
-    final startTime = payload['start_time'] ?? '-';
-    final endTime = payload['end_time'] ?? '-';
-
-    bytes += generator.text('Kasir  : $cashier');
-    bytes += generator.text('Mulai  : $startTime');
-    bytes += generator.text('Selesai: $endTime');
-    bytes += generator.hr(ch: '-');
+    final cashier = payload['cashier_name']?.toString() ?? 'Kasir';
+    final shiftId = payload['shift_id']?.toString() ?? '#SFT-00001';
+    final startTime = payload['start_time']?.toString() ?? '-';
+    final endTime = payload['end_time']?.toString() ?? '(Belum Ditutup)';
+    final duration = payload['duration']?.toString();
+    final status = payload['status']?.toString().toLowerCase() ?? 'closed';
 
     final summary = payload['summary'] ?? {};
-    final startingCash = summary['starting_cash'] ?? 0;
-    final cashSales = summary['cash_sales'] ?? 0;
-    final qrisSales = summary['qris_sales'] ?? 0;
-    final transferSales = summary['transfer_sales'] ?? 0;
-    final totalSales = summary['total_sales'] ?? 0;
-    final totalTx = summary['total_transactions'] ?? 0;
-    final expectedCash = summary['expected_cash'] ?? 0;
-    final actualCash = summary['actual_cash'] ?? 0;
-    final difference = summary['difference'] ?? 0;
+    final double startingCash = (summary['starting_cash'] != null) ? double.tryParse(summary['starting_cash'].toString()) ?? 0 : 0;
+    final double cashSales = (summary['cash_sales'] != null) ? double.tryParse(summary['cash_sales'].toString()) ?? 0 : 0;
+    final double qrisSales = (summary['qris_sales'] != null) ? double.tryParse(summary['qris_sales'].toString()) ?? 0 : 0;
+    final double transferSales = (summary['transfer_sales'] != null) ? double.tryParse(summary['transfer_sales'].toString()) ?? 0 : 0;
+    final double totalSales = (summary['total_sales'] != null) ? double.tryParse(summary['total_sales'].toString()) ?? 0 : 0;
+    final int totalTx = (summary['total_transactions'] != null) ? int.tryParse(summary['total_transactions'].toString()) ?? 0 : 0;
+    final double expectedCash = (summary['expected_cash'] != null) ? double.tryParse(summary['expected_cash'].toString()) ?? 0 : 0;
+    final double actualCash = (summary['actual_cash'] != null) ? double.tryParse(summary['actual_cash'].toString()) ?? 0 : 0;
+    final double difference = (summary['difference'] != null) ? double.tryParse(summary['difference'].toString()) ?? 0 : 0;
+    final String? notes = payload['notes']?.toString();
 
-    bytes += generator.row([
-      PosColumn(text: 'Modal Awal', width: 6),
-      PosColumn(text: CurrencyFormatter.format(startingCash), width: 6, styles: const PosStyles(align: PosAlign.right)),
-    ]);
-    bytes += generator.row([
-      PosColumn(text: 'Penjualan Tunai', width: 6),
-      PosColumn(text: CurrencyFormatter.format(cashSales), width: 6, styles: const PosStyles(align: PosAlign.right)),
-    ]);
-    bytes += generator.row([
-      PosColumn(text: 'Penjualan QRIS', width: 6),
-      PosColumn(text: CurrencyFormatter.format(qrisSales), width: 6, styles: const PosStyles(align: PosAlign.right)),
-    ]);
-    bytes += generator.row([
-      PosColumn(text: 'Penjualan Transfer', width: 6),
-      PosColumn(text: CurrencyFormatter.format(transferSales), width: 6, styles: const PosStyles(align: PosAlign.right)),
-    ]);
-    bytes += generator.hr(ch: '-');
+    final buffer = StringBuffer();
+    buffer.write(init);
+    buffer.write(resetBold);
+    buffer.write(fontNormal);
 
-    bytes += generator.row([
-      PosColumn(text: 'TOTAL OMSET', width: 6, styles: const PosStyles(bold: true)),
-      PosColumn(text: CurrencyFormatter.format(totalSales), width: 6, styles: const PosStyles(align: PosAlign.right, bold: true)),
-    ]);
-    bytes += generator.row([
-      PosColumn(text: 'Total Transaksi', width: 6),
-      PosColumn(text: '$totalTx Trx', width: 6, styles: const PosStyles(align: PosAlign.right)),
-    ]);
-    bytes += generator.hr(ch: '-');
+    // Header
+    buffer.write(alignCenter);
+    buffer.write('$shopName\n');
+    if (address.isNotEmpty) buffer.write('$address\n');
+    if (phone.isNotEmpty) buffer.write('Telp: $phone\n');
+    buffer.write('--------------------------------\n');
+    buffer.write('*** REKAP SHIFT ***\n');
+    buffer.write(status == 'closed' ? 'STATUS: DITUTUP (FINAL)\n' : 'STATUS: SHIFT AKTIF\n');
+    buffer.write('--------------------------------\n');
 
-    bytes += generator.row([
-      PosColumn(text: 'Kas Seharusnya', width: 6),
-      PosColumn(text: CurrencyFormatter.format(expectedCash), width: 6, styles: const PosStyles(align: PosAlign.right)),
-    ]);
-    bytes += generator.row([
-      PosColumn(text: 'Kas Fisik Riil', width: 6, styles: const PosStyles(bold: true)),
-      PosColumn(text: CurrencyFormatter.format(actualCash), width: 6, styles: const PosStyles(align: PosAlign.right, bold: true)),
-    ]);
-    bytes += generator.row([
-      PosColumn(text: 'Selisih Kas', width: 6, styles: const PosStyles(bold: true)),
-      PosColumn(text: CurrencyFormatter.format(difference), width: 6, styles: const PosStyles(align: PosAlign.right, bold: true)),
-    ]);
+    // Meta
+    buffer.write(alignLeft);
+    buffer.write('${line32("Shift ID", shiftId)}\n');
+    buffer.write('${line32("Kasir", cashier)}\n');
+    buffer.write('${line32("Buka Shift", startTime)}\n');
+    buffer.write('${line32("Tutup Shift", endTime)}\n');
+    if (duration != null && duration.isNotEmpty) {
+      buffer.write('${line32("Durasi Kerja", duration)}\n');
+    }
+    buffer.write('--------------------------------\n');
 
-    final notes = payload['notes']?.toString();
-    if (notes != null && notes.isNotEmpty) {
-      bytes += generator.hr(ch: '-');
-      bytes += generator.text('Catatan: $notes', styles: const PosStyles(fontType: PosFontType.fontB));
+    // Penjualan
+    buffer.write('RINCIAN PENJUALAN\n');
+    buffer.write('${line32("Total Struk", "$totalTx Trx")}\n');
+    buffer.write('${line32("Penjualan Tunai", "Rp ${formatNumber(cashSales)}")}\n');
+    buffer.write('${line32("Penjualan QRIS", "Rp ${formatNumber(qrisSales)}")}\n');
+    buffer.write('${line32("Penjualan Transfer", "Rp ${formatNumber(transferSales)}")}\n');
+    buffer.write('--------------------------------\n');
+
+    // Total Omset
+    buffer.write(doubleHeight);
+    buffer.write('${line32("TOTAL OMSET", "Rp ${formatNumber(totalSales)}")}\n');
+    buffer.write(fontNormal);
+    buffer.write('--------------------------------\n');
+
+    // Kas Laci
+    buffer.write('REKONSILIASI KAS LACI\n');
+    buffer.write('${line32("Modal Kas Awal", "Rp ${formatNumber(startingCash)}")}\n');
+    buffer.write('${line32("(+) Total Tunai", "Rp ${formatNumber(cashSales)}")}\n');
+    buffer.write('${line32("(=) Kas Harapan", "Rp ${formatNumber(expectedCash)}")}\n');
+
+    if (status == 'closed') {
+      buffer.write('${line32("Uang Fisik Kas", "Rp ${formatNumber(actualCash)}")}\n');
+      String diffStr = (difference == 0)
+          ? 'Rp 0 (PAS)'
+          : (difference > 0 ? '+Rp ${formatNumber(difference)} (LEBIH)' : '-Rp ${formatNumber(difference.abs())} (KURANG)');
+      buffer.write('--------------------------------\n');
+      buffer.write(doubleHeight);
+      buffer.write('${line32("SELISIH KAS", diffStr)}\n');
+      buffer.write(fontNormal);
     }
 
-    bytes += generator.feed(2);
-    bytes += generator.cut();
-    return bytes;
+    if (notes != null && notes.isNotEmpty) {
+      buffer.write('Catatan: $notes\n');
+    }
+
+    // Tanda Tangan
+    buffer.write('\n');
+    buffer.write('${line32("   Kasir", "Supervisor  ")}\n\n\n');
+    final kasirName = cashier.length > 10 ? cashier.substring(0, 10) : cashier;
+    buffer.write('${line32(" ( $kasirName )", "( .......... )")}\n');
+
+    buffer.write('--------------------------------\n');
+    buffer.write(alignCenter);
+    final nowStr = DateTime.now().toString().substring(0, 19).replaceAll('-', '/');
+    buffer.write('Dicetak: $nowStr\n');
+    buffer.write(cutPaper);
+
+    return safeEncodeEscPos(buffer.toString());
   }
 
   /// Generate ESC/POS byte data untuk Struk Dapur / Kitchen Order Ticket (58mm)
   Future<List<int>> generateKitchenReceiptBytes(Map<String, dynamic> payload) async {
-    final profile = await CapabilityProfile.load();
-    final generator = Generator(PaperSize.mm58, profile);
-    List<int> bytes = [];
+    final header = payload['header'] ?? {};
+    final shopName = (header['shop_name'] ?? 'POS CAFE').toString().toUpperCase();
 
-    bytes += generator.reset();
-    bytes += generator.text(
-      '*** STRUK DAPUR ***',
-      styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2),
-    );
-    bytes += generator.hr(ch: '=');
-
-    final invoice = payload['invoice_number'] ?? '-';
-    final date = payload['date'] ?? DateTime.now().toString().substring(0, 16);
-    final orderType = payload['order_type'] ?? 'DINE IN';
-    final tableNumber = payload['table_number'];
-    final customer = payload['customer_name'];
-
-    if (tableNumber != null && tableNumber.toString().isNotEmpty) {
-      bytes += generator.text(
-        'MEJA: $tableNumber',
-        styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2),
-      );
-    } else {
-      bytes += generator.text(
-        'TIPE: $orderType',
-        styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2),
-      );
-    }
-
-    if (customer != null && customer.toString().isNotEmpty) {
-      bytes += generator.text('Pelanggan: $customer');
-    }
-    bytes += generator.text('No. Order: $invoice');
-    bytes += generator.text('Waktu    : $date');
-    bytes += generator.hr(ch: '-');
-
-    // List item pesanan
+    final invoice = payload['invoice_number']?.toString() ?? '-';
+    final rawDate = payload['date']?.toString() ?? DateTime.now().toString().substring(0, 16);
+    final date = formatDateTimeDMY(rawDate);
+    final cashier = payload['cashier_name']?.toString() ?? 'Kasir';
+    final orderType = payload['order_type']?.toString().toUpperCase() ?? 'DINE IN';
+    final tableNumber = payload['table_number']?.toString();
+    final customer = payload['customer_name']?.toString();
     final List items = payload['items'] ?? [];
-    for (var item in items) {
-      final name = item['name'] ?? 'Item';
-      final qty = item['quantity'] ?? 1;
-      final notes = item['notes'];
 
-      bytes += generator.text(
-        '$qty x $name',
-        styles: const PosStyles(bold: true, height: PosTextSize.size2),
-      );
-      if (notes != null && notes.toString().isNotEmpty) {
-        bytes += generator.text(
-          '  * $notes',
-          styles: const PosStyles(fontType: PosFontType.fontB),
-        );
+    final buffer = StringBuffer();
+    buffer.write(init);
+    buffer.write(resetBold);
+    buffer.write(fontNormal);
+
+    // 1. HEADER DAPUR / KITCHEN
+    buffer.write(alignCenter);
+    buffer.write('*** TIKET DAPUR ***\n');
+    buffer.write('$shopName\n');
+    buffer.write('--------------------------------\n');
+
+    // 2. METADATA ORDER
+    buffer.write(alignLeft);
+    buffer.write('${line32("No. Inv", invoice)}\n');
+    buffer.write('${line32("Waktu", date)}\n');
+    buffer.write('${line32("Kasir", cashier)}\n');
+
+    // 3. TIPE PESANAN & MEJA
+    buffer.write('--------------------------------\n');
+    buffer.write(alignCenter);
+    String orderTypeStr = orderType;
+    if (orderType.contains('DINE')) {
+      if (tableNumber != null && tableNumber.isNotEmpty) {
+        final cleanTable = tableNumber.toUpperCase().replaceAll('MEJA', '').trim();
+        orderTypeStr = 'DINE IN (MEJA $cleanTable)';
+      } else {
+        orderTypeStr = 'DINE IN';
       }
-      bytes += generator.feed(1);
+    } else if (orderType.contains('TAKE')) {
+      orderTypeStr = 'TAKE AWAY (BUNGKUS)';
+    } else if (orderType.contains('DELIVERY')) {
+      orderTypeStr = 'DELIVERY (KIRIM)';
+    }
+    buffer.write('$orderTypeStr\n');
+
+    if (customer != null && customer.isNotEmpty) {
+      buffer.write('Pelanggan: $customer\n');
+    }
+    buffer.write('--------------------------------\n');
+
+    // 4. DAFTAR ITEM PESANAN
+    buffer.write(alignLeft);
+    int totalItems = 0;
+    for (var item in items) {
+      String name = '';
+      if (item is Map) {
+        name = item['name']?.toString() ??
+               item['product_name']?.toString() ??
+               (item['product'] is Map ? item['product']['name']?.toString() : null) ??
+               item['title']?.toString() ??
+               '';
+        if (name.isEmpty || name == 'Item' || name == 'Menu') {
+          final pId = int.tryParse((item['product_id'] ?? item['id'] ?? '0').toString()) ?? 0;
+          if (pId > 0 && Get.isRegistered<PosController>()) {
+            final found = Get.find<PosController>().products.firstWhereOrNull((p) => p.id == pId);
+            if (found != null && found.name.isNotEmpty) {
+              name = found.name;
+            }
+          }
+        }
+      }
+      if (name.isEmpty) name = 'Item';
+
+      final int qty = (item is Map && item['quantity'] != null)
+          ? (item['quantity'] is int ? item['quantity'] : int.tryParse(item['quantity'].toString()) ?? 1)
+          : 1;
+      final notes = (item is Map) ? item['notes']?.toString() : null;
+      totalItems += qty;
+
+      buffer.write('${qty}x  $name\n');
+
+      // Format addon di tiket dapur: '   [+] Extra Shot' persis standar F&B pos-inventory
+      if (item is Map && item['addons'] != null && item['addons'] is List) {
+        for (var addon in (item['addons'] as List)) {
+          final aName = (addon is Map ? (addon['name']?.toString() ?? '') : addon.toString()).trim();
+          if (aName.isNotEmpty) {
+            buffer.write('   [+] $aName\n');
+          }
+        }
+      }
+
+      if (notes != null && notes.trim().isNotEmpty) {
+        buffer.write(' >> CATATAN: $notes\n');
+      }
     }
 
-    bytes += generator.hr(ch: '=');
-    bytes += generator.text(
-      'SEGERA DIPROSES',
-      styles: const PosStyles(align: PosAlign.center, bold: true),
-    );
-    bytes += generator.feed(2);
-    bytes += generator.cut();
-    return bytes;
+    // 5. TOTAL ITEM
+    buffer.write('--------------------------------\n');
+    buffer.write('${line32("TOTAL ITEM", "$totalItems Menu")}\n');
+    buffer.write('--------------------------------\n');
+
+    // 6. FOOTER DAPUR
+    buffer.write(alignCenter);
+    buffer.write('-- SEGERA DISIAPKAN --\n');
+    buffer.write(cutPaper);
+
+    return safeEncodeEscPos(buffer.toString());
   }
 
   /// Eksekusi cetak struk dapur ke printer Bluetooth
@@ -428,8 +725,11 @@ class EscPosPrinterService extends GetxService {
     }
 
     try {
-      final List<int> bytes = await generateKitchenReceiptBytes(kitchenPayload);
-      final bool result = await PrintBluetoothThermal.writeBytes(Uint8List.fromList(bytes));
+      final List<int> rawBytes = await generateKitchenReceiptBytes(kitchenPayload);
+      // Wajib konversi ke standard List<int> (bukan Uint8List) agar Android MethodChannel
+      // menerimanya sebagai java.util.List dan tidak crash ClassCastException
+      final List<int> intList = List<int>.from(rawBytes);
+      final bool result = await PrintBluetoothThermal.writeBytes(intList);
       return result;
     } catch (e) {
       AppSnackbar.danger('Gagal Mencetak Dapur', e.toString());
@@ -445,8 +745,11 @@ class EscPosPrinterService extends GetxService {
     }
 
     try {
-      final List<int> bytes = await generateCustomerReceiptBytes(receiptPayload);
-      final bool result = await PrintBluetoothThermal.writeBytes(Uint8List.fromList(bytes));
+      final List<int> rawBytes = await generateCustomerReceiptBytes(receiptPayload);
+      // Wajib konversi ke standard List<int> (bukan Uint8List) agar Android MethodChannel
+      // menerimanya sebagai java.util.List dan tidak crash ClassCastException
+      final List<int> intList = List<int>.from(rawBytes);
+      final bool result = await PrintBluetoothThermal.writeBytes(intList);
       return result;
     } catch (e) {
       AppSnackbar.danger('Gagal Mencetak', e.toString());
@@ -462,8 +765,11 @@ class EscPosPrinterService extends GetxService {
     }
 
     try {
-      final List<int> bytes = await generateShiftReportBytes(shiftPayload);
-      final bool result = await PrintBluetoothThermal.writeBytes(Uint8List.fromList(bytes));
+      final List<int> rawBytes = await generateShiftReportBytes(shiftPayload);
+      // Wajib konversi ke standard List<int> (bukan Uint8List) agar Android MethodChannel
+      // menerimanya sebagai java.util.List dan tidak crash ClassCastException
+      final List<int> intList = List<int>.from(rawBytes);
+      final bool result = await PrintBluetoothThermal.writeBytes(intList);
       return result;
     } catch (e) {
       AppSnackbar.danger('Gagal Mencetak', e.toString());
@@ -471,18 +777,32 @@ class EscPosPrinterService extends GetxService {
     }
   }
 
-  /// Cetak struk uji coba printer
+  /// Cetak struk uji coba printer (Menggunakan data contoh realistis & Logo)
   Future<bool> printTestReceipt() async {
+    List<int>? logoBytes;
+    try {
+      final ByteData byteData = await rootBundle.load('assets/icons/cafe_logo.png');
+      logoBytes = convertImageToEscPosBitImage(byteData.buffer.asUint8List(), maxWidth: 150, maxHeight: 96);
+    } catch (_) {
+      try {
+        final ByteData byteData = await rootBundle.load('assets/icons/app_icon.png');
+        logoBytes = convertImageToEscPosBitImage(byteData.buffer.asUint8List(), maxWidth: 150, maxHeight: 96);
+      } catch (_) {}
+    }
+
     final testPayload = {
       'header': {
-        'shop_name': 'POS TEST 58MM',
-        'address': 'Printer Test Thermal Ready',
+        'shop_name': 'NOLI COFFEE & SPACE',
+        'address': 'Jl. Kh Wahid Hasyim, Slawi Kulon Kec. Slawi, Kab. Tegal Slawi',
         'phone': '081234567890',
+        if (logoBytes != null && logoBytes.isNotEmpty) 'logo_raster': logoBytes,
       },
-      'invoice_number': 'TEST-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
+      'invoice_number': 'INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
       'date': DateTime.now().toString().substring(0, 16),
-      'cashier_name': 'Admin/Kasir',
-      'order_type': 'TEST PRINT',
+      'cashier_name': 'Admin Kasir',
+      'order_type': 'DINE IN',
+      'table_number': 'MEJA 05',
+      'customer_name': 'Budi Santoso',
       'items': [
         {'name': 'Kopi Susu Gula Aren', 'quantity': 2, 'price': 18000, 'subtotal': 36000, 'notes': 'Less Ice'},
         {'name': 'Croissant Butter', 'quantity': 1, 'price': 22000, 'subtotal': 22000, 'notes': 'Hangatkan'},
@@ -492,13 +812,13 @@ class EscPosPrinterService extends GetxService {
         'discount': 0,
         'tax': 0,
         'total': 58000,
-        'payment_method': 'TUNAI (CASH)',
+        'payment_method': 'TUNAI',
         'paid': 60000,
         'change': 2000,
       },
       'footer': {
-        'message': 'Printer 58mm Berfungsi Normal!',
-        'wifi_name': 'Cafe Guest',
+        'message': 'Terima kasih atas kunjungannya!',
+        'wifi_name': 'Noli Cafe Guest',
         'wifi_password': 'kopienakbanget',
       },
     };

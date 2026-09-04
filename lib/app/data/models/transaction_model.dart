@@ -1,9 +1,13 @@
+import '../../core/utils/date_formatter.dart';
+import 'addon_model.dart';
+
 class TransactionDetailModel {
   final String name;
   final int quantity;
   final double price;
   final double subtotal;
   final String? notes;
+  final List<AddonModel> addons;
 
   TransactionDetailModel({
     required this.name,
@@ -11,9 +15,17 @@ class TransactionDetailModel {
     required this.price,
     required this.subtotal,
     this.notes,
+    this.addons = const [],
   });
 
   factory TransactionDetailModel.fromJson(Map<String, dynamic> json) {
+    var addonsList = <AddonModel>[];
+    if (json['addons'] != null && json['addons'] is List) {
+      addonsList = (json['addons'] as List)
+          .map((i) => AddonModel.fromJson(Map<String, dynamic>.from(i)))
+          .toList();
+    }
+
     return TransactionDetailModel(
       name: json['name'] ?? 'Menu',
       quantity: json['quantity'] is int
@@ -26,6 +38,7 @@ class TransactionDetailModel {
           ? double.tryParse(json['subtotal'].toString()) ?? 0.0
           : 0.0,
       notes: json['notes']?.toString(),
+      addons: addonsList,
     );
   }
 
@@ -36,6 +49,7 @@ class TransactionDetailModel {
       'price': price,
       'subtotal': subtotal,
       'notes': notes,
+      'addons': addons.map((a) => a.toJson()).toList(),
     };
   }
 }
@@ -76,12 +90,14 @@ class TransactionModel {
   bool get isCompleted => status.toLowerCase() == 'completed';
   bool get isPending => status.toLowerCase() == 'pending';
   bool get isCancelled => status.toLowerCase() == 'cancelled';
+  String get formattedTime => DateFormatter.formatHourMinute(time);
 
   factory TransactionModel.fromJson(Map<String, dynamic> json) {
     var detailsList = <TransactionDetailModel>[];
     if (json['details'] != null && json['details'] is List) {
       detailsList = (json['details'] as List)
-          .map((i) => TransactionDetailModel.fromJson(i))
+          .map((i) => TransactionDetailModel.fromJson(
+              i is Map<String, dynamic> ? i : Map<String, dynamic>.from(i)))
           .toList();
     }
 
@@ -130,3 +146,36 @@ class TransactionModel {
     };
   }
 }
+
+class TransactionStatsModel {
+  final int all;
+  final int completed;
+  final int pending;
+  final int cancelled;
+
+  TransactionStatsModel({
+    required this.all,
+    required this.completed,
+    required this.pending,
+    required this.cancelled,
+  });
+
+  factory TransactionStatsModel.fromJson(Map<String, dynamic> json) {
+    return TransactionStatsModel(
+      all: (json['all'] as num?)?.toInt() ?? 0,
+      completed: (json['completed'] as num?)?.toInt() ?? 0,
+      pending: (json['pending'] as num?)?.toInt() ?? 0,
+      cancelled: (json['cancelled'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  factory TransactionStatsModel.empty() {
+    return TransactionStatsModel(
+      all: 0,
+      completed: 0,
+      pending: 0,
+      cancelled: 0,
+    );
+  }
+}
+

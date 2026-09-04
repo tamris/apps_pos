@@ -1,9 +1,11 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../data/services/esc_pos_printer_service.dart';
 import '../../../../core/utils/app_snackbar.dart';
+import '../../../pos/controllers/pos_controller.dart';
 
 class ReceiptViewDialog {
   static void show(Map<String, dynamic> payload) {
@@ -13,9 +15,11 @@ class ReceiptViewDialog {
     final shopName = header['shop_name'] ?? 'POS CAFE';
     final address = header['address'] ?? '';
     final phone = header['phone'] ?? '';
+    final String? logoUrl = header['logo_url']?.toString();
+    final bool showLogo = (header['show_logo'] is bool) ? header['show_logo'] as bool : true;
 
     final invoice = payload['invoice_number'] ?? '-';
-    final date = payload['date'] ?? '-';
+    final date = EscPosPrinterService.formatDateTimeDMY(payload['date']?.toString() ?? '-');
     final cashier = payload['cashier_name'] ?? 'Kasir';
     final orderType = payload['order_type'] ?? 'DINE IN';
     final tableNumber = payload['table_number'];
@@ -27,12 +31,16 @@ class ReceiptViewDialog {
     final double discount = (summary['discount'] != null) ? double.tryParse(summary['discount'].toString()) ?? 0 : 0;
     final double tax = (summary['tax'] != null) ? double.tryParse(summary['tax'].toString()) ?? 0 : 0;
     final double total = (summary['total'] != null) ? double.tryParse(summary['total'].toString()) ?? 0 : 0;
-    final String paymentMethod = summary['payment_method'] ?? 'CASH';
+    final String rawPaymentMethod = (summary['payment_method'] ?? 'CASH').toString();
+    String cleanPaymentMethod = rawPaymentMethod.replaceAll('(OFFLINE)', '').replaceAll('OFFLINE', '').trim();
+    if (cleanPaymentMethod.isEmpty || cleanPaymentMethod == 'CASH' || cleanPaymentMethod == 'TUNAI') {
+      cleanPaymentMethod = 'TUNAI';
+    }
     final double paid = (summary['paid'] != null) ? double.tryParse(summary['paid'].toString()) ?? 0 : 0;
     final double change = (summary['change'] != null) ? double.tryParse(summary['change'].toString()) ?? 0 : 0;
 
     final footer = payload['footer'] ?? {};
-    final footerMsg = footer['message'] ?? 'Terima Kasih Atas Kunjungan Anda!';
+    final footerMsg = footer['message'] ?? 'Terima Kasih Atas Kunjungannya!';
     final wifiName = footer['wifi_name'];
     final wifiPass = footer['wifi_password'];
 
@@ -54,17 +62,42 @@ class ReceiptViewDialog {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  // Logo Cafe (Dinamis dari Backend URL / Fallback Asset)
+                  if (showLogo)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2.0, bottom: 6.0),
+                      child: (logoUrl != null && logoUrl.isNotEmpty)
+                          ? CachedNetworkImage(
+                              imageUrl: logoUrl,
+                              height: 52,
+                              fit: BoxFit.contain,
+                              placeholder: (_, __) => const SizedBox(height: 52),
+                              errorWidget: (_, __, ___) => Image.asset(
+                                'assets/icons/cafe_logo.png',
+                                height: 52,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                              ),
+                            )
+                          : Image.asset(
+                              'assets/icons/cafe_logo.png',
+                              height: 52,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                            ),
+                    ),
+
                   // Shop Header
                   Text(
-                    shopName,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                    shopName.toUpperCase(),
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                   ),
                   if (address.toString().isNotEmpty)
                     Text(address, textAlign: TextAlign.center, style: const TextStyle(fontSize: 10, color: Colors.black54)),
                   if (phone.toString().isNotEmpty)
                     Text('Telp: $phone', style: const TextStyle(fontSize: 10, color: Colors.black54)),
-                  const SizedBox(height: 8),
-                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black45)),
+                  const SizedBox(height: 6),
+                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black38)),
 
                   // Transaction Meta
                   Align(
@@ -72,72 +105,118 @@ class ReceiptViewDialog {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('No: $invoice', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('Tgl: $date', style: const TextStyle(fontSize: 10, color: Colors.black87)),
-                            Text('Ksr: $cashier', style: const TextStyle(fontSize: 10, color: Colors.black87)),
-                          ],
-                        ),
-                        Text(
-                          'Tipe: $orderType ${tableNumber != null ? '| $tableNumber' : ''} ${customerName != null ? '($customerName)' : ''}',
-                          style: const TextStyle(fontSize: 10, color: Colors.black87),
-                        ),
+                        _buildReceiptRow('No. Inv', invoice, isBold: true),
+                        _buildReceiptRow('Waktu', date),
+                        _buildReceiptRow('Kasir', cashier),
+                        if ((tableNumber != null && tableNumber.toString().isNotEmpty) || (customerName != null && customerName.toString().isNotEmpty)) ...[
+                          _buildReceiptRow(
+                            'Pesanan',
+                            orderType.contains('DINE')
+                                ? 'DINE IN ${tableNumber != null ? "(MEJA $tableNumber)" : ""}'
+                                : orderType,
+                            isBold: true,
+                          ),
+                          if (customerName != null && customerName.toString().isNotEmpty)
+                            _buildReceiptRow('Pelanggan', customerName.toString(), isBold: true),
+                        ],
                       ],
                     ),
                   ),
-                  const Text('========================================', style: TextStyle(fontSize: 10, color: Colors.black45)),
+                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black38)),
 
                   // Item Rows
                   ...items.map((item) {
-                    final name = item['name'] ?? 'Item';
-                    final int qty = item['quantity'] is int ? item['quantity'] : int.tryParse(item['quantity'].toString()) ?? 1;
-                    final double price = (item['price'] != null) ? double.tryParse(item['price'].toString()) ?? 0 : 0;
-                    final double itemSub = (item['subtotal'] != null) ? double.tryParse(item['subtotal'].toString()) ?? (price * qty) : (price * qty);
-                    final notes = item['notes']?.toString();
+                    String name = '';
+                    if (item is Map) {
+                      name = item['name']?.toString() ??
+                             item['product_name']?.toString() ??
+                             (item['product'] is Map ? item['product']['name']?.toString() : null) ??
+                             item['title']?.toString() ??
+                             '';
+                      if (name.isEmpty || name == 'Item' || name == 'Menu') {
+                        final pId = int.tryParse((item['product_id'] ?? item['id'] ?? '0').toString()) ?? 0;
+                        if (pId > 0 && Get.isRegistered<PosController>()) {
+                          final found = Get.find<PosController>().products.firstWhereOrNull((p) => p.id == pId);
+                          if (found != null && found.name.isNotEmpty) {
+                            name = found.name;
+                          }
+                        }
+                      }
+                    }
+                    if (name.isEmpty) name = 'Item';
+
+                    final int qty = (item is Map && item['quantity'] != null)
+                        ? (item['quantity'] is int ? item['quantity'] : int.tryParse(item['quantity'].toString()) ?? 1)
+                        : 1;
+                    final double price = (item is Map && item['price'] != null)
+                        ? double.tryParse(item['price'].toString()) ?? 0
+                        : 0;
+                    final double itemSub = (item is Map && item['subtotal'] != null)
+                        ? double.tryParse(item['subtotal'].toString()) ?? (price * qty)
+                        : (price * qty);
+                    final notes = (item is Map) ? item['notes']?.toString() : null;
 
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 2.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(name, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          Text(name, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('  $qty x ${CurrencyFormatter.formatWithoutSymbol(price)}', style: const TextStyle(fontSize: 10, color: Colors.black87)),
-                              Text(CurrencyFormatter.formatWithoutSymbol(itemSub), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                              Text('$qty x ${CurrencyFormatter.formatWithoutSymbol(price)}', style: const TextStyle(fontSize: 10, color: Colors.black87)),
+                              Text(CurrencyFormatter.formatWithoutSymbol(itemSub), style: const TextStyle(fontSize: 10)),
                             ],
                           ),
+                          if (item is Map && item['addons'] != null && item['addons'] is List)
+                            ...((item['addons'] as List).map((a) {
+                              final aName = (a is Map ? a['name']?.toString() : a.toString()) ?? '';
+                              final aPrice = (a is Map && a['price'] != null) ? double.tryParse(a['price'].toString()) ?? 0 : 0;
+                              if (aName.isEmpty) return const SizedBox.shrink();
+                              return Padding(
+                                padding: const EdgeInsets.only(left: 6, top: 1),
+                                child: Text(
+                                  '+ $aName${aPrice > 0 ? " (${CurrencyFormatter.formatWithoutSymbol(aPrice)})" : ""}',
+                                  style: const TextStyle(fontSize: 9, color: Colors.black54),
+                                ),
+                              );
+                            })),
                           if (notes != null && notes.trim().isNotEmpty)
-                            Text('  * $notes', style: const TextStyle(fontSize: 9, fontStyle: FontStyle.italic, color: Colors.black54)),
+                            Text(' * $notes', style: const TextStyle(fontSize: 9, fontStyle: FontStyle.italic, color: Colors.black54)),
                         ],
                       ),
                     );
                   }),
 
-                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black45)),
+                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black38)),
 
                   // Totals
                   _buildReceiptRow('Subtotal', CurrencyFormatter.formatWithoutSymbol(subtotal)),
                   if (discount > 0) _buildReceiptRow('Diskon', '-${CurrencyFormatter.formatWithoutSymbol(discount)}'),
-                  if (tax > 0) _buildReceiptRow('Pajak (PB1)', CurrencyFormatter.formatWithoutSymbol(tax)),
-                  const Divider(height: 12, thickness: 1),
-                  _buildReceiptRow('TOTAL', CurrencyFormatter.formatWithoutSymbol(total), isBold: true, fontSize: 13),
-                  const SizedBox(height: 4),
-                  _buildReceiptRow('Metode Bayar', paymentMethod),
-                  _buildReceiptRow('Bayar', CurrencyFormatter.formatWithoutSymbol(paid)),
-                  if (paymentMethod.toUpperCase() == 'CASH')
-                    _buildReceiptRow('Kembalian', CurrencyFormatter.formatWithoutSymbol(change), isBold: true),
+                  if (tax > 0) _buildReceiptRow('Pajak', '+${CurrencyFormatter.formatWithoutSymbol(tax)}'),
+                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black38)),
+                  _buildReceiptRow('TOTAL', 'Rp ${CurrencyFormatter.formatWithoutSymbol(total)}', isBold: true, fontSize: 13),
+                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black38)),
+                  _buildReceiptRow('Bayar ($cleanPaymentMethod)', CurrencyFormatter.formatWithoutSymbol(paid)),
+                  _buildReceiptRow('Kembali', CurrencyFormatter.formatWithoutSymbol(change)),
 
-                  const SizedBox(height: 8),
-                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black45)),
+                  // WiFi
+                  if (wifiName != null && wifiName.toString().isNotEmpty) ...[
+                    const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black38)),
+                    Text(
+                      'WiFi: $wifiName ${wifiPass != null && wifiPass.toString().isNotEmpty ? "| Pass: $wifiPass" : ""}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 9, color: Colors.black54),
+                    ),
+                  ],
+
+                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black38)),
 
                   // Footer
                   Text(footerMsg, textAlign: TextAlign.center, style: const TextStyle(fontSize: 10, color: Colors.black54)),
-                  if (wifiName != null && wifiName.toString().isNotEmpty)
-                    Text('Wi-Fi: $wifiName | Pass: ${wifiPass ?? "-"}', style: const TextStyle(fontSize: 9, color: Colors.black54)),
+                  const SizedBox(height: 2),
+                  const Text('-- Have a Good Coffee Day --', textAlign: TextAlign.center, style: TextStyle(fontSize: 9, color: Colors.black45)),
                 ],
               ),
             ),
@@ -170,107 +249,275 @@ class ReceiptViewDialog {
   }
 
   /// Digital preview untuk Struk Dapur (Kitchen Ticket)
+  /// Digital preview untuk Tiket Dapur (Kitchen Ticket) - Style Web pos-inventory
   static void showKitchen(Map<String, dynamic> payload) {
     final printerService = Get.find<EscPosPrinterService>();
 
-    final invoice = payload['invoice_number'] ?? '-';
-    final date = payload['date'] ?? '-';
-    final orderType = payload['order_type'] ?? 'DINE IN';
-    final tableNumber = payload['table_number'];
-    final customerName = payload['customer_name'];
+    final header = payload['header'] ?? {};
+    final shopName = (header['shop_name'] ?? 'NOLI COFFEE & SPACE').toString().toUpperCase();
+
+    final invoice = payload['invoice_number']?.toString() ?? '-';
+    final date = payload['date']?.toString() ?? DateTime.now().toString().substring(0, 16);
+    final cashier = payload['cashier_name']?.toString() ?? 'Kasir';
+    final orderType = payload['order_type']?.toString().toUpperCase() ?? 'DINE IN';
+    final tableNumber = payload['table_number']?.toString();
+    final customerName = payload['customer_name']?.toString();
     final List items = payload['items'] ?? [];
+
+    String orderTypeBanner = orderType;
+    if (orderType.contains('DINE')) {
+      if (tableNumber != null && tableNumber.isNotEmpty) {
+        final cleanTable = tableNumber.toUpperCase().replaceAll('MEJA', '').trim();
+        orderTypeBanner = 'DINE IN (MEJA $cleanTable)';
+      } else {
+        orderTypeBanner = 'DINE IN';
+      }
+    } else if (orderType.contains('TAKE')) {
+      orderTypeBanner = 'TAKE AWAY';
+    } else if (orderType.contains('DELIVERY')) {
+      orderTypeBanner = 'DELIVERY';
+    }
+
+    int totalItems = 0;
+    for (var it in items) {
+      final q = it['quantity'] is int ? it['quantity'] : int.tryParse(it['quantity']?.toString() ?? '1') ?? 1;
+      totalItems += q as int;
+    }
 
     Get.dialog(
       AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         contentPadding: const EdgeInsets.all(16),
         content: SizedBox(
-          width: 320,
+          width: 340,
           child: SingleChildScrollView(
             child: Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFFDF5),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.amber.shade300),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(8),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // 1. Header (Center)
                   const Text(
-                    '*** STRUK DAPUR ***',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.8),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.shade100,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      tableNumber != null && tableNumber.toString().isNotEmpty ? 'MEJA: $tableNumber' : 'TIPE: $orderType',
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.brown),
+                    '*** TIKET DAPUR ***',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.8,
+                      color: Color(0xFF0F172A),
                     ),
                   ),
+                  const SizedBox(height: 2),
+                  Text(
+                    shopName,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF334155),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Divider
+                  _buildDashedLine(),
                   const SizedBox(height: 8),
-                  const Text('========================================', style: TextStyle(fontSize: 10, color: Colors.black45)),
-                  Align(
-                    alignment: Alignment.centerLeft,
+
+                  // 2. Metadata (Left)
+                  _buildMetaRow('No. Inv', invoice),
+                  _buildMetaRow('Waktu  ', date),
+                  _buildMetaRow('Kasir  ', cashier),
+                  const SizedBox(height: 8),
+
+                  // 3. Order Banner (Box abu-abu dengan border halus persis web)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFCBD5E1)),
+                    ),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('No. Order : $invoice', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        Text('Waktu     : $date', style: const TextStyle(fontSize: 10, color: Colors.black87)),
-                        if (customerName != null && customerName.toString().isNotEmpty)
-                          Text('Pelanggan : $customerName', style: const TextStyle(fontSize: 10, color: Colors.black87)),
+                        Text(
+                          orderTypeBanner,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        if (customerName != null && customerName.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Pelanggan: $customerName',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 11.5,
+                              color: Color(0xFF334155),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
-                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black45)),
+                  const SizedBox(height: 8),
 
-                  // Items
+                  // Divider
+                  _buildDashedLine(),
+                  const SizedBox(height: 8),
+
+                  // 4. Daftar Item Pesanan
                   ...items.map((item) {
                     final name = item['name'] ?? 'Item';
-                    final int qty = item['quantity'] is int ? item['quantity'] : int.tryParse(item['quantity'].toString()) ?? 1;
+                    final int qty = item['quantity'] is int
+                        ? item['quantity']
+                        : int.tryParse(item['quantity']?.toString() ?? '1') ?? 1;
                     final notes = item['notes']?.toString();
+                    final addons = item['addons'] is List ? item['addons'] as List : [];
 
                     return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4.0),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('$qty x $name', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                            if (notes != null && notes.trim().isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(left: 12.0, top: 2.0),
-                                child: Text('-> $notes', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.red.shade700)),
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${qty}x  $name',
+                            style: const TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                          if (addons.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 14.0, top: 2.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: addons.map((addon) {
+                                  final aName = (addon is Map ? (addon['name']?.toString() ?? '') : addon.toString()).trim();
+                                  return Text(
+                                    '[+] $aName',
+                                    style: const TextStyle(
+                                      fontFamily: 'monospace',
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF1E293B),
+                                    ),
+                                  );
+                                }).toList(),
                               ),
-                          ],
-                        ),
+                            ),
+                          if (notes != null && notes.trim().isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 10.0, top: 2.0),
+                              child: Text(
+                                '>> CATATAN: $notes',
+                                style: const TextStyle(
+                                  fontFamily: 'monospace',
+                                  fontSize: 11,
+                                  fontStyle: FontStyle.italic,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     );
                   }),
 
-                  const Text('========================================', style: TextStyle(fontSize: 10, color: Colors.black45)),
-                  const Text('SEGERA DIPROSES', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                  // Divider
+                  _buildDashedLine(),
+                  const SizedBox(height: 8),
+
+                  // 5. Total Item
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'TOTAL ITEM:',
+                        style: TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                      Text(
+                        '$totalItems Menu',
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Divider
+                  _buildDashedLine(),
+                  const SizedBox(height: 12),
+
+                  // 6. Footer
+                  const Text(
+                    '-- SEGERA DISIAPKAN --',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
         ),
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         actions: [
           TextButton(
             onPressed: () => Get.back(),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF64748B),
+              textStyle: const TextStyle(fontWeight: FontWeight.bold),
+            ),
             child: const Text('Tutup'),
           ),
           ElevatedButton.icon(
-            icon: const Icon(Icons.print_rounded, size: 18),
+            icon: const Icon(Icons.print_rounded, size: 16),
             label: const Text('Cetak Dapur'),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.amber.shade800, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF059669), // Emerald Green persis .btn-direct web
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
             onPressed: () async {
               if (printerService.isConnected.value) {
                 await printerService.printKitchenReceipt(payload);
@@ -282,6 +529,51 @@ class ReceiptViewDialog {
                 );
               }
             },
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Widget _buildDashedLine() {
+    return const Text(
+      '--------------------------------',
+      textAlign: TextAlign.center,
+      maxLines: 1,
+      overflow: TextOverflow.clip,
+      style: TextStyle(
+        fontFamily: 'monospace',
+        fontSize: 10,
+        fontWeight: FontWeight.w500,
+        color: Color(0xFF94A3B8),
+        letterSpacing: 1.0,
+      ),
+    );
+  }
+
+  static Widget _buildMetaRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1.0),
+      child: Row(
+        children: [
+          Text(
+            '$label : ',
+            style: const TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF334155),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 11,
+                color: Color(0xFF0F172A),
+              ),
+            ),
           ),
         ],
       ),

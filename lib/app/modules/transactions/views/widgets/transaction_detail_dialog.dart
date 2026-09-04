@@ -31,12 +31,18 @@ class TransactionDetailDialog {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: tx.isCompleted ? AppColors.primarySoft : AppColors.dangerSoft,
+                      color: tx.isCompleted
+                          ? AppColors.primarySoft
+                          : (tx.isPending ? AppColors.warningSoft : AppColors.dangerSoft),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
-                      tx.isCompleted ? Icons.receipt_long_rounded : Icons.cancel_outlined,
-                      color: tx.isCompleted ? AppColors.primary : AppColors.danger,
+                      tx.isCompleted
+                          ? Icons.receipt_long_rounded
+                          : (tx.isPending ? Icons.pending_actions_rounded : Icons.cancel_outlined),
+                      color: tx.isCompleted
+                          ? AppColors.primary
+                          : (tx.isPending ? AppColors.warning : AppColors.danger),
                       size: 22,
                     ),
                   ),
@@ -58,15 +64,19 @@ class TransactionDetailDialog {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                               decoration: BoxDecoration(
-                                color: tx.isCompleted ? AppColors.primarySoft : AppColors.dangerSoft,
+                                color: tx.isCompleted
+                                    ? AppColors.primarySoft
+                                    : (tx.isPending ? AppColors.warningSoft : AppColors.dangerSoft),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                tx.status.toUpperCase(),
+                                tx.isPending ? 'OPEN BILL' : tx.status.toUpperCase(),
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
-                                  color: tx.isCompleted ? AppColors.primaryDark : AppColors.danger,
+                                  color: tx.isCompleted
+                                      ? AppColors.primaryDark
+                                      : (tx.isPending ? AppColors.warning : AppColors.danger),
                                 ),
                               ),
                             ),
@@ -104,8 +114,10 @@ class TransactionDetailDialog {
                   ),
                   _buildBadge(
                     Icons.payment_rounded,
-                    'Metode: ${tx.paymentMethod.toUpperCase()}',
-                    AppColors.secondary,
+                    tx.isPending
+                        ? 'Status: Belum Dibayar'
+                        : 'Metode: ${tx.paymentMethod.toUpperCase()}',
+                    tx.isPending ? AppColors.warning : AppColors.secondary,
                   ),
                   if (tx.customerName != null && tx.customerName!.isNotEmpty)
                     _buildBadge(
@@ -157,6 +169,22 @@ class TransactionDetailDialog {
                           separatorBuilder: (_, __) => const Divider(height: 14),
                           itemBuilder: (context, i) {
                             final item = tx.details[i];
+
+                            // Bersihkan catatan dari nama add-ons agar tidak dobel/tumpuk dengan badge item.addons
+                            String cleanNotes = (item.notes ?? '').trim();
+                            if (item.addons.isNotEmpty && cleanNotes.isNotEmpty) {
+                              for (final a in item.addons) {
+                                final pattern = RegExp(r'(\+\s*)?' + RegExp.escape(a.name), caseSensitive: false);
+                                cleanNotes = cleanNotes.replaceAll(pattern, '');
+                              }
+                              final parts = cleanNotes
+                                  .split(RegExp(r'[•,]'))
+                                  .map((p) => p.trim())
+                                  .where((p) => p.isNotEmpty && p != '+')
+                                  .toList();
+                              cleanNotes = parts.join(' • ');
+                            }
+
                             return Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -188,23 +216,51 @@ class TransactionDetailDialog {
                                           color: AppColors.textPrimary,
                                         ),
                                       ),
-                                      if (item.notes != null && item.notes!.trim().isNotEmpty)
-                                        Padding(
-                                          padding: const EdgeInsets.only(top: 2),
-                                          child: Text(
-                                            'Catatan: ${item.notes}',
-                                            style: const TextStyle(
-                                              fontSize: 11,
-                                              fontStyle: FontStyle.italic,
-                                              color: AppColors.textSecondary,
-                                            ),
-                                          ),
-                                        ),
-                                      if (item.price > 0)
-                                        Text(
-                                          '@ ${CurrencyFormatter.format(item.price)}',
-                                          style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
-                                        ),
+                                       if (item.addons.isNotEmpty)
+                                         Padding(
+                                           padding: const EdgeInsets.only(top: 3),
+                                           child: Wrap(
+                                             spacing: 4,
+                                             runSpacing: 2,
+                                             children: item.addons.map((a) {
+                                               return Container(
+                                                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                                 decoration: BoxDecoration(
+                                                   color: AppColors.primarySoft,
+                                                   borderRadius: BorderRadius.circular(4),
+                                                 ),
+                                                 child: Text(
+                                                   '+ ${a.name}',
+                                                   style: const TextStyle(
+                                                     fontSize: 10.5,
+                                                     fontWeight: FontWeight.w600,
+                                                     color: AppColors.primaryDark,
+                                                   ),
+                                                 ),
+                                               );
+                                             }).toList(),
+                                           ),
+                                         ),
+                                       if (cleanNotes.isNotEmpty)
+                                         Padding(
+                                           padding: const EdgeInsets.only(top: 2),
+                                           child: Text(
+                                             cleanNotes.startsWith('+') ? cleanNotes : 'Catatan: $cleanNotes',
+                                             style: const TextStyle(
+                                               fontSize: 11,
+                                               fontStyle: FontStyle.italic,
+                                               color: AppColors.textSecondary,
+                                             ),
+                                           ),
+                                         ),
+                                       if (item.quantity > 1 && item.price > 0)
+                                         Padding(
+                                           padding: const EdgeInsets.only(top: 2),
+                                           child: Text(
+                                             '${item.quantity} x ${CurrencyFormatter.format(item.price)}',
+                                             style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                                           ),
+                                         ),
                                     ],
                                   ),
                                 ),
@@ -271,6 +327,29 @@ class TransactionDetailDialog {
                         ],
                       ),
                     ],
+                    if (tx.isPending) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.warningSoft,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.warning.withAlpha(60)),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.info_outline_rounded, size: 14, color: AppColors.warning),
+                            SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Open Bill aktif (Belum diselesaikan kasir)',
+                                style: TextStyle(fontSize: 11.5, color: AppColors.warning, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -287,7 +366,10 @@ class TransactionDetailDialog {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       icon: const Icon(Icons.receipt_outlined, size: 18),
-                      label: const Text('Lihat Kertas Struk', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      label: Text(
+                        tx.isPending ? 'Lihat Tagihan Bill' : 'Lihat Kertas Struk',
+                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                      ),
                       onPressed: () {
                         Navigator.of(dialogContext).pop();
                         controller.previewReceipt(tx.id);
@@ -298,14 +380,17 @@ class TransactionDetailDialog {
                   Expanded(
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
+                        backgroundColor: tx.isPending ? AppColors.warning : AppColors.primary,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         elevation: 0,
                       ),
                       icon: const Icon(Icons.print_rounded, size: 18),
-                      label: const Text('Cetak Struk', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                      label: Text(
+                        tx.isPending ? 'Cetak Tagihan Bill' : 'Cetak Struk',
+                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                      ),
                       onPressed: () {
                         Navigator.of(dialogContext).pop();
                         controller.printOrPreviewReceipt(tx.id);

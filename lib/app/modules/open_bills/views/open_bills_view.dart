@@ -11,14 +11,22 @@ class OpenBillsView extends GetView<OpenBillsController> {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!controller.isLoading.value) {
+        controller.fetchOpenBills();
+      }
+    });
+
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
       appBar: AppBar(
         titleSpacing: 0,
-        title: Obx(() => Text(
-              'Bill Aktif (${controller.openBills.length})',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            )),
+        title: Obx(
+          () => Text(
+            'Bill Aktif (${controller.openBills.length})',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
@@ -30,15 +38,25 @@ class OpenBillsView extends GetView<OpenBillsController> {
       ),
       body: Column(
         children: [
-          // Search Bar
+          // 1. Search Bar
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: TextField(
               decoration: InputDecoration(
-                hintText: 'Cari berdasarkan nomor meja, nama pelanggan, atau invoice...',
-                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary, size: 20),
+                hintText: 'Cari meja, nama pelanggan, atau invoice...',
+                hintStyle: const TextStyle(
+                  fontSize: 13.5,
+                  color: AppColors.textMuted,
+                ),
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  color: AppColors.textSecondary,
+                  size: 20,
+                ),
                 suffixIcon: Obx(() {
-                  if (controller.searchQuery.value.isEmpty) return const SizedBox.shrink();
+                  if (controller.searchQuery.value.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
                   return IconButton(
                     icon: const Icon(Icons.clear_rounded, size: 18),
                     onPressed: () => controller.onSearchChanged(''),
@@ -46,7 +64,10 @@ class OpenBillsView extends GetView<OpenBillsController> {
                 }),
                 filled: true,
                 fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: const BorderSide(color: AppColors.lightBorder),
@@ -57,21 +78,78 @@ class OpenBillsView extends GetView<OpenBillsController> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                  borderSide: const BorderSide(
+                    color: AppColors.primary,
+                    width: 1.5,
+                  ),
                 ),
               ),
               onChanged: (val) => controller.onSearchChanged(val),
             ),
           ),
 
-          // Bill Cards List / Grid (Responsive)
+          // 2. Summary Info Bar (Jika ada data bill tersimpan)
+          Obx(() {
+            if (controller.openBills.isEmpty) {
+              return const SizedBox.shrink();
+            }
+
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                decoration: BoxDecoration(
+                  color: AppColors.primarySoft.withAlpha(120),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: AppColors.primaryLight.withAlpha(80),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.receipt_long_rounded,
+                          size: 16,
+                          color: AppColors.primaryDark,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${controller.openBills.length} Bill Tersimpan',
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primaryDark,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      'Total: ${CurrencyFormatter.format(controller.totalPendingAmount)}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primaryDark,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+
+          // 3. Bill Cards List / Grid (Responsive)
           Expanded(
             child: Obx(() {
               if (controller.isLoading.value) {
                 return const ListItemSkeleton();
               }
 
+              // State jika tidak ada data
               if (controller.openBills.isEmpty) {
+                final isSearching = controller.searchQuery.value.trim().isNotEmpty;
                 return Center(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 32.0),
@@ -80,29 +158,61 @@ class OpenBillsView extends GetView<OpenBillsController> {
                       children: [
                         Container(
                           padding: const EdgeInsets.all(22),
-                          decoration: const BoxDecoration(
-                            color: AppColors.primarySoft,
+                          decoration: BoxDecoration(
+                            color: isSearching
+                                ? AppColors.warningSoft
+                                : AppColors.primarySoft,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.receipt_long_rounded, size: 48, color: AppColors.primary),
+                          child: Icon(
+                            isSearching
+                                ? Icons.search_off_rounded
+                                : Icons.receipt_long_rounded,
+                            size: 48,
+                            color: isSearching
+                                ? AppColors.warning
+                                : AppColors.primary,
+                          ),
                         ),
                         const SizedBox(height: 16),
-                        const Text(
-                          'Tidak Ada Bill Aktif',
+                        Text(
+                          isSearching
+                              ? 'Tidak Ditemukan Bill'
+                              : 'Tidak Ada Bill Aktif',
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
                         const SizedBox(height: 6),
-                        const Text(
-                          'Semua pesanan meja telah selesai dibayar atau belum ada bill tersimpan.',
+                        Text(
+                          isSearching
+                              ? 'Tidak ditemukan bill dengan kata kunci "${controller.searchQuery.value}".'
+                              : 'Semua pesanan meja telah selesai dibayar atau belum ada bill tersimpan.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                            height: 1.4,
+                          ),
                         ),
+                        if (isSearching) ...[
+                          const SizedBox(height: 14),
+                          TextButton.icon(
+                            onPressed: () => controller.onSearchChanged(''),
+                            icon: const Icon(Icons.clear_rounded, size: 16),
+                            label: const Text('Hapus Pencarian'),
+                          ),
+                        ],
                       ],
                     ),
                   ),
                 );
               }
+
+              final displayedList = controller.openBills;
 
               return RefreshIndicator(
                 color: AppColors.primary,
@@ -112,17 +222,18 @@ class OpenBillsView extends GetView<OpenBillsController> {
                     final isTablet = constraints.maxWidth >= 768;
 
                     if (isTablet) {
+                      final crossAxisCount = constraints.maxWidth >= 1200 ? 3 : 2;
                       return GridView.builder(
                         padding: const EdgeInsets.all(16),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: crossAxisCount,
                           crossAxisSpacing: 14,
                           mainAxisSpacing: 14,
-                          mainAxisExtent: 200,
+                          mainAxisExtent: 195,
                         ),
-                        itemCount: controller.openBills.length,
+                        itemCount: displayedList.length,
                         itemBuilder: (context, index) {
-                          final bill = controller.openBills[index];
+                          final bill = displayedList[index];
                           return _buildBillCard(context, bill);
                         },
                       );
@@ -130,10 +241,10 @@ class OpenBillsView extends GetView<OpenBillsController> {
 
                     return ListView.separated(
                       padding: const EdgeInsets.all(16),
-                      itemCount: controller.openBills.length,
+                      itemCount: displayedList.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
-                        final bill = controller.openBills[index];
+                        final bill = displayedList[index];
                         return _buildBillCard(context, bill);
                       },
                     );
@@ -148,7 +259,15 @@ class OpenBillsView extends GetView<OpenBillsController> {
   }
 
   Widget _buildBillCard(BuildContext context, OpenBillModel bill) {
-    final itemsCount = bill.details.fold<int>(0, (sum, item) => sum + item.quantity);
+    final itemsCount = bill.details.fold<int>(
+      0,
+      (sum, item) => sum + item.quantity,
+    );
+
+    final int totalDetails = bill.details.length;
+    final int maxItemsToShow = (totalDetails <= 3) ? totalDetails : 3;
+    final displayedItems = bill.details.take(maxItemsToShow).toList();
+    final int remainingItems = totalDetails - maxItemsToShow;
 
     return Material(
       color: Colors.white,
@@ -157,7 +276,7 @@ class OpenBillsView extends GetView<OpenBillsController> {
         borderRadius: BorderRadius.circular(16),
         onTap: () => controller.resumeBill(bill),
         child: Container(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.lightBorder, width: 1.2),
@@ -179,77 +298,164 @@ class OpenBillsView extends GetView<OpenBillsController> {
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.primarySoft,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppColors.primaryLight.withAlpha(120)),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  bill.tableNumber != null && bill.tableNumber!.isNotEmpty
-                                      ? Icons.table_restaurant_rounded
-                                      : Icons.person_rounded,
-                                  size: 14,
-                                  color: AppColors.primaryDark,
+                      // Bagian Kiri: Badge Meja/Take Away & Subtitle
+                      Expanded(
+                        child: Row(
+                          children: [
+                            // Badge Meja atau Take Away
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 9,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: bill.isTakeAway
+                                    ? AppColors.warningSoft
+                                    : AppColors.primarySoft,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: bill.isTakeAway
+                                      ? AppColors.warning.withAlpha(120)
+                                      : AppColors.primaryLight.withAlpha(120),
                                 ),
-                                const SizedBox(width: 5),
-                                Text(
-                                  bill.billTitle,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    bill.isTakeAway
+                                        ? Icons.takeout_dining_rounded
+                                        : (bill.tableNumber != null &&
+                                                bill.tableNumber!.isNotEmpty
+                                            ? Icons.table_restaurant_rounded
+                                            : Icons.person_rounded),
+                                    size: 13,
+                                    color: bill.isTakeAway
+                                        ? AppColors.warning
+                                        : AppColors.primaryDark,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    bill.billTitle,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: bill.isTakeAway
+                                          ? AppColors.warning
+                                          : AppColors.primaryDark,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (bill.customerSubtitle != null) ...[
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  '• ${bill.customerSubtitle}',
+                                  overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.primaryDark,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary,
                                   ),
                                 ),
-                              ],
+                              ),
+                            ],
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                bill.invoiceNumber,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            bill.invoiceNumber,
-                            style: const TextStyle(
-                              fontSize: 11.5,
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                            if (bill.isOffline || bill.id < 0) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 1.5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.warningSoft,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: AppColors.warning.withAlpha(120),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'OFFLINE',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.warning,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
-                      Row(
-                        children: [
-                          const Icon(Icons.access_time_rounded, size: 12, color: AppColors.textMuted),
-                          const SizedBox(width: 4),
-                          Text(
-                            bill.createdAt,
-                            style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
-                          ),
-                        ],
+
+                      const SizedBox(width: 8),
+
+                      // Bagian Kanan: Format Jam saja (tanpa relatif & tanpa titik tiga)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3.5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.lightBackground,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: AppColors.lightBorder),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.access_time_rounded,
+                              size: 12,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              bill.formattedTime,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 6),
 
                   // 2. Daftar Preview Item Pesanan
                   if (bill.details.isNotEmpty) ...[
-                    ...bill.details.take(2).map((item) {
+                    ...displayedItems.map((item) {
                       return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2.0),
+                        padding: const EdgeInsets.symmetric(vertical: 1.5),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Expanded(
                               child: Text(
                                 '${item.quantity}x ${item.name}',
+                                maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                  fontSize: 13,
+                                  fontSize: 12.5,
                                   fontWeight: FontWeight.w500,
                                   color: AppColors.textPrimary,
                                 ),
@@ -258,17 +464,21 @@ class OpenBillsView extends GetView<OpenBillsController> {
                             const SizedBox(width: 8),
                             Text(
                               CurrencyFormatter.format(item.subtotal),
-                              style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ],
                         ),
                       );
                     }),
-                    if (bill.details.length > 2)
+                    if (remainingItems > 0)
                       Padding(
                         padding: const EdgeInsets.only(top: 2.0),
                         child: Text(
-                          '+${bill.details.length - 2} item lainnya...',
+                          '+$remainingItems menu lainnya...',
                           style: const TextStyle(
                             fontSize: 11,
                             fontStyle: FontStyle.italic,
@@ -276,14 +486,26 @@ class OpenBillsView extends GetView<OpenBillsController> {
                           ),
                         ),
                       ),
+                  ] else ...[
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 4.0),
+                      child: Text(
+                        'Belum ada rincian menu tersimpan',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ),
                   ],
                 ],
               ),
 
-              // 3. Footer (Total Tagihan & Tombol Buka Bill)
+              // 3. Footer (Total Tagihan & Tombol Cetak Struk)
               Column(
                 children: [
-                  const Divider(height: 12),
+                  const Divider(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -292,7 +514,10 @@ class OpenBillsView extends GetView<OpenBillsController> {
                         children: [
                           Text(
                             'Total Tagihan ($itemsCount item)',
-                            style: const TextStyle(fontSize: 10.5, color: AppColors.textSecondary),
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                           Text(
                             CurrencyFormatter.format(bill.total),
@@ -309,15 +534,26 @@ class OpenBillsView extends GetView<OpenBillsController> {
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
                           elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 7,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
-                        icon: const Icon(Icons.shopping_cart_checkout_rounded, size: 16),
+                        icon: const Icon(
+                          Icons.print_rounded,
+                          size: 16,
+                        ),
                         label: const Text(
-                          'Buka Bill',
-                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                          'Cetak Struk',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        onPressed: () => controller.resumeBill(bill),
+                        onPressed: () => controller.printBill(bill),
                       ),
                     ],
                   ),

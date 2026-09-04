@@ -4,6 +4,7 @@ import '../../core/constants/api_constants.dart';
 import '../../core/services/sound_service.dart';
 import '../../core/utils/app_snackbar.dart';
 import '../../modules/online_orders/controllers/online_orders_controller.dart';
+import '../../modules/pos/controllers/pos_controller.dart';
 import '../../routes/app_routes.dart';
 import '../models/online_order_model.dart';
 import '../providers/api_provider.dart';
@@ -42,22 +43,30 @@ class OnlineOrderPollingService extends GetxService {
     await checkNewOrders();
   }
 
-  /// Mulai timer berkala (hanya aktif jika toko online sedang Buka)
+  /// Mulai timer berkala unified heartbeat (pesanan online + open bills)
   void startPolling() {
     stopPolling();
-    if (!isOnlineOrderActive.value) return;
+    if (!_storageService.hasToken) return;
 
     // Cek langsung saat dinyalakan
     checkNewOrders();
 
-    // Timer berkala setiap 12 detik
-    _pollingTimer = Timer.periodic(const Duration(seconds: 12), (_) {
-      // Jika status toko berubah jadi nonaktif, hentikan timer seketika
-      if (!isOnlineOrderActive.value) {
-        stopPolling();
-        return;
+    // Jalankan timer berkala adaptif
+    _scheduleNextPoll();
+  }
+
+  void _scheduleNextPoll() {
+    _pollingTimer?.cancel();
+    // 12 detik saat toko online buka, 20 detik saat toko online jeda (sangat hemat kuota)
+    final interval = isOnlineOrderActive.value
+        ? const Duration(seconds: 12)
+        : const Duration(seconds: 20);
+
+    _pollingTimer = Timer(interval, () async {
+      await checkNewOrders();
+      if (_storageService.hasToken) {
+        _scheduleNextPoll();
       }
-      checkNewOrders();
     });
   }
 
@@ -67,7 +76,7 @@ class OnlineOrderPollingService extends GetxService {
     _pollingTimer = null;
   }
 
-  /// Cek pesanan baru masuk
+  /// Cek pesanan baru masuk & update open bills count (Unified Heartbeat)
   Future<void> checkNewOrders() async {
     if (_isChecking || !_storageService.hasToken) return;
     _isChecking = true;
@@ -83,23 +92,18 @@ class OnlineOrderPollingService extends GetxService {
         final hasNew = data['has_new_orders'] == true;
         final latestId = (data['latest_order_id'] as num?)?.toInt() ?? _lastOrderId;
         final activeCount = (data['active_orders_count'] as num?)?.toInt() ?? 0;
-        final isActive = data['is_online_order_active'] == true;
+        final rawActive = data['is_online_order_active'] ?? data['is_active'];
+        final isActive = rawActive == null ? true : (rawActive == true || rawActive == 1 || rawActive == '1');
 
         activeOrdersCount.value = activeCount;
         isOnlineOrderActive.value = isActive;
 
-        // SMART POLLING: Jika toko ternyata sedang dijeda di server, hentikan timer
-        if (!isActive) {
-          stopPolling();
-        } else {
-          // Jika toko buka tapi timer belum jalan, jalankan timer berkala
-          _pollingTimer ??= Timer.periodic(const Duration(seconds: 10), (_) {
-            if (!isOnlineOrderActive.value) {
-              stopPolling();
-              return;
-            }
-            checkNewOrders();
-          });
+        // Sinkronisasi badge open bills count secara otomatis & efisien
+        if (data['open_bills_count'] != null) {
+          final openCount = (data['open_bills_count'] as num).toInt();
+          if (Get.isRegistered<PosController>()) {
+            Get.find<PosController>().updateOpenBillsCount(openCount);
+          }
         }
 
         // Jika ada pesanan baru dan bukan saat inisialisasi pertama kali

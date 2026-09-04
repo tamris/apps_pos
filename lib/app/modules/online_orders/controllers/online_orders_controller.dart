@@ -26,6 +26,8 @@ class OnlineOrdersController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    // Sinkronkan status awal dengan service polling global
+    isStoreOnlineActive.value = pollingService.isOnlineOrderActive.value;
     fetchOrders();
   }
 
@@ -61,6 +63,7 @@ class OnlineOrdersController extends GetxController {
           final statsData = OnlineOrderStatsModel.fromJson(response.data['stats']);
           stats.value = statsData;
           isStoreOnlineActive.value = statsData.isOnlineOrderActive;
+          pollingService.isOnlineOrderActive.value = statsData.isOnlineOrderActive;
           pollingService.liveStats.value = statsData;
           pollingService.activeOrdersCount.value = statsData.active;
           pollingService.pendingOrdersCount.value = statsData.pending;
@@ -68,7 +71,7 @@ class OnlineOrdersController extends GetxController {
       }
     } catch (e) {
       if (!silent) {
-        AppSnackbar.danger('Gagal Memuat Pesanan', 'Terjadi kesalahan saat memuat pesanan online: $e');
+        AppSnackbar.danger('Gagal Memuat Pesanan', ApiProvider.getErrorMessage(e));
       }
     } finally {
       if (!silent) isLoading.value = false;
@@ -134,7 +137,7 @@ class OnlineOrdersController extends GetxController {
         return false;
       }
     } catch (e) {
-      AppSnackbar.danger('Gagal', 'Terjadi kesalahan jaringan: $e');
+      AppSnackbar.danger('Gagal', ApiProvider.getErrorMessage(e));
       return false;
     } finally {
       isUpdating.value = false;
@@ -151,19 +154,31 @@ class OnlineOrdersController extends GetxController {
       );
 
       if (response.statusCode == 200) {
-        isStoreOnlineActive.value = nextState;
-        pollingService.isOnlineOrderActive.value = nextState;
-        if (nextState) {
+        bool finalStatus = nextState;
+        if (response.data != null) {
+          final rawVal = response.data['is_active'] ??
+              response.data['data']?['is_active'] ??
+              response.data['is_online_order_active'];
+          if (rawVal != null) {
+            finalStatus = rawVal == true || rawVal == 1 || rawVal == '1';
+          }
+        }
+
+        isStoreOnlineActive.value = finalStatus;
+        pollingService.isOnlineOrderActive.value = finalStatus;
+        if (finalStatus) {
           pollingService.startPolling();
         } else {
           pollingService.stopPolling();
         }
-        final msg = response.data['message'] ?? (nextState ? 'Pesanan online DIBUKA' : 'Pesanan online DITUTUP');
+
+        final msg = response.data?['message'] ??
+            (finalStatus ? 'Pesanan online DIBUKA' : 'Pesanan online DIJEDA');
         AppSnackbar.info('Status Toko Online', msg);
         await fetchOrders(silent: true);
       }
     } catch (e) {
-      AppSnackbar.danger('Gagal', 'Gagal memperbarui status penerimaan online: $e');
+      AppSnackbar.danger('Gagal', ApiProvider.getErrorMessage(e));
     }
   }
 
@@ -172,7 +187,7 @@ class OnlineOrdersController extends GetxController {
     try {
       final response = await _apiProvider.get(ApiConstants.onlineOrderKitchen(order.id));
       if (response.statusCode == 200 && response.data != null && response.data['data'] != null) {
-        final kitchenPayload = response.data['data']['kitchen_payload'];
+        final kitchenPayload = response.data['data']['kitchen_payload'] ?? response.data['data'];
         if (kitchenPayload != null) {
           final success = await printerService.printKitchenReceipt(Map<String, dynamic>.from(kitchenPayload));
           if (success) {
@@ -181,7 +196,7 @@ class OnlineOrdersController extends GetxController {
         }
       }
     } catch (e) {
-      AppSnackbar.danger('Cetak Gagal', 'Gagal mencetak tiket dapur: $e');
+      AppSnackbar.danger('Cetak Gagal', 'Gagal mencetak tiket dapur. Pastikan printer terhubung.');
     }
   }
 
@@ -199,7 +214,7 @@ class OnlineOrdersController extends GetxController {
         }
       }
     } catch (e) {
-      AppSnackbar.danger('Cetak Gagal', 'Gagal mencetak struk: $e');
+      AppSnackbar.danger('Cetak Gagal', 'Gagal mencetak struk. Pastikan printer terhubung.');
     }
   }
 }

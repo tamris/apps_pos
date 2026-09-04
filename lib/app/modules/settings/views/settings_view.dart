@@ -302,9 +302,16 @@ class SettingsView extends GetView<SettingsController> {
             const SizedBox(height: 12),
             TextField(
               controller: controller.baseUrlController,
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.link_rounded),
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.link_rounded),
                 hintText: 'https://alamat-server-toko.com/api',
+                suffixIcon: Tooltip(
+                  message: 'Hapus / Kosongkan',
+                  child: IconButton(
+                    icon: const Icon(Icons.clear_rounded, size: 20, color: AppColors.textMuted),
+                    onPressed: () => controller.clearBaseUrl(),
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -330,13 +337,30 @@ class SettingsView extends GetView<SettingsController> {
               ),
             ),
             const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.save_rounded, size: 16),
-                label: const Text('Simpan Alamat Server'),
-                onPressed: () => controller.saveBaseUrl(),
-              ),
+            Row(
+              children: [
+                TextButton.icon(
+                  icon: const Icon(Icons.restore_rounded, size: 16),
+                  label: const Text('Reset'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.textSecondary,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  ),
+                  onPressed: () => controller.resetBaseUrlToDefault(),
+                ),
+                const Spacer(),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.save_rounded, size: 16),
+                  label: const Text('Simpan'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () => controller.saveBaseUrl(),
+                ),
+              ],
             ),
           ],
         ),
