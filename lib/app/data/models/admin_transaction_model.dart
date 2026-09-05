@@ -75,6 +75,7 @@ class AdminTransactionModel {
   final double discount;
   final double tax;
   final double total;
+  final double? profit;
   final double paid;
   final double change;
   final String status;
@@ -100,6 +101,7 @@ class AdminTransactionModel {
     required this.discount,
     required this.tax,
     required this.total,
+    this.profit = 0.0,
     required this.paid,
     required this.change,
     required this.status,
@@ -121,8 +123,28 @@ class AdminTransactionModel {
 
   factory AdminTransactionModel.fromJson(Map<String, dynamic> json) {
     final cashier = json['cashier'] is Map ? json['cashier'] : {};
+    final user = json['user'] is Map ? json['user'] : {};
     final shift = json['shift'] is Map ? json['shift'] : {};
     final rawItems = (json['items'] as List?) ?? [];
+
+    String resolvedCashierName = json['cashier_name']?.toString() ??
+        cashier['name']?.toString() ??
+        user['name']?.toString() ??
+        '';
+
+    final orderSource = json['order_source']?.toString() ?? 'pos';
+    if (resolvedCashierName.isEmpty) {
+      if (orderSource.toLowerCase().contains('self') || orderSource.toLowerCase().contains('online')) {
+        resolvedCashierName = 'Online (Self-Order)';
+      } else {
+        resolvedCashierName = 'Kasir';
+      }
+    }
+
+    final int? resolvedCashierId = (cashier['id'] as num?)?.toInt() ??
+        (user['id'] as num?)?.toInt() ??
+        (json['cashier_id'] as num?)?.toInt() ??
+        (json['user_id'] as num?)?.toInt();
 
     return AdminTransactionModel(
       id: (json['id'] as num?)?.toInt() ?? 0,
@@ -131,19 +153,20 @@ class AdminTransactionModel {
       customerPhone: json['customer_phone']?.toString(),
       tableNumber: json['table_number']?.toString(),
       orderType: json['order_type']?.toString() ?? 'dine_in',
-      orderSource: json['order_source']?.toString() ?? 'pos',
+      orderSource: orderSource,
       paymentMethod: json['payment_method']?.toString() ?? 'cash',
       paymentStatus: json['payment_status']?.toString() ?? 'paid',
       subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0.0,
       discount: (json['discount'] as num?)?.toDouble() ?? 0.0,
       tax: (json['tax'] as num?)?.toDouble() ?? 0.0,
       total: (json['total'] as num?)?.toDouble() ?? 0.0,
+      profit: (json['profit'] as num?)?.toDouble() ?? 0.0,
       paid: (json['paid'] as num?)?.toDouble() ?? 0.0,
       change: (json['change'] as num?)?.toDouble() ?? 0.0,
       status: json['status']?.toString() ?? 'completed',
       createdAt: json['created_at']?.toString(),
-      cashierName: cashier['name']?.toString() ?? 'Kasir',
-      cashierId: (cashier['id'] as num?)?.toInt(),
+      cashierName: resolvedCashierName,
+      cashierId: resolvedCashierId,
       shiftId: (shift['id'] as num?)?.toInt(),
       shiftStatus: shift['status']?.toString(),
       cancelledInfo: json['cancelled_info'] != null
