@@ -40,6 +40,9 @@ void main() {
         'total_revenue': 1500000,
         'total_transactions': 25,
         'average_per_transaction': 60000,
+        'total_profit': 850000,
+        'profit_margin': 56.7,
+        'total_items_sold': 45,
       },
       'payment_breakdown': {
         'cash': {'count': 10, 'total': 500000},
@@ -89,6 +92,9 @@ void main() {
 
     await tester.pumpAndSettle();
     expect(find.text('Rp 1.500.000'), findsWidgets);
+    expect(find.text('Estimasi Laba Bersih'), findsWidgets);
+    expect(find.text('Total Menu / Cup Terjual'), findsWidgets);
+    expect(find.text('45 Item Terjual'), findsWidgets);
     expect(find.text('Shift Kasir'), findsWidgets);
     expect(find.text('Kasir Budi'), findsWidgets);
   });
@@ -219,6 +225,70 @@ void main() {
     expect(find.text('TIPE'), findsOneWidget);
     expect(find.text('Rp 1.098.000'), findsWidgets);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Pumps AdminDashboardTab with 0 transactions and verifies grey bar and 0% in Distribusi Pesanan', (tester) async {
+    final mockApi = MockApiProvider();
+    Get.put<ApiProvider>(mockApi);
+
+    final controller = TestAdminController();
+    Get.put<AdminController>(controller);
+
+    final json = {
+      'date': '2026-09-05',
+      'summary': {
+        'total_revenue': 0,
+        'total_transactions': 0,
+        'average_per_transaction': 0,
+        'total_profit': 0,
+        'profit_margin': 0,
+        'total_items_sold': 0,
+      },
+      'payment_breakdown': {
+        'cash': {'count': 0, 'total': 0},
+        'qris': {'count': 0, 'total': 0},
+        'transfer': {'count': 0, 'total': 0},
+      },
+      'order_source_breakdown': {
+        'pos': {'count': 0, 'total': 0, 'label': 'Kasir POS'},
+        'online_order': {'count': 0, 'total': 0, 'label': 'Online'},
+      },
+      'order_type_breakdown': {
+        'dine_in': {'count': 0, 'total': 0, 'label': 'Dine-in'},
+        'takeaway': {'count': 0, 'total': 0, 'label': 'Takeaway'},
+      },
+      'active_shift': null,
+      'open_bills_summary': {
+        'count': 0,
+        'potential_revenue': 0,
+      },
+      'cancellations_summary': {
+        'count': 0,
+        'total_nominal': 0,
+      },
+    };
+
+    controller.dashboardData.value = AdminDashboardModel.fromJson(json);
+
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      const GetMaterialApp(
+        home: Scaffold(
+          body: AdminDashboardTab(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Verify 0 (0%) is displayed, not 0 (100%)
+    expect(find.text('0 (0%)'), findsWidgets);
+    expect(find.text('0 (100%)'), findsNothing);
+    expect(find.text('POS: 0% • Online: 0%'), findsOneWidget);
+    expect(find.text('Dine-in: 0% • Takeaway: 0%'), findsOneWidget);
   });
 }
 

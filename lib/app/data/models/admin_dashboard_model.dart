@@ -50,18 +50,37 @@ class AdminSummaryModel {
   final double totalRevenue;
   final int totalTransactions;
   final double averagePerTransaction;
+  final double? totalProfit;
+  final double? profitMargin;
+  final int? totalItemsSold;
 
   AdminSummaryModel({
     required this.totalRevenue,
     required this.totalTransactions,
     required this.averagePerTransaction,
+    this.totalProfit = 0.0,
+    this.profitMargin = 0.0,
+    this.totalItemsSold = 0,
   });
 
+  double get profitValue => totalProfit ?? 0.0;
+  double get marginValue =>
+      profitMargin ?? (totalRevenue > 0 ? (profitValue / totalRevenue * 100) : 0.0);
+  int get itemsSoldValue => totalItemsSold ?? 0;
+
   factory AdminSummaryModel.fromJson(Map<String, dynamic> json) {
+    final revenue = (json['total_revenue'] as num?)?.toDouble() ?? 0.0;
+    final profit = (json['total_profit'] as num?)?.toDouble() ?? 0.0;
+    final margin = (json['profit_margin'] as num?)?.toDouble() ??
+        (revenue > 0 ? ((profit / revenue) * 100) : 0.0);
+
     return AdminSummaryModel(
-      totalRevenue: (json['total_revenue'] as num?)?.toDouble() ?? 0.0,
+      totalRevenue: revenue,
       totalTransactions: (json['total_transactions'] as num?)?.toInt() ?? 0,
       averagePerTransaction: (json['average_per_transaction'] as num?)?.toDouble() ?? 0.0,
+      totalProfit: profit,
+      profitMargin: margin,
+      totalItemsSold: (json['total_items_sold'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -69,6 +88,9 @@ class AdminSummaryModel {
     totalRevenue: 0.0,
     totalTransactions: 0,
     averagePerTransaction: 0.0,
+    totalProfit: 0.0,
+    profitMargin: 0.0,
+    totalItemsSold: 0,
   );
 }
 

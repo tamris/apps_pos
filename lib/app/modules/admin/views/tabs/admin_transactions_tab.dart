@@ -1111,7 +1111,7 @@ class AdminTransactionsTab extends GetView<AdminController> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Kasir: ${tx.cashierName}',
+                                tx.isSelfOrder ? 'Online (Self-Order)' : 'Kasir: ${tx.cashierName}',
                                 style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 1,

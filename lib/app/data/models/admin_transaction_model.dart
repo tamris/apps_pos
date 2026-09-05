@@ -127,16 +127,19 @@ class AdminTransactionModel {
     final shift = json['shift'] is Map ? json['shift'] : {};
     final rawItems = (json['items'] as List?) ?? [];
 
-    String resolvedCashierName = json['cashier_name']?.toString() ??
-        cashier['name']?.toString() ??
-        user['name']?.toString() ??
-        '';
-
     final orderSource = json['order_source']?.toString() ?? 'pos';
-    if (resolvedCashierName.isEmpty) {
-      if (orderSource.toLowerCase().contains('self') || orderSource.toLowerCase().contains('online')) {
-        resolvedCashierName = 'Online (Self-Order)';
-      } else {
+    final isSelfOrder = orderSource.toLowerCase().contains('self') ||
+        orderSource.toLowerCase().contains('online');
+
+    String resolvedCashierName = '';
+    if (isSelfOrder) {
+      resolvedCashierName = 'Online (Self-Order)';
+    } else {
+      resolvedCashierName = json['cashier_name']?.toString() ??
+          cashier['name']?.toString() ??
+          user['name']?.toString() ??
+          'Kasir';
+      if (resolvedCashierName.isEmpty) {
         resolvedCashierName = 'Kasir';
       }
     }

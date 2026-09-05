@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../../controllers/admin_controller.dart';
 import '../../../../data/models/admin_transaction_model.dart';
+import '../../../../data/models/admin_dashboard_model.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/skeletons/list_item_skeleton.dart';
@@ -236,6 +237,16 @@ class AdminDashboardTab extends GetView<AdminController> {
   Widget _buildKpiSection(dynamic summary, double availableWidth) {
     final isCompact = availableWidth < 500;
 
+    final profitVal = (summary is AdminSummaryModel)
+        ? summary.profitValue
+        : ((summary.totalProfit as num?)?.toDouble() ?? 0.0);
+    final marginVal = (summary is AdminSummaryModel)
+        ? summary.marginValue
+        : ((summary.profitMargin as num?)?.toDouble() ?? 0.0);
+    final itemsSoldVal = (summary is AdminSummaryModel)
+        ? summary.itemsSoldValue
+        : ((summary.totalItemsSold as num?)?.toInt() ?? 0);
+
     final cardRevenue = _buildKpiCard(
       label: 'Total Pendapatan',
       value: CurrencyFormatter.format(summary.totalRevenue),
@@ -247,25 +258,25 @@ class AdminDashboardTab extends GetView<AdminController> {
       isCompact: isCompact,
     );
 
-    final cardTransactions = _buildKpiCard(
-      label: 'Volume Pesanan',
-      value: '${summary.totalTransactions}',
+    final cardProfit = _buildKpiCard(
+      label: 'Estimasi Laba Bersih',
+      value: CurrencyFormatter.format(profitVal),
       valueColor: const Color(0xFF0F172A),
-      icon: Icons.receipt_long_outlined,
-      iconColor: const Color(0xFF0EA5E9),
-      iconBg: const Color(0xFFF0F9FF),
-      subtitle: 'Pesanan terbayar dan selesai',
+      icon: Icons.trending_up_rounded,
+      iconColor: const Color(0xFF7C3AED),
+      iconBg: const Color(0xFFF5F3FF),
+      subtitle: '${marginVal.toStringAsFixed(1)}% margin keuntungan',
       isCompact: isCompact,
     );
 
-    final cardAverage = _buildKpiCard(
-      label: 'Rata-rata / Struk',
-      value: CurrencyFormatter.format(summary.averagePerTransaction),
+    final cardItemsSold = _buildKpiCard(
+      label: 'Total Menu / Cup Terjual',
+      value: '$itemsSoldVal Item Terjual',
       valueColor: const Color(0xFF0F172A),
-      icon: Icons.analytics_outlined,
-      iconColor: const Color(0xFF10B981),
-      iconBg: const Color(0xFFECFDF5),
-      subtitle: 'Nilai rata-rata belanja',
+      icon: Icons.local_cafe_rounded,
+      iconColor: const Color(0xFFD97706),
+      iconBg: const Color(0xFFFEF3C7),
+      subtitle: 'Total item diproduksi bar & dapur',
       isCompact: isCompact,
     );
 
@@ -275,9 +286,9 @@ class AdminDashboardTab extends GetView<AdminController> {
         children: [
           Expanded(child: cardRevenue),
           const SizedBox(width: 14),
-          Expanded(child: cardTransactions),
+          Expanded(child: cardProfit),
           const SizedBox(width: 14),
-          Expanded(child: cardAverage),
+          Expanded(child: cardItemsSold),
         ],
       );
     }
@@ -290,9 +301,9 @@ class AdminDashboardTab extends GetView<AdminController> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: cardTransactions),
+              Expanded(child: cardProfit),
               const SizedBox(width: 10),
-              Expanded(child: cardAverage),
+              Expanded(child: cardItemsSold),
             ],
           ),
         ],
@@ -303,9 +314,9 @@ class AdminDashboardTab extends GetView<AdminController> {
       children: [
         cardRevenue,
         const SizedBox(height: 10),
-        cardTransactions,
+        cardProfit,
         const SizedBox(height: 10),
-        cardAverage,
+        cardItemsSold,
       ],
     );
   }
@@ -1273,14 +1284,26 @@ class AdminDashboardTab extends GetView<AdminController> {
   }) {
     final posTotal = data.orderSourceBreakdown.pos.total;
     final onlineTotal = data.orderSourceBreakdown.onlineOrder.total;
+    final posCount = data.orderSourceBreakdown.pos.count;
+    final onlineCount = data.orderSourceBreakdown.onlineOrder.count;
+    final channelCountSum = posCount + onlineCount;
     final channelSum = posTotal + onlineTotal;
+    final hasChannelData = channelCountSum > 0 || channelSum > 0;
 
     final dineInTotal = data.orderTypeBreakdown.dineIn.total;
     final takeawayTotal = data.orderTypeBreakdown.takeaway.total;
+    final dineInCount = data.orderTypeBreakdown.dineIn.count;
+    final takeawayCount = data.orderTypeBreakdown.takeaway.count;
+    final typeCountSum = dineInCount + takeawayCount;
     final typeSum = dineInTotal + takeawayTotal;
+    final hasTypeData = typeCountSum > 0 || typeSum > 0;
 
-    final posPercent = channelSum > 0 ? (posTotal / channelSum) : 0.0;
-    final dineInPercent = typeSum > 0 ? (dineInTotal / typeSum) : 0.0;
+    final posPercent = channelSum > 0
+        ? (posTotal / channelSum)
+        : (channelCountSum > 0 ? (posCount / channelCountSum) : 0.0);
+    final dineInPercent = typeSum > 0
+        ? (dineInTotal / typeSum)
+        : (typeCountSum > 0 ? (dineInCount / typeCountSum) : 0.0);
     final useSideBySide = isTablet || height != null;
 
     return Container(
@@ -1398,7 +1421,9 @@ class AdminDashboardTab extends GetView<AdminController> {
                 children: [
                   Flexible(
                     child: Text(
-                      'POS: ${(posPercent * 100).toInt()}% • Online: ${((1 - posPercent) * 100).toInt()}%',
+                      hasChannelData
+                          ? 'POS: ${(posPercent * 100).toInt()}% • Online: ${((1 - posPercent) * 100).toInt()}%'
+                          : 'POS: 0% • Online: 0%',
                       style: const TextStyle(
                         fontSize: 11,
                         color: Color(0xFF64748B),
@@ -1409,7 +1434,9 @@ class AdminDashboardTab extends GetView<AdminController> {
                   const SizedBox(width: 8),
                   Flexible(
                     child: Text(
-                      'Dine-in: ${(dineInPercent * 100).toInt()}% • Takeaway: ${((1 - dineInPercent) * 100).toInt()}%',
+                      hasTypeData
+                          ? 'Dine-in: ${(dineInPercent * 100).toInt()}% • Takeaway: ${((1 - dineInPercent) * 100).toInt()}%'
+                          : 'Dine-in: 0% • Takeaway: 0%',
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -1440,8 +1467,9 @@ class AdminDashboardTab extends GetView<AdminController> {
     required Color colorB,
     required double ratioA,
   }) {
-    final percentA = (ratioA * 100).clamp(0, 100).toInt();
-    final percentB = (100 - percentA);
+    final hasData = (countA + countB > 0) || (totalA + totalB > 0);
+    final percentA = hasData ? (ratioA * 100).clamp(0, 100).toInt() : 0;
+    final percentB = hasData ? (100 - percentA) : 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1462,18 +1490,22 @@ class AdminDashboardTab extends GetView<AdminController> {
             height: 6,
             child: Row(
               children: [
-                Expanded(
-                  flex: percentA > 0 ? percentA : 1,
-                  child: Container(
-                    color: percentA > 0 ? colorA : const Color(0xFFE2E8F0),
-                  ),
-                ),
-                Expanded(
-                  flex: percentB > 0 ? percentB : 1,
-                  child: Container(
-                    color: percentB > 0 ? colorB : const Color(0xFFE2E8F0),
-                  ),
-                ),
+                if (!hasData)
+                  Expanded(
+                    child: Container(color: const Color(0xFFE2E8F0)),
+                  )
+                else ...[
+                  if (percentA > 0)
+                    Expanded(
+                      flex: percentA,
+                      child: Container(color: colorA),
+                    ),
+                  if (percentB > 0)
+                    Expanded(
+                      flex: percentB,
+                      child: Container(color: colorB),
+                    ),
+                ],
               ],
             ),
           ),
@@ -1941,7 +1973,9 @@ class AdminDashboardTab extends GetView<AdminController> {
                       ),
                       const SizedBox(height: 1),
                       Text(
-                        '${tx.customerName.isNotEmpty ? tx.customerName : "Pelanggan Umum"} • Kasir: ${tx.cashierName}',
+                        tx.isSelfOrder
+                            ? '${tx.customerName.isNotEmpty ? tx.customerName : "Pelanggan"} • Online (Self-Order)'
+                            : '${tx.customerName.isNotEmpty ? tx.customerName : "Pelanggan Umum"} • Kasir: ${tx.cashierName}',
                         style: const TextStyle(
                           fontSize: 11,
                           color: Color(0xFF94A3B8),
@@ -2031,6 +2065,45 @@ class AdminDashboardTab extends GetView<AdminController> {
   }
 
   Widget _buildOrderTypeBadge(AdminTransactionModel tx, bool isDineIn) {
+    if (tx.isSelfOrder) {
+      final isTable =
+          tx.tableNumber != null && tx.tableNumber!.isNotEmpty;
+      final label = isTable
+          ? 'Online • Meja ${tx.tableNumber}'
+          : (tx.orderType == 'takeaway' ? 'Online (Takeaway)' : 'Online');
+
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEEF2FF),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: const Color(0xFFC7D2FE)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.phone_android_rounded,
+              size: 11.5,
+              color: Color(0xFF4F46E5),
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF4338CA),
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final isTable =
         isDineIn && tx.tableNumber != null && tx.tableNumber!.isNotEmpty;
     final label = isTable
@@ -2208,7 +2281,7 @@ class AdminDashboardTab extends GetView<AdminController> {
               _buildPaymentMethodBadge(tx.paymentMethod),
               const Spacer(),
               Text(
-                'Kasir: ${tx.cashierName}',
+                tx.isSelfOrder ? 'Online (Self-Order)' : 'Kasir: ${tx.cashierName}',
                 style: const TextStyle(
                   fontSize: 10.5,
                   color: Color(0xFF94A3B8),
