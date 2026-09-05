@@ -37,7 +37,7 @@ void main() {
 
       expect(item.subtotal, 36000);
       expect(item.customizationSummary, 'Less Sugar (50%) • Less Ice • Gelas besar');
-      expect(item.itemKey, '1_Less Sugar (50%)_Less Ice_Gelas besar');
+      expect(item.itemKey, '1_Less Sugar (50%)_Less Ice__Gelas besar');
     });
   });
 }

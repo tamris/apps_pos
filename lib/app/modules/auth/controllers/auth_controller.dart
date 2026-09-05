@@ -125,7 +125,11 @@ class AuthController extends GetxController {
         await _storageService.saveActivePin(enteredPin);
 
         pin.value = '';
-        Get.offAllNamed(AppRoutes.pos);
+        if (userData.isAdmin) {
+          Get.offAllNamed(AppRoutes.admin);
+        } else {
+          Get.offAllNamed(AppRoutes.pos);
+        }
       } else {
         errorMessage.value = response.data['message'] ?? 'PIN tidak valid.';
         pin.value = '';
@@ -150,7 +154,11 @@ class AuthController extends GetxController {
           await _storageService.saveActivePin(enteredPin);
 
           pin.value = '';
-          Get.offAllNamed(AppRoutes.pos);
+          if (matchedUser.isAdmin) {
+            Get.offAllNamed(AppRoutes.admin);
+          } else {
+            Get.offAllNamed(AppRoutes.pos);
+          }
           AppSnackbar.warning(
             'Mode Offline',
             'Masuk sebagai ${matchedUser.name} dalam mode offline lokal.',

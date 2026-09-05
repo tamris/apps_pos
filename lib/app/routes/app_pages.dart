@@ -12,6 +12,8 @@ import '../modules/online_orders/bindings/online_orders_binding.dart';
 import '../modules/online_orders/views/online_orders_view.dart';
 import '../modules/settings/bindings/settings_binding.dart';
 import '../modules/settings/views/settings_view.dart';
+import '../modules/admin/bindings/admin_binding.dart';
+import '../modules/admin/views/admin_view.dart';
 
 class AppPages {
   static const initial = AppRoutes.pinLogin;
@@ -51,6 +53,12 @@ class AppPages {
       name: AppRoutes.settings,
       page: () => const SettingsView(),
       binding: SettingsBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: AppRoutes.admin,
+      page: () => const AdminView(),
+      binding: AdminBinding(),
       transition: Transition.rightToLeft,
     ),
   ];

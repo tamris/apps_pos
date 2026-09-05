@@ -33,6 +33,7 @@ class UserModel {
     };
   }
 
-  bool get isAdmin => role.toLowerCase() == 'admin';
+  bool get isAdmin => role.toLowerCase() == 'admin' || role.toLowerCase() == 'owner';
+  bool get isOwner => role.toLowerCase() == 'owner';
   bool get isCashier => role.toLowerCase() == 'kasir' || role.toLowerCase() == 'cashier';
 }

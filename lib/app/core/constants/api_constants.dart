@@ -46,4 +46,13 @@ class ApiConstants {
   static String updateOnlineOrderStatus(int id) => '/pos/online-orders/$id/status';
   static String onlineOrderReceipt(int id) => '/pos/online-orders/$id/receipt';
   static String onlineOrderKitchen(int id) => '/pos/online-orders/$id/kitchen';
+
+  // Admin & Owner Endpoints
+  static const String adminDashboard = '/admin/dashboard';
+  static const String adminShiftHistory = '/admin/shifts/history';
+  static String adminShiftDetail(int id) => '/admin/shifts/$id';
+  static const String adminTransactions = '/admin/transactions';
+  static String adminTransactionDetail(int id) => '/admin/transactions/$id';
+  static String adminVoidTransaction(int id) => '/admin/transactions/$id/void';
+  static const String adminOpenBills = '/admin/open-bills';
 }
