@@ -18,7 +18,8 @@ class AdminController extends GetxController {
   final RxInt selectedTabIndex = 0.obs;
 
   // Sidebar Collapse / Expand State (Tablet / Desktop)
-  final RxBool isSidebarCollapsed = false.obs;
+  // Default closed (collapsed 68px rail) for a cleaner, wider view upon initial entry
+  final RxBool isSidebarCollapsed = true.obs;
   void toggleSidebar() => isSidebarCollapsed.value = !isSidebarCollapsed.value;
 
   // --- TAB 1: FINANCIAL & OPERATIONAL DASHBOARD ---
