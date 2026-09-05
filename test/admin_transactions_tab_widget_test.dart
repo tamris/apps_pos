@@ -153,6 +153,7 @@ void main() {
     expect(find.text('Selesai'), findsWidgets);
     expect(find.text('Open Bill'), findsWidgets);
     expect(find.text('Batal (Void)'), findsWidgets);
+    expect(find.text('Menunggu Bayar'), findsWidgets);
 
     // Verify Badges for Open Bill (count: 2) and Batal (count: 1)
     expect(find.text('2'), findsWidgets); // Open Bill count

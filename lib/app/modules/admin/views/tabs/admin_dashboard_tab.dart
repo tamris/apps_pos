@@ -2327,6 +2327,31 @@ class AdminDashboardTab extends GetView<AdminController> {
       );
     }
     if (tx.isPending) {
+      if (tx.isSelfOrder) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF7ED),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFFED7AA)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(Icons.hourglass_top_rounded, size: 7.5, color: Color(0xFFEA580C)),
+              SizedBox(width: 4),
+              Text(
+                'Unpaid',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFFEA580C),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
         decoration: BoxDecoration(

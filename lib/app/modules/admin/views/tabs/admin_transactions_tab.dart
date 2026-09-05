@@ -1209,6 +1209,27 @@ class AdminTransactionsTab extends GetView<AdminController> {
       );
     }
     if (tx.isPending) {
+      if (tx.isSelfOrder) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF7ED),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: const Color(0xFFFED7AA)),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.hourglass_top_rounded, size: 10, color: Color(0xFFEA580C)),
+              SizedBox(width: 3.5),
+              Text(
+                'Menunggu Bayar',
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFEA580C)),
+              ),
+            ],
+          ),
+        );
+      }
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
         decoration: BoxDecoration(

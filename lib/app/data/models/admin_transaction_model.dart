@@ -120,6 +120,7 @@ class AdminTransactionModel {
   bool get isSelfOrder =>
       orderSource.toLowerCase().contains('self') ||
       orderSource.toLowerCase().contains('online');
+  bool get isUnpaidOnline => isSelfOrder && (isPending || paymentStatus == 'unpaid');
 
   factory AdminTransactionModel.fromJson(Map<String, dynamic> json) {
     final cashier = json['cashier'] is Map ? json['cashier'] : {};
@@ -158,7 +159,7 @@ class AdminTransactionModel {
       orderType: json['order_type']?.toString() ?? 'dine_in',
       orderSource: orderSource,
       paymentMethod: json['payment_method']?.toString() ?? 'cash',
-      paymentStatus: json['payment_status']?.toString() ?? 'paid',
+      paymentStatus: json['payment_status']?.toString() ?? ((json['status'] == 'completed') ? 'paid' : 'unpaid'),
       subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0.0,
       discount: (json['discount'] as num?)?.toDouble() ?? 0.0,
       tax: (json['tax'] as num?)?.toDouble() ?? 0.0,
