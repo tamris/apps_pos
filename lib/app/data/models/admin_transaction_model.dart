@@ -115,7 +115,9 @@ class AdminTransactionModel {
   bool get isCompleted => status == 'completed';
   bool get isPending => status == 'pending';
   bool get isCancelled => status == 'cancelled';
-  bool get isSelfOrder => orderSource == 'self_order';
+  bool get isSelfOrder =>
+      orderSource.toLowerCase().contains('self') ||
+      orderSource.toLowerCase().contains('online');
 
   factory AdminTransactionModel.fromJson(Map<String, dynamic> json) {
     final cashier = json['cashier'] is Map ? json['cashier'] : {};

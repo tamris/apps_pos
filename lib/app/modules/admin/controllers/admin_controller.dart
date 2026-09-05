@@ -38,15 +38,69 @@ class AdminController extends GetxController {
 
   // --- TAB 3: SHIFT AUDIT & Z-REPORT ---
   final RxList<AdminShiftModel> shifts = <AdminShiftModel>[].obs;
-  final RxString selectedShiftStatus = 'all'.obs; // 'all', 'open', 'closed'
+  final RxString selectedShiftStatus = 'all'.obs; // 'all', 'open', 'closed', 'balanced', 'discrepancy'
   final Rx<String?> selectedShiftDate = Rx<String?>(null);
+  final RxString shiftSearchQuery = ''.obs;
+  final TextEditingController shiftSearchController = TextEditingController();
   final RxBool isLoadingShifts = false.obs;
+
+  List<AdminShiftModel> get filteredShifts {
+    return shifts.where((s) {
+      if (shiftSearchQuery.value.isNotEmpty) {
+        final q = shiftSearchQuery.value.toLowerCase().trim();
+        final matchesName = s.cashierName.toLowerCase().contains(q);
+        final matchesId = '#${s.id}'.contains(q) || s.id.toString().contains(q);
+        if (!matchesName && !matchesId) return false;
+      }
+      if (selectedShiftStatus.value == 'open') {
+        return s.isOpen;
+      } else if (selectedShiftStatus.value == 'closed') {
+        return !s.isOpen;
+      } else if (selectedShiftStatus.value == 'discrepancy') {
+        return s.isShortage || s.isOverage;
+      } else if (selectedShiftStatus.value == 'balanced') {
+        return !s.isOpen && s.isBalanced;
+      }
+      return true;
+    }).toList();
+  }
 
   // --- TAB 4: OPEN BILLS MONITORING ---
   final RxList<AdminOpenBillModel> openBills = <AdminOpenBillModel>[].obs;
   final RxInt openBillsTotalActive = 0.obs;
   final RxDouble openBillsTotalAmount = 0.0.obs;
   final RxBool isLoadingOpenBills = false.obs;
+  final RxString openBillSearchQuery = ''.obs;
+  final TextEditingController openBillSearchController = TextEditingController();
+  final RxString selectedOpenBillFilter = 'all'.obs;
+
+  List<AdminOpenBillModel> get filteredOpenBills {
+    final query = openBillSearchQuery.value.trim().toLowerCase();
+    final filter = selectedOpenBillFilter.value;
+
+    return openBills.where((b) {
+      // 1. Status Filter
+      if (filter == 'critical' && b.elapsedMinutes < 60) return false;
+      if (filter == 'fresh' && b.elapsedMinutes >= 30) return false;
+      if (filter == 'self_order' && !b.isSelfOrder) return false;
+      if (filter == 'pos' && b.isSelfOrder) return false;
+
+      // 2. Search Query
+      if (query.isNotEmpty) {
+        final matchesTable = b.tableNumber.toLowerCase().contains(query) ||
+            'meja ${b.tableNumber}'.toLowerCase().contains(query);
+        final matchesCustomer = b.customerName.toLowerCase().contains(query);
+        final matchesInvoice = b.invoiceNumber.toLowerCase().contains(query);
+        final matchesCashier = b.cashierName.toLowerCase().contains(query);
+
+        if (!matchesTable && !matchesCustomer && !matchesInvoice && !matchesCashier) {
+          return false;
+        }
+      }
+
+      return true;
+    }).toList();
+  }
 
   @override
   void onInit() {
@@ -59,19 +113,26 @@ class AdminController extends GetxController {
   @override
   void onClose() {
     trxSearchController.dispose();
+    shiftSearchController.dispose();
+    openBillSearchController.dispose();
     super.onClose();
   }
 
   void switchTab(int index) {
     selectedTabIndex.value = index;
-    if (index == 0 && dashboardData.value.date.isEmpty) {
-      fetchDashboard();
-    } else if (index == 1 && transactions.isEmpty) {
-      fetchTransactions();
-    } else if (index == 2 && shifts.isEmpty) {
-      fetchShifts();
-    } else if (index == 3 && openBills.isEmpty) {
-      fetchOpenBills();
+    switch (index) {
+      case 0:
+        fetchDashboard();
+        break;
+      case 1:
+        fetchTransactions();
+        break;
+      case 2:
+        fetchShifts();
+        break;
+      case 3:
+        fetchOpenBills();
+        break;
     }
   }
 
@@ -207,7 +268,7 @@ class AdminController extends GetxController {
     try {
       final Map<String, dynamic> params = {'limit': 50};
 
-      if (selectedShiftStatus.value != 'all') {
+      if (selectedShiftStatus.value == 'open' || selectedShiftStatus.value == 'closed') {
         params['status'] = selectedShiftStatus.value;
       }
       if (selectedShiftDate.value != null && selectedShiftDate.value!.isNotEmpty) {

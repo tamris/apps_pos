@@ -15,7 +15,8 @@ class AdminDashboardTab extends GetView<AdminController> {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      if (controller.isLoadingDashboard.value && controller.dashboardData.value.date.isEmpty) {
+      if (controller.isLoadingDashboard.value &&
+          controller.dashboardData.value.date.isEmpty) {
         return const ListItemSkeleton(itemCount: 4);
       }
 
@@ -27,61 +28,76 @@ class AdminDashboardTab extends GetView<AdminController> {
         onRefresh: () => controller.fetchDashboard(),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final isTablet = constraints.maxWidth >= 768;
+            final availableWidth = constraints.maxWidth;
+            final isWide = availableWidth >= 760;
+            final isScreenMobile = MediaQuery.of(context).size.width < 768;
 
             return ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              padding: EdgeInsets.symmetric(
+                horizontal: availableWidth >= 768 ? 20 : 16,
+                vertical: 16,
+              ),
               children: [
-                // 1. Mobile Only: Compact Date Selector (Tablet uses top header bar)
-                if (!isTablet) ...[
+                // 1. Mobile Date Selector (Only when mobile AppBar is used)
+                if (isScreenMobile) ...[
                   _buildMobileDateFilterBar(context),
                   const SizedBox(height: 14),
                 ],
 
-                // 2. Uniform, Balanced Hero KPI Cards (3 across on tablet, stacked on mobile)
-                _buildKpiSection(summary, isTablet),
+                // 2. Executive Metric Cards (Hero Strip)
+                _buildKpiSection(summary, availableWidth),
                 const SizedBox(height: 16),
 
-                // 3. Balanced Grid on Tablet (Row-by-Row IntrinsicHeight for 100% equal card heights)
-                if (isTablet) ...[
-                  // Row 1: Shift Kasir Aktif & Rincian Pembayaran (100% Sama Rata)
-                  IntrinsicHeight(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(child: _buildActiveShiftCard(data)),
-                        const SizedBox(width: 16),
-                        Expanded(child: _buildPaymentBreakdownCard(data, summary.totalRevenue)),
-                      ],
-                    ),
+                // 3. Operational Cards (2 columns on wide, stacked on narrow)
+                if (isWide) ...[
+                  // Row 1: Shift Kasir Aktif & Rincian Pembayaran
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: _buildShiftLedgerCard(data, height: 215)),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildPaymentDistributionCard(
+                          data,
+                          summary.totalRevenue,
+                          height: 215,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
 
-                  // Row 2: Pengawasan Operasional & Distribusi Penjualan (100% Sama Rata)
-                  IntrinsicHeight(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(child: _buildOperationalWatchlistCard(data)),
-                        const SizedBox(width: 16),
-                        Expanded(child: _buildDistributionCard(data, isTablet)),
-                      ],
-                    ),
+                  // Row 2: Pengawasan Operasional & Distribusi Saluran/Tipe
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: _buildOperationsWatchlistCard(data, height: 215),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildChannelAndOrderTypeCard(
+                          data,
+                          true,
+                          height: 215,
+                        ),
+                      ),
+                    ],
                   ),
                 ] else ...[
-                  // Mobile view stacked (100% equal width each, no squished cards)
-                  _buildActiveShiftCard(data),
+                  // Stacked full-width cards (Clean, zero-cramp layout on mobile or narrow tablet)
+                  _buildShiftLedgerCard(data),
                   const SizedBox(height: 14),
-                  _buildPaymentBreakdownCard(data, summary.totalRevenue),
+                  _buildPaymentDistributionCard(data, summary.totalRevenue),
                   const SizedBox(height: 14),
-                  _buildDistributionCard(data, isTablet),
+                  _buildOperationsWatchlistCard(data),
                   const SizedBox(height: 14),
-                  _buildOperationalWatchlistCard(data),
+                  _buildChannelAndOrderTypeCard(data, false),
                 ],
-                const SizedBox(height: 16),
+                const SizedBox(height: 18),
 
-                // 4. Live Recent Transactions Feed (Fills the viewport and provides real-time monitoring)
-                _buildRecentTransactionsSection(context, isTablet),
+                // 4. Live Recent Activity Stream (Table if >= 640, Card Stream if < 640)
+                _buildRecentActivitySection(context, availableWidth),
                 const SizedBox(height: 24),
               ],
             );
@@ -92,34 +108,100 @@ class AdminDashboardTab extends GetView<AdminController> {
   }
 
   // ---------------------------------------------------------------------------
-  // Mobile Only: Date Filter Bar
+  // Mobile Date Filter Bar
   // ---------------------------------------------------------------------------
   Widget _buildMobileDateFilterBar(BuildContext context) {
     final selected = controller.selectedDashboardDate.value;
     final nowStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    final yesterdayStr = DateFormat('yyyy-MM-dd').format(DateTime.now().subtract(const Duration(days: 1)));
+    final yesterdayStr = DateFormat(
+      'yyyy-MM-dd',
+    ).format(DateTime.now().subtract(const Duration(days: 1)));
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.lightBorder, width: 1.2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.calendar_today_rounded, color: AppColors.secondary, size: 16),
-          const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              _formatDateLabel(selected),
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-              overflow: TextOverflow.ellipsis,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(6),
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.tryParse(selected) ?? DateTime.now(),
+                  firstDate: DateTime(2024),
+                  lastDate: DateTime.now().add(const Duration(days: 30)),
+                  initialEntryMode: DatePickerEntryMode.calendarOnly,
+                  helpText: 'PILIH TANGGAL',
+                  cancelText: 'Batal',
+                  confirmText: 'Terapkan',
+                  builder: (context, child) {
+                    return Theme(
+                      data: Theme.of(context).copyWith(
+                        colorScheme: const ColorScheme.light(
+                          primary: AppColors.secondary,
+                          onPrimary: Colors.white,
+                          surface: Colors.white,
+                          onSurface: Color(0xFF0F172A),
+                        ),
+                        datePickerTheme: DatePickerThemeData(
+                          backgroundColor: Colors.white,
+                          headerBackgroundColor: AppColors.secondary,
+                          headerForegroundColor: Colors.white,
+                          surfaceTintColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                      ),
+                      child: child!,
+                    );
+                  },
+                );
+                if (picked != null) {
+                  controller.changeDashboardDate(picked);
+                }
+              },
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.calendar_today_rounded,
+                    color: AppColors.secondary,
+                    size: 15,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _formatDateLabel(selected),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF0F172A),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          _buildDateChip('Hari Ini', selected == nowStr, () => controller.changeDashboardDate(DateTime.now())),
+          _buildDateChip(
+            'Hari Ini',
+            selected == nowStr,
+            () => controller.changeDashboardDate(DateTime.now()),
+          ),
           const SizedBox(width: 6),
-          _buildDateChip('Kemarin', selected == yesterdayStr, () => controller.changeDashboardDate(DateTime.now().subtract(const Duration(days: 1)))),
+          _buildDateChip(
+            'Kemarin',
+            selected == yesterdayStr,
+            () => controller.changeDashboardDate(
+              DateTime.now().subtract(const Duration(days: 1)),
+            ),
+          ),
         ],
       ),
     );
@@ -127,23 +209,19 @@ class AdminDashboardTab extends GetView<AdminController> {
 
   Widget _buildDateChip(String label, bool isSelected, VoidCallback onTap) {
     return Material(
-      color: isSelected ? AppColors.secondary : AppColors.lightBackground,
-      borderRadius: BorderRadius.circular(8),
+      color: isSelected ? AppColors.secondary : const Color(0xFFF1F5F9),
+      borderRadius: BorderRadius.circular(6),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: isSelected ? AppColors.secondary : AppColors.lightBorder),
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
           child: Text(
             label,
             style: TextStyle(
               fontSize: 11,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-              color: isSelected ? Colors.white : AppColors.textSecondary,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              color: isSelected ? Colors.white : const Color(0xFF475569),
             ),
           ),
         ),
@@ -152,51 +230,72 @@ class AdminDashboardTab extends GetView<AdminController> {
   }
 
   // ---------------------------------------------------------------------------
-  // Uniform, Cohesive Hero KPI Cards
+  // 1. Executive Metric Strip (Hero KPIs)
+  // Clean, high signal-to-noise ratio without yelling uppercase badges
   // ---------------------------------------------------------------------------
-  Widget _buildKpiSection(dynamic summary, bool isTablet) {
+  Widget _buildKpiSection(dynamic summary, double availableWidth) {
+    final isCompact = availableWidth < 500;
+
     final cardRevenue = _buildKpiCard(
-      title: 'Total Omset Bersih',
+      label: 'Total Pendapatan',
       value: CurrencyFormatter.format(summary.totalRevenue),
-      valueColor: AppColors.secondary,
-      icon: Icons.account_balance_wallet_rounded,
-      color: AppColors.secondary,
-      subtitle: '${summary.totalTransactions} transaksi terselesaikan',
-      badgeText: 'NET REVENUE',
+      valueColor: const Color(0xFF0F172A),
+      icon: Icons.account_balance_wallet_outlined,
+      iconColor: AppColors.secondary,
+      iconBg: const Color(0xFFEEF2FF),
+      subtitle: '${summary.totalTransactions} pesanan berhasil diproses',
+      isCompact: isCompact,
     );
 
     final cardTransactions = _buildKpiCard(
-      title: 'Total Pesanan',
+      label: 'Volume Pesanan',
       value: '${summary.totalTransactions}',
-      valueColor: AppColors.textPrimary,
-      icon: Icons.receipt_long_rounded,
-      color: AppColors.primary,
-      subtitle: 'Pesanan berhasil diproses',
-      badgeText: 'SELESAI',
+      valueColor: const Color(0xFF0F172A),
+      icon: Icons.receipt_long_outlined,
+      iconColor: const Color(0xFF0EA5E9),
+      iconBg: const Color(0xFFF0F9FF),
+      subtitle: 'Pesanan terbayar dan selesai',
+      isCompact: isCompact,
     );
 
     final cardAverage = _buildKpiCard(
-      title: 'Rata-rata / Struk',
+      label: 'Rata-rata / Struk',
       value: CurrencyFormatter.format(summary.averagePerTransaction),
-      valueColor: AppColors.textPrimary,
-      icon: Icons.analytics_rounded,
-      color: AppColors.info,
-      subtitle: 'Basket size per transaksi',
-      badgeText: 'AVERAGE',
+      valueColor: const Color(0xFF0F172A),
+      icon: Icons.analytics_outlined,
+      iconColor: const Color(0xFF10B981),
+      iconBg: const Color(0xFFECFDF5),
+      subtitle: 'Nilai rata-rata belanja',
+      isCompact: isCompact,
     );
 
-    if (isTablet) {
-      return IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(child: cardRevenue),
-            const SizedBox(width: 14),
-            Expanded(child: cardTransactions),
-            const SizedBox(width: 14),
-            Expanded(child: cardAverage),
-          ],
-        ),
+    if (availableWidth >= 860) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: cardRevenue),
+          const SizedBox(width: 14),
+          Expanded(child: cardTransactions),
+          const SizedBox(width: 14),
+          Expanded(child: cardAverage),
+        ],
+      );
+    }
+
+    if (availableWidth >= 480) {
+      return Column(
+        children: [
+          cardRevenue,
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: cardTransactions),
+              const SizedBox(width: 10),
+              Expanded(child: cardAverage),
+            ],
+          ),
+        ],
       );
     }
 
@@ -204,41 +303,35 @@ class AdminDashboardTab extends GetView<AdminController> {
       children: [
         cardRevenue,
         const SizedBox(height: 10),
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(child: cardTransactions),
-              const SizedBox(width: 10),
-              Expanded(child: cardAverage),
-            ],
-          ),
-        ),
+        cardTransactions,
+        const SizedBox(height: 10),
+        cardAverage,
       ],
     );
   }
 
   Widget _buildKpiCard({
-    required String title,
+    required String label,
     required String value,
     required Color valueColor,
     required IconData icon,
-    required Color color,
+    required Color iconColor,
+    required Color iconBg,
     required String subtitle,
-    required String badgeText,
+    bool isCompact = false,
   }) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 120),
-      padding: const EdgeInsets.all(16),
+      constraints: BoxConstraints(minHeight: isCompact ? 95 : 105),
+      padding: EdgeInsets.all(isCompact ? 14 : 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.lightBorder, width: 1.2),
-        boxShadow: [
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Color(0x05000000),
+            blurRadius: 4,
+            offset: Offset(0, 1),
           ),
         ],
       ),
@@ -249,60 +342,50 @@ class AdminDashboardTab extends GetView<AdminController> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
+              Expanded(
                 child: Text(
-                  badgeText,
-                  style: TextStyle(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.6,
-                    color: color,
+                  label,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF64748B),
+                    letterSpacing: -0.1,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.all(7),
+                width: 30,
+                height: 30,
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: color, size: 18),
+                child: Icon(icon, color: iconColor, size: 16),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+          const SizedBox(height: 6),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: isCompact ? 20 : 22,
+                fontWeight: FontWeight.w700,
+                color: valueColor,
+                letterSpacing: -0.4,
               ),
-              const SizedBox(height: 4),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: valueColor,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Text(
             subtitle,
-            style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+            style: const TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8)),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -310,347 +393,538 @@ class AdminDashboardTab extends GetView<AdminController> {
   }
 
   // ---------------------------------------------------------------------------
-  // Active Shift Card (100% Sama Rata)
+  // 2. Shift Kasir Aktif (Financial Ledger Style)
+  // Clean financial format instead of box-inside-box clutter
   // ---------------------------------------------------------------------------
-  Widget _buildActiveShiftCard(dynamic data) {
+  // 2. Operasional Shift Kasir (Cash Ledger Strip)
+  // Structured cash-in-drawer reconciliation card with quick shift audit link
+  // ---------------------------------------------------------------------------
+  Widget _buildShiftLedgerCard(dynamic data, {double? height}) {
     final shift = data.activeShift;
 
-    if (shift == null) {
-      return Container(
-        constraints: const BoxConstraints(minHeight: 250),
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.lightBorder, width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.storefront_outlined, color: AppColors.textSecondary, size: 18),
-                    SizedBox(width: 8),
-                    Text(
-                      'Shift Kasir Saat Ini',
-                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                    ),
-                  ],
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.lightBackground,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppColors.lightBorder),
-                  ),
-                  child: const Text('TUTUP', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: AppColors.textMuted)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.lightBackground,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.lightBorder),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.lightBorder),
-                    ),
-                    child: const Icon(Icons.point_of_sale_outlined, color: AppColors.textMuted, size: 22),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Belum Ada Shift Kasir Aktif',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                        ),
-                        SizedBox(height: 3),
-                        Text(
-                          'Kasir belum membuka sesi shift hari ini. Laci uang kasir belum dicatat.',
-                          style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Spacer(),
-            const SizedBox(height: 12),
-            const Divider(height: 1, color: AppColors.lightBorder),
-            const SizedBox(height: 10),
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.info_outline_rounded, size: 13, color: AppColors.textMuted),
-                    SizedBox(width: 4),
-                    Text(
-                      'Buka kasir di POS untuk memulai shift',
-                      style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                    ),
-                  ],
-                ),
-                Text(
-                  'Standby',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textMuted),
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-    }
-
     return Container(
-      constraints: const BoxConstraints(minHeight: 250),
-      padding: const EdgeInsets.all(18),
+      height: height,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.lightBorder, width: 1.2),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
+        mainAxisAlignment: height != null
+            ? MainAxisAlignment.spaceBetween
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 1. Header Row
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
-                decoration: BoxDecoration(
-                  color: AppColors.secondarySoft,
-                  borderRadius: BorderRadius.circular(6),
+              const Text(
+                'Shift Kasir',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F172A),
+                  letterSpacing: -0.2,
                 ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
+              ),
+              const SizedBox(width: 8),
+              if (shift != null)
+                Flexible(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 2.5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFECFDF5),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFA7F3D0)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(
+                              Icons.fiber_manual_record,
+                              size: 6.5,
+                              color: Color(0xFF10B981),
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              'Aktif',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF047857),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      CircleAvatar(
+                        radius: 11,
+                        backgroundColor: const Color(0xFFEEF2FF),
+                        child: Text(
+                          shift.cashierName.isNotEmpty
+                              ? shift.cashierName[0].toUpperCase()
+                              : 'K',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.secondary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Flexible(
+                        child: Text(
+                          shift.cashierName,
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF0F172A),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 2.5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'Belum Dibuka',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+
+          if (shift == null) ...[
+            if (height == null) const SizedBox(height: 18),
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF8FAFC),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.storefront_outlined,
+                      color: Color(0xFF94A3B8),
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Tidak ada shift aktif hari ini',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF334155),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Buka kasir pada POS untuk mulai mencatat arus kas.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                  ),
+                ],
+              ),
+            ),
+            if (height == null) const SizedBox(height: 18),
+            Column(
+              children: [
+                const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(Icons.fiber_manual_record, color: AppColors.secondary, size: 9),
-                    SizedBox(width: 5),
-                    Text(
-                      'SHIFT SEDANG BERJALAN',
-                      style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: AppColors.secondary),
+                    const Text(
+                      'Status Laci Kas',
+                      style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                    ),
+                    InkWell(
+                      onTap: () => controller.switchTab(2),
+                      child: const Text(
+                        'Riwayat Shift →',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.secondary,
+                        ),
+                      ),
                     ),
                   ],
                 ),
-              ),
-              const Spacer(),
-              CircleAvatar(
-                radius: 12,
-                backgroundColor: AppColors.secondarySoft,
-                child: Text(
-                  shift.cashierName.isNotEmpty ? shift.cashierName[0].toUpperCase() : 'K',
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.secondary),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                shift.cashierName,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.lightBackground,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.lightBorder),
+              ],
             ),
-            child: Row(
+          ] else ...[
+            if (height == null) const SizedBox(height: 10),
+            // 2. Cash In Drawer (Hero Box)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(
+                            Icons.point_of_sale_outlined,
+                            size: 14,
+                            color: AppColors.secondary,
+                          ),
+                          SizedBox(width: 5),
+                          Text(
+                            'Estimasi Kas di Laci',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF475569),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            CurrencyFormatter.format(shift.expectedCash),
+                            style: const TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.secondary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          'Modal: ${CurrencyFormatter.format(shift.startingCash)}',
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            color: Color(0xFF64748B),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          '+ Penjualan: ${CurrencyFormatter.format(shift.cashSales)}',
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF047857),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.end,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            if (height == null) const SizedBox(height: 8),
+            // 3. Shift Performance Strip (Omzet shift & Transaksi)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  child: _buildShiftMiniStat('Modal Awal', CurrencyFormatter.format(shift.startingCash)),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.insights_outlined,
+                        size: 13,
+                        color: Color(0xFF64748B),
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          'Total Omzet: ${CurrencyFormatter.format(shift.totalSales > 0 ? shift.totalSales : shift.cashSales)}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF334155),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                Container(height: 32, width: 1, color: AppColors.lightBorder),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildShiftMiniStat('Penjualan Tunai', CurrencyFormatter.format(shift.cashSales)),
-                ),
-                Container(height: 32, width: 1, color: AppColors.lightBorder),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildShiftMiniStat(
-                    'Estimasi di Laci',
-                    CurrencyFormatter.format(shift.expectedCash),
-                    isHighlight: true,
+                const SizedBox(width: 8),
+                Text(
+                  '${shift.totalTransactions} transaksi',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF475569),
                   ),
                 ),
               ],
             ),
-          ),
-          const Spacer(),
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: AppColors.lightBorder),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.access_time_rounded, size: 13, color: AppColors.textSecondary),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Dibuka: ${_formatTime(shift.startTime)}',
-                    style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                  ),
-                ],
-              ),
-              Text(
-                '${shift.totalTransactions} transaksi terselesaikan',
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.secondary),
-              ),
-            ],
-          ),
+
+            if (height == null) const SizedBox(height: 8),
+            // 4. Footer Row with Quick Action
+            Column(
+              children: [
+                const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.access_time_rounded,
+                          size: 12.5,
+                          color: Color(0xFF94A3B8),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Dibuka pukul ${_formatTime(shift.startTime)}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                    InkWell(
+                      onTap: () => controller.switchTab(2),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Text(
+                            'Audit Shift',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.secondary,
+                            ),
+                          ),
+                          SizedBox(width: 2),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            size: 14,
+                            color: AppColors.secondary,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildShiftMiniStat(String label, String value, {bool isHighlight = false}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 10.5, color: AppColors.textSecondary)),
-        const SizedBox(height: 2),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Text(
-            value,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: isHighlight ? AppColors.secondary : AppColors.textPrimary,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   // ---------------------------------------------------------------------------
-  // Payment Breakdown Card (100% Sama Rata)
+  // 3. Rincian Metode Pembayaran (FinTech Multi-Segment Distribution Bar)
+  // Replaces disconnected progress bars with a unified, modern financial bar
   // ---------------------------------------------------------------------------
-  Widget _buildPaymentBreakdownCard(dynamic data, double totalRevenue) {
+  Widget _buildPaymentDistributionCard(
+    dynamic data,
+    double totalRevenue, {
+    double? height,
+  }) {
     final p = data.paymentBreakdown;
 
     final cashPercent = totalRevenue > 0 ? (p.cash.total / totalRevenue) : 0.0;
     final qrisPercent = totalRevenue > 0 ? (p.qris.total / totalRevenue) : 0.0;
-    final transferPercent = totalRevenue > 0 ? (p.transfer.total / totalRevenue) : 0.0;
+    final transferPercent = totalRevenue > 0
+        ? (p.transfer.total / totalRevenue)
+        : 0.0;
 
     return Container(
-      constraints: const BoxConstraints(minHeight: 250),
-      padding: const EdgeInsets.all(18),
+      height: height,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.lightBorder, width: 1.2),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
+        mainAxisAlignment: height != null
+            ? MainAxisAlignment.spaceBetween
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header Row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
-                children: [
-                  Icon(Icons.account_balance_rounded, color: AppColors.secondary, size: 18),
-                  SizedBox(width: 8),
-                  Text(
-                    'Rincian Metode Pembayaran',
-                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.secondarySoft,
-                  borderRadius: BorderRadius.circular(6),
+              const Text(
+                'Metode Pembayaran',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F172A),
+                  letterSpacing: -0.2,
                 ),
-                child: const Text('REAL-TIME', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: AppColors.secondary)),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    CurrencyFormatter.format(totalRevenue),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          _buildPaymentProgressRow(
-            label: 'Uang Tunai (Laci Kasir)',
-            icon: Icons.payments_rounded,
-            total: p.cash.total,
-            count: p.cash.count,
-            percentage: cashPercent,
-            color: AppColors.primary,
-          ),
-          const SizedBox(height: 10),
-          _buildPaymentProgressRow(
-            label: 'QRIS Digital (GoPay, OVO, dll)',
-            icon: Icons.qr_code_2_rounded,
-            total: p.qris.total,
-            count: p.qris.count,
-            percentage: qrisPercent,
-            color: AppColors.secondary,
-          ),
-          const SizedBox(height: 10),
-          _buildPaymentProgressRow(
-            label: 'Transfer Bank Langsung',
-            icon: Icons.credit_card_rounded,
-            total: p.transfer.total,
-            count: p.transfer.count,
-            percentage: transferPercent,
-            color: AppColors.info,
-          ),
-          const Spacer(),
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: AppColors.lightBorder),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Total Penerimaan: ${CurrencyFormatter.format(totalRevenue)}',
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+          if (height == null) const SizedBox(height: 10),
+
+          // Unified Multi-Segment Distribution Bar (FinTech style)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(5),
+            child: SizedBox(
+              height: 6,
+              child: Row(
+                children: [
+                  if (cashPercent > 0)
+                    Expanded(
+                      flex: (cashPercent * 100).toInt().clamp(1, 100),
+                      child: Container(
+                        color: const Color(0xFF10B981),
+                      ), // Emerald
+                    ),
+                  if (qrisPercent > 0)
+                    Expanded(
+                      flex: (qrisPercent * 100).toInt().clamp(1, 100),
+                      child: Container(color: AppColors.secondary), // Indigo
+                    ),
+                  if (transferPercent > 0)
+                    Expanded(
+                      flex: (transferPercent * 100).toInt().clamp(1, 100),
+                      child: Container(color: const Color(0xFF0EA5E9)), // Sky
+                    ),
+                  if (totalRevenue == 0)
+                    Expanded(child: Container(color: const Color(0xFFE2E8F0))),
+                ],
               ),
-              const Text(
-                '3 Metode Aktif',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.secondary),
+            ),
+          ),
+          if (height == null) const SizedBox(height: 10),
+
+          // Breakdown Items
+          Column(
+            children: [
+              _buildPaymentRow(
+                label: 'Uang Tunai',
+                dotColor: const Color(0xFF10B981),
+                total: p.cash.total,
+                count: p.cash.count,
+                percentage: cashPercent,
+              ),
+              const SizedBox(height: 5),
+              _buildPaymentRow(
+                label: 'QRIS Digital',
+                dotColor: AppColors.secondary,
+                total: p.qris.total,
+                count: p.qris.count,
+                percentage: qrisPercent,
+              ),
+              const SizedBox(height: 5),
+              _buildPaymentRow(
+                label: 'Transfer Bank',
+                dotColor: const Color(0xFF0EA5E9),
+                total: p.transfer.total,
+                count: p.transfer.count,
+                percentage: transferPercent,
+              ),
+            ],
+          ),
+
+          if (height == null) const SizedBox(height: 10),
+          Column(
+            children: [
+              const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Flexible(
+                    child: Text(
+                      'Total Penerimaan Real-Time',
+                      maxLines: 1,
+                      style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${p.cash.count + p.qris.count + p.transfer.count} Transaksi',
+                    maxLines: 1,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -659,53 +933,48 @@ class AdminDashboardTab extends GetView<AdminController> {
     );
   }
 
-  Widget _buildPaymentProgressRow({
+  Widget _buildPaymentRow({
     required String label,
-    required IconData icon,
+    required Color dotColor,
     required double total,
     required int count,
     required double percentage,
-    required Color color,
   }) {
     final percentInt = (percentage * 100).clamp(0, 100).toInt();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: color, size: 14),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-                  Text('$count transaksi • $percentInt% kontribusi', style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
-                ],
-              ),
-            ),
-            Text(
-              CurrencyFormatter.format(total),
-              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-            ),
-          ],
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
         ),
-        const SizedBox(height: 5),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(3),
-          child: LinearProgressIndicator(
-            value: percentage.clamp(0.0, 1.0),
-            minHeight: 4,
-            backgroundColor: AppColors.lightBackground,
-            valueColor: AlwaysStoppedAnimation<Color>(color),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF334155),
+            ),
+          ),
+        ),
+        Text(
+          '$count trx • $percentInt%',
+          maxLines: 1,
+          style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          CurrencyFormatter.format(total),
+          maxLines: 1,
+          style: const TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF0F172A),
           ),
         ),
       ],
@@ -713,194 +982,295 @@ class AdminDashboardTab extends GetView<AdminController> {
   }
 
   // ---------------------------------------------------------------------------
-  // Operational Watchlist Card (100% Sama Rata)
+  // 4. Pengawasan Operasional Toko
+  // Clean alert links without screaming loud borders
   // ---------------------------------------------------------------------------
-  Widget _buildOperationalWatchlistCard(dynamic data) {
+  Widget _buildOperationsWatchlistCard(dynamic data, {double? height}) {
+    final int openBillsCount = data.openBillsSummary.count;
+    final double openBillsPotential = data.openBillsSummary.potentialRevenue;
+    final int cancellationsCount = data.cancellationsSummary.count;
+    final double cancellationsNominal = data.cancellationsSummary.totalNominal;
+    final int totalIssues = openBillsCount + cancellationsCount;
+
+    final Widget openBillsTile = _buildOperationActionTile(
+      icon: openBillsCount > 0
+          ? Icons.table_restaurant_outlined
+          : Icons.table_restaurant_outlined,
+      iconBg: openBillsCount > 0
+          ? const Color(0xFFFEF3C7)
+          : const Color(0xFFF1F5F9),
+      iconColor: openBillsCount > 0
+          ? const Color(0xFFD97706)
+          : const Color(0xFF64748B),
+      title: openBillsCount > 0
+          ? '$openBillsCount Meja Belum Lunas'
+          : 'Semua Tagihan Meja Lunas',
+      subtitle: openBillsCount > 0
+          ? 'Potensi tertunda: ${CurrencyFormatter.format(openBillsPotential)}'
+          : 'Tidak ada open bill / tagihan gantung',
+      subtitleColor: openBillsCount > 0
+          ? const Color(0xFFD97706)
+          : const Color(0xFF94A3B8),
+      actionText: openBillsCount > 0 ? 'Lihat Meja' : 'Denah',
+      actionColor: openBillsCount > 0
+          ? AppColors.secondary
+          : const Color(0xFF64748B),
+      actionBg: openBillsCount > 0
+          ? const Color(0xFFEEF2FF)
+          : const Color(0xFFF1F5F9),
+      cardBg: openBillsCount > 0
+          ? const Color(0xFFFFFDF5)
+          : const Color(0xFFF8FAFC),
+      borderColor: openBillsCount > 0
+          ? const Color(0xFFFDE68A)
+          : const Color(0xFFE2E8F0),
+      onTap: () => controller.switchTab(3),
+    );
+
+    final Widget cancellationsTile = _buildOperationActionTile(
+      icon: cancellationsCount > 0
+          ? Icons.delete_sweep_outlined
+          : Icons.verified_outlined,
+      iconBg: cancellationsCount > 0
+          ? const Color(0xFFFEE2E2)
+          : const Color(0xFFF1F5F9),
+      iconColor: cancellationsCount > 0
+          ? const Color(0xFFDC2626)
+          : const Color(0xFF64748B),
+      title: cancellationsCount > 0
+          ? '$cancellationsCount Pembatalan Nota (Void)'
+          : 'Nol Pembatalan Nota (Void)',
+      subtitle: cancellationsCount > 0
+          ? 'Total nominal: ${CurrencyFormatter.format(cancellationsNominal)}'
+          : 'Seluruh transaksi hari ini tercatat valid',
+      subtitleColor: cancellationsCount > 0
+          ? const Color(0xFFDC2626)
+          : const Color(0xFF94A3B8),
+      actionText: cancellationsCount > 0 ? 'Audit Void' : 'Riwayat',
+      actionColor: cancellationsCount > 0
+          ? const Color(0xFFDC2626)
+          : const Color(0xFF64748B),
+      actionBg: cancellationsCount > 0
+          ? const Color(0xFFFEF2F2)
+          : const Color(0xFFF1F5F9),
+      cardBg: cancellationsCount > 0
+          ? const Color(0xFFFFFBFB)
+          : const Color(0xFFF8FAFC),
+      borderColor: cancellationsCount > 0
+          ? const Color(0xFFFECACA)
+          : const Color(0xFFE2E8F0),
+      onTap: () {
+        controller.selectedTrxStatus.value = 'cancelled';
+        controller.switchTab(1);
+      },
+    );
+
     return Container(
-      constraints: const BoxConstraints(minHeight: 250),
-      padding: const EdgeInsets.all(18),
+      height: height,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.lightBorder, width: 1.2),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header Row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
-                children: [
-                  Icon(Icons.shield_outlined, color: AppColors.secondary, size: 18),
-                  SizedBox(width: 8),
-                  Text(
-                    'Pengawasan Operasional Toko',
-                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              const Flexible(
+                child: Text(
+                  'Pengawasan Operasional',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F172A),
+                    letterSpacing: -0.2,
                   ),
-                ],
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.warningSoft,
-                  borderRadius: BorderRadius.circular(6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 7,
+                  vertical: 2.5,
                 ),
-                child: const Text('MONITORING', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: AppColors.warning)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          // Open Bills Tile
-          Material(
-            color: AppColors.warningSoft.withValues(alpha: 0.4),
-            borderRadius: BorderRadius.circular(12),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () => controller.switchTab(3),
-              child: Container(
-                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
+                  color: totalIssues > 0
+                      ? const Color(0xFFFFFBEB)
+                      : const Color(0xFFECFDF5),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: totalIssues > 0
+                        ? const Color(0xFFFDE68A)
+                        : const Color(0xFFA7F3D0),
+                  ),
                 ),
                 child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.warningSoft,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.table_restaurant_rounded, color: AppColors.warning, size: 20),
+                    Icon(
+                      Icons.fiber_manual_record,
+                      size: 6,
+                      color: totalIssues > 0
+                          ? const Color(0xFFD97706)
+                          : const Color(0xFF10B981),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${data.openBillsSummary.count} Meja Belum Lunas',
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Potensi Omset: ${CurrencyFormatter.format(data.openBillsSummary.potentialRevenue)}',
-                            style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                          ),
-                        ],
+                    const SizedBox(width: 4),
+                    Text(
+                      totalIssues > 0
+                          ? '$totalIssues Isu Perlu Perhatian'
+                          : 'Operasional Tertib',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: totalIssues > 0
+                            ? const Color(0xFFB45309)
+                            : const Color(0xFF047857),
                       ),
-                    ),
-                    const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('Lihat Meja', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.secondary)),
-                        SizedBox(width: 4),
-                        Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.secondary),
-                      ],
                     ),
                   ],
                 ),
               ),
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          // Cancellations (Void) Tile
-          Material(
-            color: AppColors.dangerSoft.withValues(alpha: 0.35),
-            borderRadius: BorderRadius.circular(12),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () {
-                controller.selectedTrxStatus.value = 'cancelled';
-                controller.switchTab(1);
-              },
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.danger.withValues(alpha: 0.25)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.dangerSoft,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.delete_sweep_rounded, color: AppColors.danger, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${data.cancellationsSummary.count} Transaksi Dibatalkan (Void)',
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.danger),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Total Nominal: ${CurrencyFormatter.format(data.cancellationsSummary.totalNominal)}',
-                            style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('Rincian', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.danger)),
-                        SizedBox(width: 4),
-                        Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.danger),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const Spacer(),
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: AppColors.lightBorder),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${data.openBillsSummary.count + data.cancellationsSummary.count} isu pengawasan terdeteksi',
-                style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-              ),
-              Text(
-                data.cancellationsSummary.count > 0 ? 'Perlu Perhatian' : 'Kondisi Normal',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: data.cancellationsSummary.count > 0 ? AppColors.danger : AppColors.success,
-                ),
-              ),
             ],
           ),
+
+          // Two Action Tiles filling available space
+          if (height != null) ...[
+            const SizedBox(height: 12),
+            Expanded(child: openBillsTile),
+            const SizedBox(height: 10),
+            Expanded(child: cancellationsTile),
+          ] else ...[
+            const SizedBox(height: 12),
+            openBillsTile,
+            const SizedBox(height: 10),
+            cancellationsTile,
+          ],
         ],
       ),
     );
   }
 
+  Widget _buildOperationActionTile({
+    required IconData icon,
+    required Color iconBg,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required Color subtitleColor,
+    required String actionText,
+    required Color actionColor,
+    required Color actionBg,
+    required Color cardBg,
+    required Color borderColor,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: borderColor),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: iconColor, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF0F172A),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: subtitleColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: actionBg,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      actionText,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: actionColor,
+                      ),
+                    ),
+                    const SizedBox(width: 3),
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 12,
+                      color: actionColor,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // ---------------------------------------------------------------------------
-  // Distribution Card: Sales Channel & Order Type (100% Sama Rata)
+  // 5. Distribusi Saluran & Tipe Pesanan
+  // Balanced proportion bars for POS vs Online & Dine-in vs Takeaway
   // ---------------------------------------------------------------------------
-  Widget _buildDistributionCard(dynamic data, bool isTablet) {
+  Widget _buildChannelAndOrderTypeCard(
+    dynamic data,
+    bool isTablet, {
+    double? height,
+  }) {
     final posTotal = data.orderSourceBreakdown.pos.total;
     final onlineTotal = data.orderSourceBreakdown.onlineOrder.total;
     final channelSum = posTotal + onlineTotal;
@@ -909,169 +1279,147 @@ class AdminDashboardTab extends GetView<AdminController> {
     final takeawayTotal = data.orderTypeBreakdown.takeaway.total;
     final typeSum = dineInTotal + takeawayTotal;
 
+    final posPercent = channelSum > 0 ? (posTotal / channelSum) : 0.0;
+    final dineInPercent = typeSum > 0 ? (dineInTotal / typeSum) : 0.0;
+    final useSideBySide = isTablet || height != null;
+
     return Container(
-      constraints: const BoxConstraints(minHeight: 250),
-      padding: const EdgeInsets.all(18),
+      height: height,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.lightBorder, width: 1.2),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
+        mainAxisAlignment: height != null
+            ? MainAxisAlignment.spaceBetween
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.pie_chart_outline_rounded, color: AppColors.secondary, size: 18),
-                  SizedBox(width: 8),
-                  Text(
-                    'Distribusi Saluran & Tipe',
-                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.secondarySoft,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text('DISTRIBUSI', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: AppColors.secondary)),
-              ),
-            ],
+          const Text(
+            'Distribusi Pesanan',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF0F172A),
+              letterSpacing: -0.2,
+            ),
           ),
-          const SizedBox(height: 14),
-          if (isTablet)
+          if (height == null) const SizedBox(height: 10),
+
+          // Side-by-side or stacked
+          if (useSideBySide)
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                // Saluran Penjualan
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('SALURAN PENJUALAN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMuted, letterSpacing: 0.5)),
-                      const SizedBox(height: 10),
-                      _buildDistributionRowItem(
-                        label: 'Kasir POS',
-                        icon: Icons.point_of_sale_rounded,
-                        count: data.orderSourceBreakdown.pos.count,
-                        total: posTotal,
-                        totalSum: channelSum,
-                        color: AppColors.secondary,
-                      ),
-                      const SizedBox(height: 10),
-                      _buildDistributionRowItem(
-                        label: 'Pesanan Online',
-                        icon: Icons.language_rounded,
-                        count: data.orderSourceBreakdown.onlineOrder.count,
-                        total: onlineTotal,
-                        totalSum: channelSum,
-                        color: AppColors.info,
-                      ),
-                    ],
+                  child: _buildProportionSection(
+                    title: 'SALURAN',
+                    labelA: 'Kasir POS',
+                    countA: data.orderSourceBreakdown.pos.count,
+                    totalA: posTotal,
+                    colorA: AppColors.secondary,
+                    labelB: 'Online',
+                    countB: data.orderSourceBreakdown.onlineOrder.count,
+                    totalB: onlineTotal,
+                    colorB: const Color(0xFF0EA5E9),
+                    ratioA: posPercent,
                   ),
                 ),
                 Container(
                   width: 1,
-                  height: 90,
-                  margin: const EdgeInsets.symmetric(horizontal: 14),
-                  color: AppColors.lightBorder,
+                  height: 65,
+                  color: const Color(0xFFE2E8F0),
+                  margin: const EdgeInsets.symmetric(horizontal: 10),
                 ),
+                // Tipe Pesanan
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('TIPE PESANAN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMuted, letterSpacing: 0.5)),
-                      const SizedBox(height: 10),
-                      _buildDistributionRowItem(
-                        label: 'Dine-in',
-                        icon: Icons.table_restaurant_rounded,
-                        count: data.orderTypeBreakdown.dineIn.count,
-                        total: dineInTotal,
-                        totalSum: typeSum,
-                        color: AppColors.primary,
-                      ),
-                      const SizedBox(height: 10),
-                      _buildDistributionRowItem(
-                        label: 'Takeaway',
-                        icon: Icons.shopping_bag_rounded,
-                        count: data.orderTypeBreakdown.takeaway.count,
-                        total: takeawayTotal,
-                        totalSum: typeSum,
-                        color: AppColors.warning,
-                      ),
-                    ],
+                  child: _buildProportionSection(
+                    title: 'TIPE',
+                    labelA: 'Dine-in',
+                    countA: data.orderTypeBreakdown.dineIn.count,
+                    totalA: dineInTotal,
+                    colorA: const Color(0xFF10B981),
+                    labelB: 'Takeaway',
+                    countB: data.orderTypeBreakdown.takeaway.count,
+                    totalB: takeawayTotal,
+                    colorB: const Color(0xFFF59E0B),
+                    ratioA: dineInPercent,
                   ),
                 ),
               ],
             )
           else ...[
-            const Text('SALURAN PENJUALAN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMuted, letterSpacing: 0.5)),
-            const SizedBox(height: 8),
-            _buildDistributionRowItem(
-              label: 'Kasir POS',
-              icon: Icons.point_of_sale_rounded,
-              count: data.orderSourceBreakdown.pos.count,
-              total: posTotal,
-              totalSum: channelSum,
-              color: AppColors.secondary,
+            _buildProportionSection(
+              title: 'SALURAN PENJUALAN',
+              labelA: 'Kasir POS',
+              countA: data.orderSourceBreakdown.pos.count,
+              totalA: posTotal,
+              colorA: AppColors.secondary,
+              labelB: 'Online',
+              countB: data.orderSourceBreakdown.onlineOrder.count,
+              totalB: onlineTotal,
+              colorB: const Color(0xFF0EA5E9),
+              ratioA: posPercent,
             ),
             const SizedBox(height: 8),
-            _buildDistributionRowItem(
-              label: 'Pesanan Online',
-              icon: Icons.language_rounded,
-              count: data.orderSourceBreakdown.onlineOrder.count,
-              total: onlineTotal,
-              totalSum: channelSum,
-              color: AppColors.info,
-            ),
-            const SizedBox(height: 12),
-            const Divider(height: 1, color: AppColors.lightBorder),
-            const SizedBox(height: 12),
-            const Text('TIPE PESANAN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMuted, letterSpacing: 0.5)),
+            const Divider(height: 1, color: Color(0xFFF1F5F9)),
             const SizedBox(height: 8),
-            _buildDistributionRowItem(
-              label: 'Dine-in',
-              icon: Icons.table_restaurant_rounded,
-              count: data.orderTypeBreakdown.dineIn.count,
-              total: dineInTotal,
-              totalSum: typeSum,
-              color: AppColors.primary,
-            ),
-            const SizedBox(height: 8),
-            _buildDistributionRowItem(
-              label: 'Takeaway',
-              icon: Icons.shopping_bag_rounded,
-              count: data.orderTypeBreakdown.takeaway.count,
-              total: takeawayTotal,
-              totalSum: typeSum,
-              color: AppColors.warning,
+            _buildProportionSection(
+              title: 'TIPE PESANAN',
+              labelA: 'Dine-in',
+              countA: data.orderTypeBreakdown.dineIn.count,
+              totalA: dineInTotal,
+              colorA: const Color(0xFF10B981),
+              labelB: 'Takeaway',
+              countB: data.orderTypeBreakdown.takeaway.count,
+              totalB: takeawayTotal,
+              colorB: const Color(0xFFF59E0B),
+              ratioA: dineInPercent,
             ),
           ],
-          const Spacer(),
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: AppColors.lightBorder),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+          if (height == null) const SizedBox(height: 10),
+          Column(
             children: [
-              Text(
-                'POS: ${channelSum > 0 ? ((posTotal / channelSum) * 100).toInt() : 0}% • Online: ${channelSum > 0 ? ((onlineTotal / channelSum) * 100).toInt() : 0}%',
-                style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-              ),
-              Text(
-                'Dine-in: ${typeSum > 0 ? ((dineInTotal / typeSum) * 100).toInt() : 0}% • Takeaway: ${typeSum > 0 ? ((takeawayTotal / typeSum) * 100).toInt() : 0}%',
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.secondary),
+              const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    child: Text(
+                      'POS: ${(posPercent * 100).toInt()}% • Online: ${((1 - posPercent) * 100).toInt()}%',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF64748B),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'Dine-in: ${(dineInPercent * 100).toInt()}% • Takeaway: ${((1 - dineInPercent) * 100).toInt()}%',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF475569),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -1080,74 +1428,157 @@ class AdminDashboardTab extends GetView<AdminController> {
     );
   }
 
-  Widget _buildDistributionRowItem({
-    required String label,
-    required IconData icon,
-    required int count,
-    required double total,
-    required double totalSum,
-    required Color color,
+  Widget _buildProportionSection({
+    required String title,
+    required String labelA,
+    required int countA,
+    required double totalA,
+    required Color colorA,
+    required String labelB,
+    required int countB,
+    required double totalB,
+    required Color colorB,
+    required double ratioA,
   }) {
-    final percent = totalSum > 0 ? (total / totalSum) : 0.0;
-    final percentInt = (percent * 100).clamp(0, 100).toInt();
+    final percentA = (ratioA * 100).clamp(0, 100).toInt();
+    final percentB = (100 - percentA);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Icon(icon, size: 14, color: color),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF94A3B8),
+            letterSpacing: 0.6,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: SizedBox(
+            height: 6,
+            child: Row(
+              children: [
+                Expanded(
+                  flex: percentA > 0 ? percentA : 1,
+                  child: Container(
+                    color: percentA > 0 ? colorA : const Color(0xFFE2E8F0),
                   ),
-                  Text(
-                    '$count pesanan • $percentInt%',
-                    style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                ),
+                Expanded(
+                  flex: percentB > 0 ? percentB : 1,
+                  child: Container(
+                    color: percentB > 0 ? colorB : const Color(0xFFE2E8F0),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Row(
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: colorA,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Flexible(
+                    child: Text(
+                      labelA,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF334155),
+                        fontWeight: FontWeight.w500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
             ),
+            const SizedBox(width: 4),
             Text(
-              CurrencyFormatter.format(total),
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              '$countA ($percentA%)',
+              style: const TextStyle(
+                fontSize: 10.5,
+                color: Color(0xFF64748B),
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 5),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(3),
-          child: LinearProgressIndicator(
-            value: percent.clamp(0.0, 1.0),
-            minHeight: 4,
-            backgroundColor: AppColors.lightBackground,
-            valueColor: AlwaysStoppedAnimation<Color>(color),
-          ),
+        const SizedBox(height: 4),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Row(
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: colorB,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Flexible(
+                    child: Text(
+                      labelB,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF334155),
+                        fontWeight: FontWeight.w500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '$countB ($percentB%)',
+              style: const TextStyle(
+                fontSize: 10.5,
+                color: Color(0xFF64748B),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 
   // ---------------------------------------------------------------------------
-  // Live Recent Transactions Feed (Responsive & Structured)
+  // 6. Live Recent Activity Stream
+  // Executive clean stream without clutter
   // ---------------------------------------------------------------------------
-  Widget _buildRecentTransactionsSection(BuildContext context, bool isTablet) {
+  // ---------------------------------------------------------------------------
+  // 6. Live Recent Activity Stream (Responsive Data Grid & Mobile Feed)
+  // FinTech balanced table layout on tablet/desktop, sleek feed on mobile
+  // ---------------------------------------------------------------------------
+  Widget _buildRecentActivitySection(
+    BuildContext context,
+    double availableWidth,
+  ) {
+    final isDesktop = availableWidth >= 860;
+    final isTablet = availableWidth >= 640;
+
     return Obx(() {
       final list = controller.transactions;
       final displayList = list.take(6).toList();
@@ -1156,13 +1587,13 @@ class AdminDashboardTab extends GetView<AdminController> {
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.lightBorder, width: 1.2),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.02),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -1171,47 +1602,72 @@ class AdminDashboardTab extends GetView<AdminController> {
           children: [
             // Section Header
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    color: AppColors.secondarySoft,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.receipt_long_rounded, color: AppColors.secondary, size: 18),
-                ),
-                const SizedBox(width: 10),
-                const Text(
-                  'Transaksi Terkini Hari Ini',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.successSoft,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.fiber_manual_record, color: AppColors.success, size: 8),
-                      SizedBox(width: 4),
-                      Text(
-                        'LIVE FEED',
-                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.success),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Aktivitas Transaksi Hari Ini',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
+                        letterSpacing: -0.2,
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFECFDF5),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFA7F3D0)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.fiber_manual_record,
+                            size: 6.5,
+                            color: Color(0xFF10B981),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${list.length} Tercatat',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF047857),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const Spacer(),
                 TextButton.icon(
                   onPressed: () => controller.switchTab(1),
                   iconAlignment: IconAlignment.end,
-                  icon: const Icon(Icons.arrow_forward_rounded, size: 14, color: AppColors.secondary),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  icon: const Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 14,
+                    color: AppColors.secondary,
+                  ),
                   label: Text(
-                    'Lihat Semua (${list.length})',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.secondary),
+                    isTablet ? 'Riwayat Lengkap' : 'Semua',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.secondary,
+                    ),
                   ),
                 ),
               ],
@@ -1220,104 +1676,201 @@ class AdminDashboardTab extends GetView<AdminController> {
 
             if (controller.isLoadingTransactions.value && list.isEmpty)
               const Padding(
-                padding: EdgeInsets.symmetric(vertical: 28),
-                child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.secondary)),
+                padding: EdgeInsets.symmetric(vertical: 32),
+                child: Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.secondary,
+                  ),
+                ),
               )
             else if (displayList.isEmpty)
               Container(
-                padding: const EdgeInsets.symmetric(vertical: 28),
+                padding: const EdgeInsets.symmetric(vertical: 36),
                 alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
                 child: Column(
                   children: [
-                    Icon(Icons.receipt_outlined, size: 38, color: Colors.grey.shade400),
-                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.receipt_long_outlined,
+                        size: 28,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
                     const Text(
                       'Belum ada transaksi pada periode ini',
-                      style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: Color(0xFF475569),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    const Text(
+                      'Transaksi yang masuk hari ini akan tampil secara real-time.',
+                      style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
                     ),
                   ],
                 ),
               )
             else ...[
-              // Tablet Column Header Bar
-              if (isTablet) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-                  decoration: BoxDecoration(
-                    color: AppColors.lightBackground.withValues(alpha: 0.7),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.lightBorder.withValues(alpha: 0.6)),
-                  ),
-                  child: const Row(
-                    children: [
-                      SizedBox(width: 44),
-                      Expanded(
-                        flex: 5,
-                        child: Text(
-                          'INVOICE & PELANGGAN',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMuted, letterSpacing: 0.6),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 3,
-                        child: Text(
-                          'WAKTU & METODE',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMuted, letterSpacing: 0.6),
-                        ),
-                      ),
-                      SizedBox(
-                        width: 105,
-                        child: Text(
-                          'STATUS',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMuted, letterSpacing: 0.6),
-                        ),
-                      ),
-                      SizedBox(
-                        width: 125,
-                        child: Text(
-                          'TOTAL OMSET',
-                          textAlign: TextAlign.end,
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMuted, letterSpacing: 0.6),
-                        ),
-                      ),
-                      SizedBox(width: 28),
-                    ],
-                  ),
+              // Unified Table Container (Rounded + Bordered)
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
-                const SizedBox(height: 6),
-              ],
-
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: displayList.length,
-                separatorBuilder: (context, i) => const Divider(height: 1, color: AppColors.lightBorder),
-                itemBuilder: (context, i) {
-                  final tx = displayList[i];
-                  final isDineIn = tx.orderType == 'dine_in';
-
-                  return InkWell(
-                    borderRadius: BorderRadius.circular(10),
-                    onTap: () async {
-                      final fullTrx = await controller.fetchTransactionDetail(tx.id) ?? tx;
-                      if (context.mounted) {
-                        AdminTransactionDetailDialog.show(
-                          context,
-                          transaction: fullTrx,
-                          onVoidPressed: () => AdminVoidDialog.show(
-                            context,
-                            transaction: fullTrx,
-                            onConfirmVoid: (reason) => controller.voidTransaction(fullTrx.id, reason),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  children: [
+                    // Tablet & Desktop Header
+                    if (isTablet)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFF8FAFC),
+                          border: Border(
+                            bottom: BorderSide(color: Color(0xFFE2E8F0)),
                           ),
+                        ),
+                        child: Row(
+                          children: [
+                            const SizedBox(
+                              width: 58,
+                              child: Text(
+                                'WAKTU',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF94A3B8),
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                            const Expanded(
+                              flex: 3,
+                              child: Text(
+                                'INVOICE & PELANGGAN',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF94A3B8),
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                            const Expanded(
+                              flex: 2,
+                              child: Text(
+                                'TIPE PESANAN',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF94A3B8),
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                            if (isDesktop)
+                              const Expanded(
+                                flex: 2,
+                                child: Text(
+                                  'METODE',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF94A3B8),
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                            const Expanded(
+                              flex: 2,
+                              child: Center(
+                                child: Text(
+                                  'STATUS',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF94A3B8),
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const Expanded(
+                              flex: 2,
+                              child: Text(
+                                'TOTAL',
+                                textAlign: TextAlign.end,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF94A3B8),
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+                          ],
+                        ),
+                      ),
+
+                    // Rows List
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: displayList.length,
+                      separatorBuilder: (context, i) =>
+                          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                      itemBuilder: (context, i) {
+                        final tx = displayList[i];
+                        final isDineIn = tx.orderType == 'dine_in';
+
+                        return InkWell(
+                          hoverColor: const Color(0xFFF8FAFC),
+                          onTap: () async {
+                            final fullTrx =
+                                await controller.fetchTransactionDetail(
+                                  tx.id,
+                                ) ??
+                                tx;
+                            if (context.mounted) {
+                              AdminTransactionDetailDialog.show(
+                                context,
+                                transaction: fullTrx,
+                                onVoidPressed: () => AdminVoidDialog.show(
+                                  context,
+                                  transaction: fullTrx,
+                                  onConfirmVoid: (reason) => controller
+                                      .voidTransaction(fullTrx.id, reason),
+                                ),
+                              );
+                            }
+                          },
+                          child: isTablet
+                              ? _buildTabletRow(tx, isDineIn, isDesktop)
+                              : _buildMobileRow(tx, isDineIn),
                         );
-                      }
-                    },
-                    child: isTablet
-                        ? _buildTabletTransactionRow(tx, isDineIn, i.isEven)
-                        : _buildMobileTransactionTile(tx, isDineIn, i.isEven),
-                  );
-                },
+                      },
+                    ),
+                  ],
+                ),
               ),
             ],
           ],
@@ -1326,226 +1879,298 @@ class AdminDashboardTab extends GetView<AdminController> {
     });
   }
 
-  Widget _buildTabletTransactionRow(AdminTransactionModel tx, bool isDineIn, bool isEven) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 14),
-      decoration: BoxDecoration(
-        color: isEven ? Colors.white : AppColors.lightBackground.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(8),
-      ),
+  Widget _buildTabletRow(
+    AdminTransactionModel tx,
+    bool isDineIn,
+    bool isDesktop,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
       child: Row(
         children: [
-          // 1. Order Type Avatar
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: isDineIn ? AppColors.primary.withValues(alpha: 0.1) : AppColors.warning.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              isDineIn ? Icons.table_restaurant_rounded : Icons.shopping_bag_rounded,
-              color: isDineIn ? AppColors.primary : AppColors.warning,
-              size: 18,
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // 2. Invoice & Customer
-          Expanded(
-            flex: 5,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        tx.invoiceNumber,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.bold,
-                          color: tx.isCancelled ? AppColors.danger : AppColors.textPrimary,
-                          decoration: tx.isCancelled ? TextDecoration.lineThrough : null,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                      decoration: BoxDecoration(
-                        color: isDineIn ? AppColors.primary.withValues(alpha: 0.1) : AppColors.warning.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        isDineIn
-                            ? (tx.tableNumber != null && tx.tableNumber!.isNotEmpty ? 'Meja ${tx.tableNumber}' : 'Dine-in')
-                            : 'Takeaway',
-                        style: TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.bold,
-                          color: isDineIn ? AppColors.primary : AppColors.warning,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${tx.customerName.isNotEmpty ? tx.customerName : "Pelanggan Umum"} • Kasir: ${tx.cashierName}',
-                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-              ],
+          // 1. Waktu
+          SizedBox(
+            width: 58,
+            child: Text(
+              _formatTime(tx.createdAt),
+              style: const TextStyle(
+                fontSize: 11.5,
+                color: Color(0xFF64748B),
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
 
-          // 3. Waktu & Metode
+          // 2. Invoice & Pelanggan
           Expanded(
             flex: 3,
             child: Row(
               children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.access_time_rounded, size: 12, color: AppColors.textMuted),
-                    const SizedBox(width: 4),
-                    Text(
-                      _formatTime(tx.createdAt),
-                      style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 10),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                  width: 32,
+                  height: 32,
+                  margin: const EdgeInsets.only(right: 10),
                   decoration: BoxDecoration(
-                    color: AppColors.secondarySoft,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppColors.secondaryLight.withValues(alpha: 0.3)),
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(
-                    tx.paymentMethod.toUpperCase(),
-                    style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: AppColors.secondary),
+                  child: const Icon(
+                    Icons.receipt_outlined,
+                    size: 16,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        tx.invoiceNumber,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: tx.isCancelled
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF0F172A),
+                          decoration: tx.isCancelled
+                              ? TextDecoration.lineThrough
+                              : null,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        '${tx.customerName.isNotEmpty ? tx.customerName : "Pelanggan Umum"} • Kasir: ${tx.cashierName}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF94A3B8),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
 
-          // 4. Status Pill
-          SizedBox(
-            width: 105,
-            child: Center(child: _buildStatusPill(tx)),
+          // 3. Tipe Pesanan Pill
+          Expanded(
+            flex: 2,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: _buildOrderTypeBadge(tx, isDineIn),
+            ),
           ),
 
-          // 5. Total Omset
-          SizedBox(
-            width: 125,
+          // 4. Metode Pill (Only when isDesktop, otherwise shown under Total)
+          if (isDesktop)
+            Expanded(
+              flex: 2,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: _buildPaymentMethodBadge(tx.paymentMethod),
+              ),
+            ),
+
+          // 5. Status Pill
+          Expanded(flex: 2, child: Center(child: _buildCleanStatus(tx))),
+
+          // 6. Total
+          Expanded(
+            flex: 2,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   CurrencyFormatter.format(tx.total),
                   style: TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: tx.isCancelled ? AppColors.textMuted : AppColors.textPrimary,
-                    decoration: tx.isCancelled ? TextDecoration.lineThrough : null,
+                    fontWeight: FontWeight.w700,
+                    color: tx.isCancelled
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF0F172A),
+                    decoration: tx.isCancelled
+                        ? TextDecoration.lineThrough
+                        : null,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '${tx.items.length} item',
-                  style: const TextStyle(fontSize: 10.5, color: AppColors.textMuted),
-                ),
+                if (!isDesktop) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    tx.paymentMethod.toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF94A3B8),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
 
-          // 6. Action Icon
+          // 7. Chevron
           const SizedBox(
-            width: 28,
-            child: Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textMuted),
+            width: 20,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Icon(
+                Icons.chevron_right_rounded,
+                size: 16,
+                color: Color(0xFFCBD5E1),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMobileTransactionTile(AdminTransactionModel tx, bool isDineIn, bool isEven) {
+  Widget _buildOrderTypeBadge(AdminTransactionModel tx, bool isDineIn) {
+    final isTable =
+        isDineIn && tx.tableNumber != null && tx.tableNumber!.isNotEmpty;
+    final label = isTable
+        ? 'Meja ${tx.tableNumber}'
+        : (isDineIn ? 'Dine-in' : 'Takeaway');
+    final icon = isDineIn
+        ? Icons.table_restaurant_outlined
+        : Icons.shopping_bag_outlined;
+    final bg = isDineIn ? const Color(0xFFECFDF5) : const Color(0xFFFFFBEB);
+    final border = isDineIn ? const Color(0xFFA7F3D0) : const Color(0xFFFDE68A);
+    final textCol = isDineIn
+        ? const Color(0xFF047857)
+        : const Color(0xFFB45309);
+
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        color: isEven ? Colors.white : AppColors.lightBackground.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(8),
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: border),
       ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11.5, color: textCol),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                color: textCol,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentMethodBadge(String method) {
+    final m = method.toLowerCase();
+    Color bg = const Color(0xFFF1F5F9);
+    Color border = const Color(0xFFE2E8F0);
+    Color textCol = const Color(0xFF475569);
+    IconData icon = Icons.payments_outlined;
+
+    if (m.contains('cash') || m.contains('tunai')) {
+      bg = const Color(0xFFF1F5F9);
+      border = const Color(0xFFE2E8F0);
+      textCol = const Color(0xFF334155);
+      icon = Icons.payments_outlined;
+    } else if (m.contains('qris')) {
+      bg = const Color(0xFFEEF2FF);
+      border = const Color(0xFFC7D2FE);
+      textCol = AppColors.secondary;
+      icon = Icons.qr_code_2_rounded;
+    } else if (m.contains('transfer') || m.contains('bank')) {
+      bg = const Color(0xFFF0F9FF);
+      border = const Color(0xFFBAE6FD);
+      textCol = const Color(0xFF0284C7);
+      icon = Icons.account_balance_outlined;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11.5, color: textCol),
+          const SizedBox(width: 4),
+          Text(
+            method.toUpperCase(),
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: textCol,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileRow(AdminTransactionModel tx, bool isDineIn) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Tier 1: Avatar, Invoice & Customer, Total Omset
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 34,
-                height: 34,
+                width: 32,
+                height: 32,
+                margin: const EdgeInsets.only(right: 10),
                 decoration: BoxDecoration(
-                  color: isDineIn ? AppColors.primary.withValues(alpha: 0.1) : AppColors.warning.withValues(alpha: 0.1),
+                  color: const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  isDineIn ? Icons.table_restaurant_rounded : Icons.shopping_bag_rounded,
-                  color: isDineIn ? AppColors.primary : AppColors.warning,
-                  size: 17,
+                child: const Icon(
+                  Icons.receipt_outlined,
+                  size: 16,
+                  color: Color(0xFF64748B),
                 ),
               ),
-              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            tx.invoiceNumber,
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.bold,
-                              color: tx.isCancelled ? AppColors.danger : AppColors.textPrimary,
-                              decoration: tx.isCancelled ? TextDecoration.lineThrough : null,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                          decoration: BoxDecoration(
-                            color: isDineIn ? AppColors.primary.withValues(alpha: 0.1) : AppColors.warning.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            isDineIn
-                                ? (tx.tableNumber != null && tx.tableNumber!.isNotEmpty ? 'Meja ${tx.tableNumber}' : 'Dine-in')
-                                : 'Takeaway',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                              color: isDineIn ? AppColors.primary : AppColors.warning,
-                            ),
-                          ),
-                        ),
-                      ],
+                    Text(
+                      tx.invoiceNumber,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: tx.isCancelled
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF0F172A),
+                        decoration: tx.isCancelled
+                            ? TextDecoration.lineThrough
+                            : null,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${tx.customerName.isNotEmpty ? tx.customerName : "Pelanggan Umum"} • ${tx.cashierName}',
-                      style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      '${_formatTime(tx.createdAt)} • ${tx.customerName.isNotEmpty ? tx.customerName : "Pelanggan Umum"}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF94A3B8),
+                      ),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
                     ),
@@ -1560,53 +2185,41 @@ class AdminDashboardTab extends GetView<AdminController> {
                     CurrencyFormatter.format(tx.total),
                     style: TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: tx.isCancelled ? AppColors.textMuted : AppColors.textPrimary,
-                      decoration: tx.isCancelled ? TextDecoration.lineThrough : null,
+                      fontWeight: FontWeight.w700,
+                      color: tx.isCancelled
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF0F172A),
+                      decoration: tx.isCancelled
+                          ? TextDecoration.lineThrough
+                          : null,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${tx.items.length} item',
-                    style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
-                  ),
+                  const SizedBox(height: 3),
+                  _buildCleanStatus(tx),
                 ],
               ),
             ],
           ),
           const SizedBox(height: 8),
-          // Tier 2: Time, Payment Pill, Status Pill, Chevron
           Row(
             children: [
-              const SizedBox(width: 44),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.access_time_rounded, size: 11.5, color: AppColors.textMuted),
-                  const SizedBox(width: 3.5),
-                  Text(
-                    _formatTime(tx.createdAt),
-                    style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.secondarySoft,
-                  borderRadius: BorderRadius.circular(5),
-                  border: Border.all(color: AppColors.secondaryLight.withValues(alpha: 0.3)),
-                ),
-                child: Text(
-                  tx.paymentMethod.toUpperCase(),
-                  style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.secondary),
-                ),
-              ),
+              _buildOrderTypeBadge(tx, isDineIn),
+              const SizedBox(width: 6),
+              _buildPaymentMethodBadge(tx.paymentMethod),
               const Spacer(),
-              _buildStatusPill(tx),
+              Text(
+                'Kasir: ${tx.cashierName}',
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  color: Color(0xFF94A3B8),
+                ),
+              ),
               const SizedBox(width: 4),
-              const Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.textMuted),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 14,
+                color: Color(0xFFCBD5E1),
+              ),
             ],
           ),
         ],
@@ -1614,42 +2227,78 @@ class AdminDashboardTab extends GetView<AdminController> {
     );
   }
 
-  Widget _buildStatusPill(AdminTransactionModel tx) {
+  Widget _buildCleanStatus(AdminTransactionModel tx) {
     if (tx.isCancelled) {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
         decoration: BoxDecoration(
-          color: AppColors.dangerSoft,
-          borderRadius: BorderRadius.circular(6),
+          color: const Color(0xFFFEF2F2),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFFECACA)),
         ),
-        child: const Text(
-          'DIBATALKAN',
-          style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: AppColors.danger),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.fiber_manual_record, size: 6, color: Color(0xFFDC2626)),
+            SizedBox(width: 4),
+            Text(
+              'Batal',
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFFDC2626),
+              ),
+            ),
+          ],
         ),
       );
     }
     if (tx.isPending) {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
         decoration: BoxDecoration(
-          color: AppColors.warningSoft,
-          borderRadius: BorderRadius.circular(6),
+          color: const Color(0xFFFFFBEB),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFFDE68A)),
         ),
-        child: const Text(
-          'OPEN BILL',
-          style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: AppColors.warning),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.fiber_manual_record, size: 6, color: Color(0xFFD97706)),
+            SizedBox(width: 4),
+            Text(
+              'Open Bill',
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFFD97706),
+              ),
+            ),
+          ],
         ),
       );
     }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
       decoration: BoxDecoration(
-        color: AppColors.successSoft,
-        borderRadius: BorderRadius.circular(6),
+        color: const Color(0xFFECFDF5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFA7F3D0)),
       ),
-      child: const Text(
-        'SELESAI',
-        style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: AppColors.success),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: const [
+          Icon(Icons.fiber_manual_record, size: 6, color: Color(0xFF10B981)),
+          SizedBox(width: 4),
+          Text(
+            'Selesai',
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF047857),
+            ),
+          ),
+        ],
       ),
     );
   }

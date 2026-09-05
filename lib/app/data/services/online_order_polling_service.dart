@@ -59,7 +59,7 @@ class OnlineOrderPollingService extends GetxService {
     _pollingTimer?.cancel();
     // 12 detik saat toko online buka, 20 detik saat toko online jeda (sangat hemat kuota)
     final interval = isOnlineOrderActive.value
-        ? const Duration(seconds: 12)
+        ? const Duration(seconds: 5)
         : const Duration(seconds: 20);
 
     _pollingTimer = Timer(interval, () async {
