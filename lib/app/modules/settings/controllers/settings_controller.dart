@@ -20,6 +20,8 @@ class SettingsController extends GetxController {
   final EscPosPrinterService printerService = Get.find<EscPosPrinterService>();
   final OfflineSyncService offlineSyncService = Get.find<OfflineSyncService>();
 
+  RxBool get isOnline => _apiProvider.isOnline;
+
   final Rx<UserModel?> currentUser = Rx<UserModel?>(null);
   final TextEditingController baseUrlController = TextEditingController();
 

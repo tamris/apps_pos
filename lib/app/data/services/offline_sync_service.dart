@@ -18,17 +18,42 @@ class OfflineSyncService extends GetxService {
   final Uuid _uuid = const Uuid();
 
   final RxInt pendingCount = 0.obs;
+  final RxInt pendingTxCount = 0.obs;
+  final RxInt pendingShiftCount = 0.obs;
   final RxBool isSyncing = false.obs;
+  final Rx<DateTime?> lastSyncTime = Rx<DateTime?>(null);
 
   @override
   void onInit() {
     super.onInit();
-    _refreshCount();
+    lastSyncTime.value = _storageService.lastSyncTime;
+    refreshCount();
+
+    // 1. Reaktif: Otomatis sinkronisasi saat koneksi berubah dari offline ke online
+    ever(_apiProvider.isOnline, (bool online) {
+      if (online && pendingCount.value > 0 && !isSyncing.value) {
+        syncPendingTransactions(isSilent: true);
+      }
+    });
+
+    // 2. Inisialisasi: Jika saat aplikasi dimuat sudah online dan ada antrean pending, sinkronkan
+    Future.delayed(const Duration(seconds: 2), () {
+      if (_apiProvider.isOnline.value && pendingCount.value > 0 && !isSyncing.value) {
+        syncPendingTransactions(isSilent: true);
+      }
+    });
   }
 
-  void _refreshCount() {
-    pendingCount.value = _storageService.getOfflineQueue().length;
+  void refreshCount() {
+    final queueCount = _storageService.getOfflineQueue().length;
+    final closedShiftCount = _storageService.getOfflineClosedShifts().length;
+    pendingTxCount.value = queueCount;
+    pendingShiftCount.value = closedShiftCount;
+    pendingCount.value = queueCount + closedShiftCount;
   }
+
+  List<Map<String, dynamic>> getPendingTransactions() => _storageService.getOfflineQueue();
+  List<Map<String, dynamic>> getPendingClosedShifts() => _storageService.getOfflineClosedShifts();
 
   /// Simpan transaksi ke antrean offline jika koneksi server gagal / offline mode
   Future<String> enqueueTransaction({
@@ -38,11 +63,25 @@ class OfflineSyncService extends GetxService {
     required String paymentMethod,
     double discountPercent = 0.0,
     double taxPercent = 0.0,
+    double? total,
     required double paid,
     required List<Map<String, dynamic>> items,
     int? openBillId,
   }) async {
     final offlineId = 'OFF-${DateTime.now().millisecondsSinceEpoch}-${_uuid.v4().substring(0, 5).toUpperCase()}';
+
+    double calculatedTotal = total ?? 0.0;
+    if (calculatedTotal <= 0) {
+      double sub = 0;
+      for (final itm in items) {
+        final p = (itm['price'] as num?)?.toDouble() ?? 0.0;
+        final qty = int.tryParse(itm['quantity']?.toString() ?? '1') ?? 1;
+        sub += p * qty;
+      }
+      calculatedTotal = sub - (sub * discountPercent / 100) + (sub * taxPercent / 100);
+      if (calculatedTotal <= 0) calculatedTotal = paid;
+    }
+
     final payload = {
       'offline_id': offlineId,
       'order_type': orderType,
@@ -51,6 +90,7 @@ class OfflineSyncService extends GetxService {
       'payment_method': paymentMethod,
       'discount_percent': discountPercent,
       'tax_percent': taxPercent,
+      'total': calculatedTotal,
       'paid': paid,
       'items': items,
       'created_at': DateTime.now().toIso8601String(),
@@ -58,19 +98,20 @@ class OfflineSyncService extends GetxService {
     };
 
     await _storageService.addOfflineTransaction(payload);
-    _refreshCount();
+    refreshCount();
     return offlineId;
   }
 
   /// Bersihkan antrean offline secara manual
   Future<void> clearOfflineQueue() async {
     await _storageService.clearOfflineQueue();
-    _refreshCount();
+    await _storageService.clearOfflineClosedShifts();
+    refreshCount();
   }
 
   /// Tampilkan Dialog Pengelolaan Antrean Offline
   void showSyncDialog(BuildContext context) {
-    _refreshCount();
+    refreshCount();
     final count = pendingCount.value;
 
     Get.dialog(
@@ -98,7 +139,7 @@ class OfflineSyncService extends GetxService {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Terdapat $count transaksi offline yang tersimpan di perangkat ini.',
+              'Terdapat $count data offline (transaksi & shift kasir) yang tersimpan di perangkat ini.',
               style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
             ),
             const SizedBox(height: 8),
@@ -132,16 +173,29 @@ class OfflineSyncService extends GetxService {
   }
 
   /// Melakukan sinkronisasi batch semua transaksi offline dan shift offline yang tersimpan ke backend
-  Future<bool> syncPendingTransactions() async {
+  Future<bool> syncPendingTransactions({bool isSilent = false}) async {
+    // Re-entrancy Lock: Cegah eksekusi ganda jika proses sinkronisasi sedang berjalan di background
+    if (isSyncing.value) {
+      return false;
+    }
+
     final queue = _storageService.getOfflineQueue();
     final activeShift = _storageService.activeShift;
+    final closedShifts = _storageService.getOfflineClosedShifts();
 
-    // Jika tidak ada antrean transaksi dan tidak ada shift offline yang perlu disinkronkan
-    if (queue.isEmpty && (activeShift == null || activeShift.id > 0)) {
-      AppSnackbar.info(
-        'Sinkronisasi',
-        'Tidak ada data offline yang perlu disinkronkan.',
-      );
+    // Jika tidak ada antrean transaksi, shift aktif offline, dan shift tertutup
+    if (queue.isEmpty && (activeShift == null || activeShift.id > 0) && closedShifts.isEmpty) {
+      if (_apiProvider.isOnline.value) {
+        final now = DateTime.now();
+        await _storageService.saveLastSyncTime(now);
+        lastSyncTime.value = now;
+      }
+      if (!isSilent) {
+        AppSnackbar.info(
+          'Sinkronisasi',
+          'Semua data sudah tersinkronisasi dengan server.',
+        );
+      }
       return true;
     }
 
@@ -150,14 +204,16 @@ class OfflineSyncService extends GetxService {
       // 1. Pastikan terautentikasi (Silent re-auth jika kasir masih menggunakan offline token)
       final bool isAuthenticated = await _apiProvider.ensureAuthenticated();
       if (!isAuthenticated && _storageService.isOfflineToken) {
-        AppSnackbar.danger(
-          'Gagal Sinkronisasi',
-          'Tidak dapat terhubung ke server atau sesi kasir belum terautentikasi.',
-        );
+        if (!isSilent) {
+          AppSnackbar.danger(
+            'Gagal Sinkronisasi',
+            'Tidak dapat terhubung ke server atau sesi kasir belum terautentikasi.',
+          );
+        }
         return false;
       }
 
-      // 2. Sinkronisasi Shift Offline (jika kasir membuka shift saat offline / id <= 0)
+      // 2a. Sinkronisasi Shift Aktif Offline (jika kasir membuka shift saat offline dan masih aktif)
       if (activeShift != null && activeShift.id <= 0) {
         try {
           final shiftCheck = await _apiProvider.get(ApiConstants.currentShift);
@@ -167,10 +223,13 @@ class OfflineSyncService extends GetxService {
           }
 
           if (!serverHasShift) {
-            // Buka shift resmi di server dengan modal awal yang diinput kasir saat offline
+            // Buka shift resmi di server dengan modal awal & waktu mulai yang diinput kasir saat offline
             final startRes = await _apiProvider.post(
               ApiConstants.startShift,
-              data: {'starting_cash': activeShift.startingCash},
+              data: {
+                'starting_cash': activeShift.startingCash,
+                if (activeShift.startTime != null) 'start_time': activeShift.startTime,
+              },
             );
             if (startRes.data != null && startRes.data['success'] == true) {
               final realShift = ShiftModel.fromJson(startRes.data['data']);
@@ -181,13 +240,45 @@ class OfflineSyncService extends GetxService {
                 shiftCtrl.hasActiveShift.value = true;
               }
             }
+          } else if (shiftCheck.data != null && shiftCheck.data['data'] != null) {
+            // Shift aktif sudah ada di server, sinkronkan data shift lokal ke shift server
+            final realShift = ShiftModel.fromJson(shiftCheck.data['data']);
+            await _storageService.saveActiveShift(realShift);
+            if (Get.isRegistered<ShiftController>()) {
+              final shiftCtrl = Get.find<ShiftController>();
+              shiftCtrl.currentShift.value = realShift;
+              shiftCtrl.hasActiveShift.value = true;
+            }
           }
         } catch (_) {
           // Lanjutkan jika ada kendala spesifik shift
         }
       }
+      // 2b. Jika shift dibuka dan DITUTUP saat offline, buka shift terlebih dahulu di server agar transaksi offline terasosiasi
+      else if (closedShifts.isNotEmpty) {
+        try {
+          final shiftCheck = await _apiProvider.get(ApiConstants.currentShift);
+          bool serverHasShift = false;
+          if (shiftCheck.data != null && shiftCheck.data['success'] == true) {
+            serverHasShift = shiftCheck.data['has_active_shift'] == true;
+          }
 
-      // 2b. Sinkronisasi Offline Open Bills (jika ada bill meja offline yang masih aktif)
+          if (!serverHasShift) {
+            final firstClosed = closedShifts.first;
+            final startingCash = (firstClosed['summary']?['starting_cash'] as num?)?.toDouble() ?? 0.0;
+            final startTime = firstClosed['start_time']?.toString();
+            await _apiProvider.post(
+              ApiConstants.startShift,
+              data: {
+                'starting_cash': startingCash,
+                if (startTime != null) 'start_time': startTime,
+              },
+            );
+          }
+        } catch (_) {}
+      }
+
+      // 3. Sinkronisasi Offline Open Bills (jika ada bill meja offline yang masih aktif)
       final offlineBills = _storageService.getOfflineOpenBills();
       if (offlineBills.isNotEmpty) {
         for (final bill in offlineBills) {
@@ -230,100 +321,128 @@ class OfflineSyncService extends GetxService {
         }
       }
 
-      // Jika hanya ada shift/bill offline tanpa transaksi pembayaran
-      if (queue.isEmpty) {
-        await _storageService.clearOfflineCompletedServerBillIds();
-        if (Get.isRegistered<PosController>()) {
-          Get.find<PosController>().fetchBootstrap(isSilent: true);
-          Get.find<PosController>().fetchOpenBillsCount();
-        }
-        if (Get.isRegistered<OpenBillsController>()) {
-          Get.find<OpenBillsController>().fetchOpenBills();
-        }
-        AppSnackbar.success(
-          'Sinkronisasi Berhasil',
-          'Shift dan data bill offline berhasil disinkronkan ke server.',
-        );
-        return true;
-      }
-
-      // 3. Sanitasi data transaksi: perbaiki product_id jika <= 0
-      final sanitizedQueue = queue.map((rawTx) {
-        final tx = Map<String, dynamic>.from(rawTx);
-        if (tx['items'] != null && tx['items'] is List) {
-          final itemsList = (tx['items'] as List).map((rawItem) {
-            final item = Map<String, dynamic>.from(rawItem);
-            int pId = int.tryParse(item['id']?.toString() ?? '0') ?? 0;
-            if (pId <= 0 && Get.isRegistered<PosController>()) {
-              final pos = Get.find<PosController>();
-              final name = item['name']?.toString() ?? '';
-              final match = pos.products.firstWhereOrNull((p) => p.name.toLowerCase() == name.toLowerCase());
-              if (match != null) {
-                pId = match.id;
-              } else if (pos.products.isNotEmpty) {
-                pId = pos.products.first.id;
+      // 4. Sinkronisasi Transaksi Offline (jika ada)
+      if (queue.isNotEmpty) {
+        final sanitizedQueue = queue.map((rawTx) {
+          final tx = Map<String, dynamic>.from(rawTx);
+          if (tx['items'] != null && tx['items'] is List) {
+            final itemsList = (tx['items'] as List).map((rawItem) {
+              final item = Map<String, dynamic>.from(rawItem);
+              int pId = int.tryParse(item['id']?.toString() ?? '0') ?? 0;
+              if (pId <= 0 && Get.isRegistered<PosController>()) {
+                final pos = Get.find<PosController>();
+                final name = item['name']?.toString() ?? '';
+                final match = pos.products.firstWhereOrNull((p) => p.name.toLowerCase() == name.toLowerCase());
+                if (match != null) {
+                  pId = match.id;
+                } else if (pos.products.isNotEmpty) {
+                  pId = pos.products.first.id;
+                }
               }
-            }
-            if (pId <= 0) pId = 1;
-            item['id'] = pId;
-            return item;
-          }).toList();
-          tx['items'] = itemsList;
+              if (pId <= 0) pId = 1;
+              item['id'] = pId;
+              return item;
+            }).toList();
+            tx['items'] = itemsList;
+          }
+          return tx;
+        }).toList();
+
+        final response = await _apiProvider.post(
+          ApiConstants.syncOffline,
+          data: {
+            'transactions': sanitizedQueue,
+          },
+        );
+
+        if (response.data != null && response.data['success'] == true) {
+          await _storageService.clearOfflineQueue();
+          await _storageService.clearOfflineCompletedServerBillIds();
         }
-        return tx;
-      }).toList();
-
-      // 4. Kirim transaksi offline ke server
-      final response = await _apiProvider.post(
-        ApiConstants.syncOffline,
-        data: {
-          'transactions': sanitizedQueue,
-        },
-      );
-
-      if (response.data != null && response.data['success'] == true) {
-        await _storageService.clearOfflineQueue();
+      } else {
         await _storageService.clearOfflineCompletedServerBillIds();
-        _refreshCount();
-        final syncedCount = response.data['synced_count'] ?? queue.length;
+      }
+
+      // 5. Sinkronisasi Offline Closed Shifts (Tutup shift resmi di server)
+      if (closedShifts.isNotEmpty) {
+        for (final cs in closedShifts) {
+          try {
+            final actualCash = (cs['summary']?['actual_cash'] as num?)?.toDouble() ?? 0.0;
+            final notes = cs['notes']?.toString() ?? '';
+            final endTime = cs['end_time']?.toString();
+            final shiftId = int.tryParse(cs['shift_id']?.toString() ?? '0');
+
+            await _apiProvider.post(
+              ApiConstants.endShift,
+              data: {
+                'actual_cash': actualCash,
+                'notes': notes,
+                if (endTime != null) 'end_time': endTime,
+                if (shiftId != null && shiftId > 0) 'shift_id': shiftId,
+              },
+            );
+          } catch (_) {}
+        }
+        await _storageService.clearOfflineClosedShifts();
+      }
+
+      refreshCount();
+
+      final now = DateTime.now();
+      await _storageService.saveLastSyncTime(now);
+      lastSyncTime.value = now;
+
+      // Tampilkan notifikasi keberhasilan sinkronisasi
+      final totalSynced = queue.length + closedShifts.length;
+      if (totalSynced > 0) {
+        String msg;
+        if (queue.isNotEmpty && closedShifts.isNotEmpty) {
+          msg = '${queue.length} transaksi & ${closedShifts.length} shift kasir berhasil disinkronkan ke server.';
+        } else if (queue.isNotEmpty) {
+          msg = '${queue.length} transaksi offline berhasil disinkronkan ke server.';
+        } else {
+          msg = 'Shift kasir offline berhasil disinkronkan ke server.';
+        }
+
         AppSnackbar.success(
           'Sinkronisasi Berhasil',
-          '$syncedCount transaksi offline berhasil disinkronkan dan masuk ke shift kasir.',
+          msg,
         );
-
-        // 5. Refresh master data & status shift dari server
-        if (Get.isRegistered<PosController>()) {
-          Get.find<PosController>().fetchBootstrap(isSilent: true);
-          Get.find<PosController>().fetchOpenBillsCount();
-        }
-        if (Get.isRegistered<ShiftController>()) {
-          Get.find<ShiftController>().fetchCurrentShift();
-        }
-        if (Get.isRegistered<TransactionsController>()) {
-          Get.find<TransactionsController>().fetchTodayTransactions(silent: true);
-        }
-        if (Get.isRegistered<OpenBillsController>()) {
-          Get.find<OpenBillsController>().fetchOpenBills();
-        }
-
-        return true;
-      } else {
-        AppSnackbar.danger(
-          'Gagal Sinkronisasi',
-          response.data['message'] ?? 'Gagal memproses sinkronisasi di server.',
+      } else if (!isSilent) {
+        AppSnackbar.info(
+          'Sinkronisasi',
+          'Tidak ada data offline yang perlu disinkronkan.',
         );
-        return false;
       }
+
+      // 6. Refresh master data & status shift dari server
+      if (Get.isRegistered<PosController>()) {
+        Get.find<PosController>().fetchBootstrap(isSilent: true);
+        Get.find<PosController>().fetchOpenBillsCount();
+      }
+      if (Get.isRegistered<ShiftController>()) {
+        Get.find<ShiftController>().fetchCurrentShift();
+      }
+      if (Get.isRegistered<TransactionsController>()) {
+        Get.find<TransactionsController>().fetchTodayTransactions(silent: true);
+      }
+      if (Get.isRegistered<OpenBillsController>()) {
+        Get.find<OpenBillsController>().fetchOpenBills();
+      }
+
+      return true;
     } catch (e) {
       final errorMsg = ApiProvider.getErrorMessage(e);
-      AppSnackbar.danger(
-        'Gagal Sinkronisasi',
-        errorMsg,
-      );
+      if (!isSilent) {
+        AppSnackbar.danger(
+          'Gagal Sinkronisasi',
+          errorMsg,
+        );
+      }
       return false;
     } finally {
       isSyncing.value = false;
-      _refreshCount();
+      refreshCount();
     }
   }
 }

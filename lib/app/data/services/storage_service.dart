@@ -13,12 +13,14 @@ class StorageService extends GetxService {
   static const String _keyUser = 'auth_user';
   static const String _keyBaseUrl = 'base_url';
   static const String _keyActiveShift = 'active_shift';
+  static const String _keyOfflineClosedShifts = 'offline_closed_shifts';
   static const String _keyOfflineQueue = 'offline_transactions_queue';
   static const String _keyPrinterMac = 'selected_printer_mac';
   static const String _keyPrinterName = 'selected_printer_name';
   static const String _keyCustomSoundPath = 'custom_order_sound_path';
   static const String _keyCustomSoundName = 'custom_order_sound_name';
   static const String _keySelectedSoundPreset = 'selected_sound_preset';
+  static const String _keyLastSyncTime = 'last_sync_timestamp';
 
   // Offline-First Caches
   static const String _keyBootstrapCache = 'pos_bootstrap_cache';
@@ -81,10 +83,12 @@ class StorageService extends GetxService {
     await _prefs.setString(_keyActivePin, pin);
   }
 
-  Future<void> clearAuth() async {
+  Future<void> clearAuth({bool keepActiveShift = true}) async {
     await _prefs.remove(_keyToken);
     await _prefs.remove(_keyUser);
-    await _prefs.remove(_keyActiveShift);
+    if (!keepActiveShift) {
+      await _prefs.remove(_keyActiveShift);
+    }
     await _prefs.remove(_keyActivePin);
   }
 
@@ -120,6 +124,40 @@ class StorageService extends GetxService {
     } else {
       await _prefs.setString(_keyActiveShift, jsonEncode(shift.toJson()));
     }
+  }
+
+  // --- Offline Closed Shifts Queue ---
+  List<Map<String, dynamic>> getOfflineClosedShifts() {
+    final raw = _prefs.getString(_keyOfflineClosedShifts);
+    if (raw == null) return [];
+    try {
+      final List decoded = jsonDecode(raw);
+      return decoded.map((e) => Map<String, dynamic>.from(e)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> saveOfflineClosedShifts(List<Map<String, dynamic>> shifts) async {
+    await _prefs.setString(_keyOfflineClosedShifts, jsonEncode(shifts));
+  }
+
+  Future<void> addOfflineClosedShift(Map<String, dynamic> shift) async {
+    final current = getOfflineClosedShifts();
+    current.add(shift);
+    await saveOfflineClosedShifts(current);
+  }
+
+  Future<void> removeOfflineClosedShift(int index) async {
+    final current = getOfflineClosedShifts();
+    if (index >= 0 && index < current.length) {
+      current.removeAt(index);
+      await saveOfflineClosedShifts(current);
+    }
+  }
+
+  Future<void> clearOfflineClosedShifts() async {
+    await _prefs.remove(_keyOfflineClosedShifts);
   }
 
   // --- Printer Setting ---
@@ -160,6 +198,17 @@ class StorageService extends GetxService {
 
   Future<void> clearOfflineQueue() async {
     await _prefs.remove(_keyOfflineQueue);
+  }
+
+  // --- Last Synchronization Timestamp ---
+  DateTime? get lastSyncTime {
+    final raw = _prefs.getString(_keyLastSyncTime);
+    if (raw == null) return null;
+    return DateTime.tryParse(raw);
+  }
+
+  Future<void> saveLastSyncTime(DateTime time) async {
+    await _prefs.setString(_keyLastSyncTime, time.toIso8601String());
   }
 
   // --- Offline Open Bills Storage ---

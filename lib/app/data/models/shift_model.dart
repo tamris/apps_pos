@@ -14,6 +14,8 @@ class ShiftModel {
   final double? actualCash;
   final double difference;
   final String notes;
+  final int offlineTransactionsCount;
+  final bool isOffline;
 
   ShiftModel({
     required this.id,
@@ -31,13 +33,21 @@ class ShiftModel {
     this.actualCash,
     this.difference = 0.0,
     this.notes = '',
+    this.offlineTransactionsCount = 0,
+    this.isOffline = false,
   });
 
   bool get isOpen => status == 'open';
 
   factory ShiftModel.fromJson(Map<String, dynamic> json) {
+    final rawId = json['id'] is int ? json['id'] as int : int.tryParse(json['id']?.toString() ?? '0') ?? 0;
+    final bool offlineFlag = json['is_offline'] == true || rawId <= 0;
+    final int offCount = json['offline_transactions_count'] is int
+        ? json['offline_transactions_count']
+        : int.tryParse(json['offline_transactions_count']?.toString() ?? '0') ?? 0;
+
     return ShiftModel(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
+      id: rawId,
       userId: json['user_id'] is int ? json['user_id'] : int.tryParse(json['user_id']?.toString() ?? '0'),
       status: json['status'] ?? 'open',
       startTime: json['start_time']?.toString(),
@@ -70,6 +80,8 @@ class ShiftModel {
           ? double.tryParse(json['difference'].toString()) ?? 0.0
           : 0.0,
       notes: json['notes']?.toString() ?? '',
+      offlineTransactionsCount: offCount,
+      isOffline: offlineFlag,
     );
   }
 
@@ -90,6 +102,77 @@ class ShiftModel {
       'actual_cash': actualCash,
       'difference': difference,
       'notes': notes,
+      'offline_transactions_count': offlineTransactionsCount,
+      'is_offline': isOffline,
     };
+  }
+
+  ShiftModel copyWith({
+    int? id,
+    int? userId,
+    String? status,
+    String? startTime,
+    String? endTime,
+    double? startingCash,
+    double? cashSales,
+    double? qrisSales,
+    double? transferSales,
+    double? totalSales,
+    int? totalTransactions,
+    double? expectedCash,
+    double? actualCash,
+    double? difference,
+    String? notes,
+    int? offlineTransactionsCount,
+    bool? isOffline,
+  }) {
+    return ShiftModel(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      status: status ?? this.status,
+      startTime: startTime ?? this.startTime,
+      endTime: endTime ?? this.endTime,
+      startingCash: startingCash ?? this.startingCash,
+      cashSales: cashSales ?? this.cashSales,
+      qrisSales: qrisSales ?? this.qrisSales,
+      transferSales: transferSales ?? this.transferSales,
+      totalSales: totalSales ?? this.totalSales,
+      totalTransactions: totalTransactions ?? this.totalTransactions,
+      expectedCash: expectedCash ?? this.expectedCash,
+      actualCash: actualCash ?? this.actualCash,
+      difference: difference ?? this.difference,
+      notes: notes ?? this.notes,
+      offlineTransactionsCount: offlineTransactionsCount ?? this.offlineTransactionsCount,
+      isOffline: isOffline ?? this.isOffline,
+    );
+  }
+
+  /// Update omset dan kas di laci saat terjadi transaksi offline baru
+  ShiftModel recordSale({
+    required double amount,
+    required String paymentMethod,
+  }) {
+    final cleanMethod = paymentMethod.trim().toLowerCase();
+    final isCash = cleanMethod == 'cash' || cleanMethod == 'tunai';
+    final isQris = cleanMethod == 'qris';
+    final isTransfer = cleanMethod == 'transfer' || cleanMethod == 'bank' || cleanMethod == 'debit';
+
+    final newCashSales = isCash ? cashSales + amount : cashSales;
+    final newQrisSales = isQris ? qrisSales + amount : qrisSales;
+    final newTransferSales = isTransfer ? transferSales + amount : transferSales;
+    final newTotalSales = totalSales + amount;
+    final newTotalTransactions = totalTransactions + 1;
+    final newExpectedCash = isCash ? expectedCash + amount : expectedCash;
+
+    return copyWith(
+      cashSales: newCashSales,
+      qrisSales: newQrisSales,
+      transferSales: newTransferSales,
+      totalSales: newTotalSales,
+      totalTransactions: newTotalTransactions,
+      expectedCash: newExpectedCash,
+      offlineTransactionsCount: offlineTransactionsCount + 1,
+      isOffline: true,
+    );
   }
 }
