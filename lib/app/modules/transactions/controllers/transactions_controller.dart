@@ -36,21 +36,29 @@ class TransactionsController extends GetxController {
     super.onClose();
   }
 
-  /// Susun daftar transaksi offline dari antrean lokal StorageService
+  /// Susun daftar transaksi offline dari antrean lokal StorageService (hanya transaksi hari ini)
   List<TransactionModel> _buildOfflineTransactionsList() {
     final offlineQueue = _storageService.getOfflineQueue();
     final List<TransactionModel> result = [];
+    final now = DateTime.now();
 
     for (int i = 0; i < offlineQueue.length; i++) {
       final item = offlineQueue[i];
+      final createdAtStr = item['created_at']?.toString() ?? DateTime.now().toIso8601String();
+      final dt = DateTime.tryParse(createdAtStr) ?? DateTime.now();
+
+      // Guard: Hanya transaksi yang dibuat pada hari ini yang masuk ke daftar "Transaksi Hari Ini".
+      // Transaksi offline kemarin tetap aman tersimpan di antrean untuk disinkronkan ke server.
+      if (dt.year != now.year || dt.month != now.month || dt.day != now.day) {
+        continue;
+      }
+
       final offlineId = item['offline_id']?.toString() ?? 'OFF-$i';
       final orderType = item['order_type']?.toString() ?? 'dine_in';
       final tableNumber = item['table_number']?.toString();
       final customerName = item['customer_name']?.toString();
       final paymentMethod = item['payment_method']?.toString() ?? 'cash';
       final paid = (item['paid'] as num?)?.toDouble() ?? 0.0;
-      final createdAtStr = item['created_at']?.toString() ?? DateTime.now().toIso8601String();
-      final dt = DateTime.tryParse(createdAtStr) ?? DateTime.now();
 
       final rawItems = (item['items'] as List?) ?? [];
       final List<TransactionDetailModel> details = [];

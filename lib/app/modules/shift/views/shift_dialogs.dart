@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/shift_controller.dart';
+import '../../../data/services/offline_sync_service.dart';
+import '../../../data/services/storage_service.dart';
+import '../../../data/providers/api_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/app_snackbar.dart';
 import '../../../core/utils/currency_formatter.dart';
@@ -11,6 +14,39 @@ import 'package:flutter/services.dart';
 class ShiftDialogs {
   /// Modal Buka Shift Kasir (Input Modal Awal)
   static Future<bool> showStartShiftDialog(BuildContext context, {bool dismissible = true}) async {
+    // GUARD KUNCI: Cek apakah masih ada shift sebelumnya yang ditutup secara offline dan belum tersinkronisasi
+    if (Get.isRegistered<StorageService>()) {
+      final storageService = Get.find<StorageService>();
+      final closedShifts = storageService.getOfflineClosedShifts();
+
+      if (closedShifts.isNotEmpty) {
+        // Coba sinkronisasi kilat di background jika koneksi online
+        if (Get.isRegistered<OfflineSyncService>()) {
+          final syncService = Get.find<OfflineSyncService>();
+          final apiProvider = Get.isRegistered<ApiProvider>() ? Get.find<ApiProvider>() : null;
+          final isOnline = (apiProvider?.isOnline.value ?? false) && !storageService.isOfflineToken;
+
+          if (isOnline && !syncService.isSyncing.value) {
+            await syncService.syncPendingTransactions(isSilent: true);
+          }
+        }
+
+        // Re-check setelah upaya sinkronisasi
+        final remainingClosed = storageService.getOfflineClosedShifts();
+        if (remainingClosed.isNotEmpty) {
+          if (!context.mounted) return false;
+          // Buka dialog edukasi: Wajib Sinkronkan Shift Sebelumnya!
+          return await showPendingSyncRequiredDialog(
+            context,
+            closedShift: remainingClosed.first,
+            dismissible: dismissible,
+          );
+        }
+      }
+    }
+
+    if (!context.mounted) return false;
+
     final controller = Get.find<ShiftController>();
     final amountController = TextEditingController(text: '100.000');
     final formKey = GlobalKey<FormState>();
@@ -59,6 +95,32 @@ class ShiftDialogs {
                           ],
                         ),
                       ),
+                      if (controller.isConnectionOffline) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.warningSoft,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.warning.withAlpha(80)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.wifi_off_rounded, size: 10, color: AppColors.warningDark),
+                              SizedBox(width: 4),
+                              Text(
+                                'Mode Offline',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.warningDark,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
                       if (dismissible)
                         IconButton(
                           icon: const Icon(Icons.close, size: 20, color: AppColors.textSecondary),
@@ -67,6 +129,30 @@ class ShiftDialogs {
                     ],
                   ),
                   const SizedBox(height: 20),
+
+                  if (controller.isConnectionOffline) ...[
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.warningSoft,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.warning.withAlpha(80)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 16),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Server offline. Shift akan dibuka secara lokal di perangkat dan disinkronkan saat online.',
+                              style: TextStyle(fontSize: 11.5, color: AppColors.warningDark),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
 
                   const Text(
                     'Masukkan jumlah uang modal awal (uang kembalian) di laci kasir saat ini:',
@@ -173,6 +259,240 @@ class ShiftDialogs {
     return result ?? false;
   }
 
+  /// Dialog Peringatan & Edukasi: Wajib Sinkronkan Shift Sebelumnya Sebelum Buka Shift Baru
+  static Future<bool> showPendingSyncRequiredDialog(
+    BuildContext context, {
+    required Map<String, dynamic> closedShift,
+    bool dismissible = true,
+  }) async {
+    final cashierName = closedShift['cashier_name']?.toString() ?? 'Kasir';
+    final endTimeRaw = closedShift['end_time']?.toString();
+    final endTimeFormatted = endTimeRaw != null ? DateFormatter.formatDateTime(endTimeRaw) : '-';
+    final actualCash = (closedShift['summary']?['actual_cash'] as num?)?.toDouble() ?? 0.0;
+    final isSyncing = false.obs;
+
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: dismissible,
+      builder: (dialogContext) => PopScope(
+        canPop: dismissible,
+        child: Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+          child: Container(
+            width: 440,
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.warningSoft,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.cloud_sync_rounded, color: AppColors.warning, size: 24),
+                    ),
+                    const SizedBox(width: 14),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Sinkronisasi Diperlukan',
+                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Shift sebelumnya belum terunggah ke server',
+                            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (dismissible)
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 20, color: AppColors.textSecondary),
+                        onPressed: () => Navigator.of(dialogContext).pop(false),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+
+                // Ringkasan Shift yang Tertunda
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.warningSoft.withAlpha(80),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.warning.withAlpha(90)),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Kasir Shift Lalu:',
+                            style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                          ),
+                          Text(
+                            cashierName,
+                            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Waktu Penutupan:',
+                            style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                          ),
+                          Text(
+                            endTimeFormatted,
+                            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Kas Fisik Disetor:',
+                            style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                          ),
+                          Text(
+                            CurrencyFormatter.format(actualCash),
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Penjelasan Edukatif
+                const Text(
+                  'Untuk mencegah selisih pembukuan kas dan menjaga data transaksi tetap rapi, shift sebelumnya wajib tersinkronisasi ke server sebelum shift baru dapat dibuka.',
+                  style: TextStyle(fontSize: 12.5, color: AppColors.textPrimary, height: 1.4),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.infoSoft,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.lightbulb_outline_rounded, color: AppColors.info, size: 16),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Tip: Nyalakan WiFi kafe atau hotspot HP sejenak untuk upload data shift.',
+                          style: TextStyle(fontSize: 11.5, color: AppColors.info, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 22),
+
+                // Tombol Aksi
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          side: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        onPressed: () => Navigator.of(dialogContext).pop(false),
+                        child: const Text('Batal', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: Obx(() {
+                        final loading = isSyncing.value;
+                        return ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 0,
+                          ),
+                          icon: loading
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Icon(Icons.cloud_upload_rounded, size: 18),
+                          label: Text(
+                            loading ? 'Menyinkronkan...' : 'Cek & Sinkronkan',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                          onPressed: loading
+                              ? null
+                              : () async {
+                                  isSyncing.value = true;
+                                  try {
+                                    final api = Get.find<ApiProvider>();
+                                    final isConnected = await api.checkConnection();
+                                    if (!isConnected) {
+                                      AppSnackbar.warning(
+                                        'Masih Offline',
+                                        'Perangkat belum terhubung ke server. Sambungkan WiFi atau hotspot HP lalu coba lagi.',
+                                      );
+                                      return;
+                                    }
+
+                                    final syncService = Get.find<OfflineSyncService>();
+                                    final success = await syncService.syncPendingTransactions();
+                                    if (!dialogContext.mounted) return;
+                                    if (success) {
+                                      Navigator.of(dialogContext).pop(true);
+                                      AppSnackbar.success(
+                                        'Shift Berhasil Disinkronkan',
+                                        'Shift sebelumnya telah tercatat resmi di server. Silakan buka shift baru.',
+                                      );
+                                      // Otomatis buka dialog Buka Shift baru!
+                                      if (context.mounted) {
+                                        await showStartShiftDialog(context, dismissible: dismissible);
+                                      }
+                                    }
+                                  } catch (e) {
+                                    AppSnackbar.danger('Gagal Sinkronisasi', ApiProvider.getErrorMessage(e));
+                                  } finally {
+                                    isSyncing.value = false;
+                                  }
+                                },
+                        );
+                      }),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    return result ?? false;
+  }
+
   /// Dialog Ringkasan Shift Aktif Kasir
   static Future<void> showShiftSummaryDialog(BuildContext context) async {
     final controller = Get.find<ShiftController>();
@@ -183,8 +503,16 @@ class ShiftDialogs {
       return;
     }
 
-    // Trigger update data terbaru di latar belakang (background sync)
+    // Trigger update data terbaru dan auto-sync jika internet online
     controller.fetchCurrentShift();
+    if (Get.isRegistered<OfflineSyncService>()) {
+      final syncService = Get.find<OfflineSyncService>();
+      if (!syncService.isSyncing.value && !controller.isConnectionOffline && controller.offlineTransactionsCount > 0) {
+        syncService.syncPendingTransactions(isSilent: true).then((_) {
+          controller.fetchCurrentShift();
+        });
+      }
+    }
 
     await showDialog(
       context: context,
@@ -195,7 +523,6 @@ class ShiftDialogs {
           padding: const EdgeInsets.all(24),
           child: Obx(() {
             final shift = controller.currentShift.value;
-
             if (shift == null) {
               return const Padding(
                 padding: EdgeInsets.symmetric(vertical: 36.0),
@@ -213,6 +540,38 @@ class ShiftDialogs {
                   ),
                 ),
               );
+            }
+
+            final isConnOffline = controller.isConnectionOffline;
+            final isShiftOffline = controller.isShiftOffline;
+            final offlineCount = controller.offlineTransactionsCount;
+            final hasPending = offlineCount > 0;
+            final isReallyOffline = isConnOffline || isShiftOffline;
+
+            final Color badgeBg;
+            final Color badgeBorder;
+            final Color badgeColor;
+            final IconData badgeIcon;
+            final String badgeText;
+
+            if (isReallyOffline) {
+              badgeBg = AppColors.warningSoft;
+              badgeBorder = AppColors.warning.withAlpha(80);
+              badgeColor = AppColors.warningDark;
+              badgeIcon = Icons.wifi_off_rounded;
+              badgeText = offlineCount > 0 ? 'Shift Offline ($offlineCount)' : 'Mode Offline';
+            } else if (hasPending) {
+              badgeBg = AppColors.infoSoft;
+              badgeBorder = AppColors.info.withAlpha(80);
+              badgeColor = AppColors.info;
+              badgeIcon = Icons.cloud_sync_rounded;
+              badgeText = 'Sinkronisasi ($offlineCount)';
+            } else {
+              badgeBg = AppColors.successSoft;
+              badgeBorder = AppColors.success.withAlpha(80);
+              badgeColor = AppColors.success;
+              badgeIcon = Icons.circle;
+              badgeText = 'Shift Aktif';
             }
 
             return Column(
@@ -250,21 +609,25 @@ class ShiftDialogs {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppColors.successSoft,
+                        color: badgeBg,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.success.withAlpha(80)),
+                        border: Border.all(color: badgeBorder),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.circle, size: 8, color: AppColors.success),
-                          SizedBox(width: 5),
+                          Icon(
+                            badgeIcon,
+                            size: badgeIcon == Icons.circle ? 8 : 12,
+                            color: badgeColor,
+                          ),
+                          const SizedBox(width: 5),
                           Text(
-                            'Shift Aktif',
+                            badgeText,
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.success,
+                              color: badgeColor,
                             ),
                           ),
                         ],
@@ -273,6 +636,124 @@ class ShiftDialogs {
                   ],
                 ),
                 const SizedBox(height: 20),
+
+                // Info Banner jika Offline Murni
+                if (isReallyOffline) ...[
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 14),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.warningSoft,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.warning.withAlpha(90)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.only(top: 2.0),
+                          child: Icon(Icons.cloud_off_rounded, color: AppColors.warning, size: 20),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                offlineCount > 0
+                                    ? 'Shift Berjalan dalam Mode Offline'
+                                    : 'Koneksi Server Sedang Offline',
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.warningDark,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                offlineCount > 0
+                                    ? 'Terdapat $offlineCount transaksi offline yang tersimpan di memori kasir.'
+                                    : 'Koneksi server terputus. Shift tetap aktif dan transaksi baru akan tersimpan di antrean lokal.',
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  color: AppColors.textSecondary,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ]
+                // Info Banner jika Online tapi ada transaksi pending sync
+                else if (hasPending) ...[
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 14),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.infoSoft,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.info.withAlpha(90)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.cloud_sync_rounded, color: AppColors.info, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Koneksi Online Terhubung',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.info,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Terdapat $offlineCount transaksi offline yang sedang disinkronkan ke server.',
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  color: AppColors.textSecondary,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            backgroundColor: AppColors.info.withAlpha(30),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          onPressed: () async {
+                            if (Get.isRegistered<OfflineSyncService>()) {
+                              await Get.find<OfflineSyncService>().syncPendingTransactions();
+                              await controller.fetchCurrentShift();
+                            }
+                          },
+                          child: const Text(
+                            'Sinkron',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.info,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
 
                 // Card 1: Info Mulai & Modal Awal
                 Container(
@@ -316,6 +797,15 @@ class ShiftDialogs {
                         isBold: true,
                         valueColor: AppColors.primaryDark,
                       ),
+                      if (offlineCount > 0) ...[
+                        const SizedBox(height: 4),
+                        _buildRow(
+                          'Transaksi Belum Sinkron',
+                          '$offlineCount Transaksi',
+                          isBold: true,
+                          valueColor: AppColors.warningDark,
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -499,6 +989,49 @@ class ShiftDialogs {
                     ],
                   ),
                   const SizedBox(height: 20),
+
+                  // Banner Status Mode Offline / Sinkronisasi Transaksi
+                  Obx(() {
+                    final offCount = controller.offlineTransactionsCount;
+                    final isOff = controller.isShiftOffline;
+                    if (offCount <= 0 && !isOff) return const SizedBox.shrink();
+
+                    final isConnOff = controller.isConnectionOffline;
+                    String message;
+                    IconData icon;
+                    if (offCount > 0 && !isConnOff) {
+                      message = 'Terdapat $offCount transaksi offline di perangkat. Saat shift ditutup, sistem akan otomatis menyinkronkan seluruh transaksi ke server terlebih dahulu.';
+                      icon = Icons.cloud_sync_rounded;
+                    } else if (offCount > 0) {
+                      message = 'Mode Offline: Penutupan shift akan dicatat ke antrean lokal bersama $offCount transaksi dan struk rekapitulasi langsung dicetak.';
+                      icon = Icons.cloud_off_rounded;
+                    } else {
+                      message = 'Mode Offline: Penutupan shift dicatat di antrean offline lokal dan struk rekapitulasi dicetak langsung ke printer thermal.';
+                      icon = Icons.cloud_off_rounded;
+                    }
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.warningSoft,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.warning.withAlpha(90)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(icon, color: AppColors.warning, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              message,
+                              style: const TextStyle(fontSize: 12, color: AppColors.warningDark, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
 
                   // Info Card Shift
                   Obx(() {
@@ -740,7 +1273,7 @@ class ShiftDialogs {
                                   )
                                 : const Icon(Icons.lock_clock_rounded, size: 18),
                             label: Text(
-                              controller.isLoading.value ? 'Menutup Shift...' : 'Tutup Shift',
+                              controller.isLoading.value ? 'Menyinkronkan & Menutup...' : 'Tutup Shift',
                               style: const TextStyle(fontWeight: FontWeight.bold),
                             ),
                             onPressed: controller.isLoading.value
@@ -750,13 +1283,11 @@ class ShiftDialogs {
                                       final raw = cashController.text.replaceAll(RegExp(r'[^0-9]'), '');
                                       final amount = double.tryParse(raw) ?? 0;
                                       final notes = notesController.text.trim();
-                                      
-                                      // Tutup dialog shift terlebih dahulu agar tidak menumpuk di layar
-                                      if (dialogContext.mounted) {
+
+                                      final success = await controller.endShift(amount, notes);
+                                      if (success && dialogContext.mounted) {
                                         Navigator.of(dialogContext).pop(true);
                                       }
-                                      
-                                      await controller.endShift(amount, notes);
                                     }
                                   },
                           )),
