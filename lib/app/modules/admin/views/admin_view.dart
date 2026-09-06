@@ -222,7 +222,7 @@ class AdminView extends GetView<AdminController> {
                           Icons.table_restaurant_rounded,
                           color: AppColors.secondary,
                         ),
-                        label: 'Meja Aktif',
+                        label: 'Pesanan & Meja',
                       ),
                     ],
                   ),
@@ -467,7 +467,7 @@ class AdminView extends GetView<AdminController> {
                   () => _buildExpandedNavItem(
                     index: 3,
                     icon: Icons.table_restaurant_rounded,
-                    label: 'Tagihan Meja',
+                    label: 'Pesanan & Meja',
                     badgeCount: controller.openBillsTotalActive.value,
                   ),
                 ),
@@ -562,7 +562,7 @@ class AdminView extends GetView<AdminController> {
                   () => _buildCollapsedNavItem(
                     index: 3,
                     icon: Icons.table_restaurant_rounded,
-                    label: 'Tagihan Meja',
+                    label: 'Pesanan & Meja',
                     badgeCount: controller.openBillsTotalActive.value,
                   ),
                 ),
@@ -864,7 +864,7 @@ class AdminView extends GetView<AdminController> {
                   title = 'Audit Shift Kasir';
                   break;
                 case 3:
-                  title = 'Tagihan Meja Aktif';
+                  title = 'Pesanan & Meja';
                   break;
                 default:
                   title = 'Portal Manajemen';

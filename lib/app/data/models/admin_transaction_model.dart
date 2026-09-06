@@ -13,11 +13,12 @@ class AdminTransactionCancelledInfo {
 
   factory AdminTransactionCancelledInfo.fromJson(Map<String, dynamic> json) {
     final by = json['cancelled_by'] is Map ? json['cancelled_by'] : {};
+    final rawName = json['cancelled_by_name']?.toString() ?? by['name']?.toString();
     return AdminTransactionCancelledInfo(
       cancelledAt: json['cancelled_at']?.toString(),
-      cancelledReason: json['cancelled_reason']?.toString() ?? 'Dibatalkan oleh Admin',
+      cancelledReason: json['cancelled_reason']?.toString() ?? 'Dibatalkan',
       cancelledById: (json['cancelled_by_id'] as num?)?.toInt() ?? (by['id'] as num?)?.toInt(),
-      cancelledByName: json['cancelled_by_name']?.toString() ?? by['name']?.toString() ?? 'Admin',
+      cancelledByName: (rawName != null && rawName.isNotEmpty) ? rawName : 'Sistem',
     );
   }
 }

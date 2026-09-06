@@ -181,36 +181,55 @@ class AdminTransactionDetailDialog extends StatelessWidget {
   // Void Banner
   // ---------------------------------------------------------------------------
   Widget _buildVoidBanner(AdminTransactionCancelledInfo info) {
+    final isSystem = info.cancelledByName.toLowerCase().contains('sistem') ||
+        info.cancelledReason.toLowerCase().contains('kadaluarsa') ||
+        info.cancelledReason.toLowerCase().contains('batas waktu');
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF1F2),
+        color: isSystem ? const Color(0xFFFFF7ED) : const Color(0xFFFFF1F2),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFECDD3)),
+        border: Border.all(color: isSystem ? const Color(0xFFFED7AA) : const Color(0xFFFECDD3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.shield_outlined, color: Color(0xFFE11D48), size: 16),
+              Icon(
+                isSystem ? Icons.hourglass_disabled_rounded : Icons.shield_outlined,
+                color: isSystem ? const Color(0xFFEA580C) : const Color(0xFFE11D48),
+                size: 16,
+              ),
               const SizedBox(width: 6),
               Text(
                 'Dibatalkan oleh: ${info.cancelledByName}',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFFE11D48)),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: isSystem ? const Color(0xFFEA580C) : const Color(0xFFE11D48),
+                ),
               ),
               const Spacer(),
               if (info.cancelledAt != null)
                 Text(
                   _formatDateTime(info.cancelledAt),
-                  style: const TextStyle(fontSize: 10.5, color: Color(0xFF9F1239)),
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    color: isSystem ? const Color(0xFFC2410C) : const Color(0xFF9F1239),
+                  ),
                 ),
             ],
           ),
           const SizedBox(height: 4),
           Text(
             'Alasan: "${info.cancelledReason}"',
-            style: const TextStyle(fontSize: 11.5, fontStyle: FontStyle.italic, color: Color(0xFF4C0519)),
+            style: TextStyle(
+              fontSize: 11.5,
+              fontStyle: FontStyle.italic,
+              color: isSystem ? const Color(0xFF7C2D12) : const Color(0xFF4C0519),
+            ),
           ),
         ],
       ),
@@ -291,8 +310,8 @@ class AdminTransactionDetailDialog extends StatelessWidget {
                 child: _buildMetaItem(
                   icon: Icons.verified_outlined,
                   label: 'Status Bayar',
-                  value: t.isPending ? 'Belum Lunas' : 'Lunas',
-                  valueColor: t.isPending ? const Color(0xFFD97706) : const Color(0xFF059669),
+                  value: _getPaymentStatusText(t),
+                  valueColor: _getPaymentStatusColor(t),
                 ),
               ),
             ],
@@ -616,16 +635,33 @@ class AdminTransactionDetailDialog extends StatelessWidget {
 
   Widget _buildStatusBadge(AdminTransactionModel t) {
     if (t.isCancelled) {
+      final isExpired = t.cancelledInfo?.cancelledReason.toLowerCase().contains('kadaluarsa') == true ||
+          (t.isSelfOrder && t.paymentStatus.toLowerCase() == 'failed');
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
         decoration: BoxDecoration(
-          color: const Color(0xFFFEF2F2),
+          color: isExpired ? const Color(0xFFFFF7ED) : const Color(0xFFFEF2F2),
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: const Color(0xFFFECDD3)),
+          border: Border.all(color: isExpired ? const Color(0xFFFED7AA) : const Color(0xFFFECDD3)),
         ),
-        child: const Text(
-          'Dibatalkan',
-          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFDC2626)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isExpired ? Icons.schedule_rounded : Icons.cancel,
+              size: 10,
+              color: isExpired ? const Color(0xFFEA580C) : const Color(0xFFDC2626),
+            ),
+            const SizedBox(width: 3.5),
+            Text(
+              isExpired ? 'Kadaluarsa' : 'Dibatalkan',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: isExpired ? const Color(0xFFEA580C) : const Color(0xFFDC2626),
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -678,6 +714,35 @@ class AdminTransactionDetailDialog extends StatelessWidget {
         style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF059669)),
       ),
     );
+  }
+
+  String _getPaymentStatusText(AdminTransactionModel t) {
+    if (t.isCancelled) {
+      if (t.paymentStatus.toLowerCase() == 'failed' || t.paid == 0) {
+        if (t.cancelledInfo?.cancelledReason.toLowerCase().contains('kadaluarsa') == true) {
+          return 'Kadaluarsa / Tidak Dibayar';
+        }
+        return 'Batal / Belum Dibayar';
+      }
+      return 'Dibatalkan (Refund)';
+    }
+    if (t.isPending) {
+      return 'Belum Lunas';
+    }
+    if (t.paymentStatus.toLowerCase() == 'paid' || t.isCompleted) {
+      return 'Lunas';
+    }
+    return t.paymentStatus.toUpperCase();
+  }
+
+  Color _getPaymentStatusColor(AdminTransactionModel t) {
+    if (t.isCancelled) {
+      return const Color(0xFFDC2626);
+    }
+    if (t.isPending) {
+      return const Color(0xFFD97706);
+    }
+    return const Color(0xFF059669);
   }
 
   String _formatDateTime(String? dtStr) {

@@ -88,52 +88,55 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    // Verify 4 KPI cards
-    expect(find.text('Meja Aktif'), findsWidgets);
-    expect(find.text('Tagihan Gantung'), findsWidgets);
-    expect(find.text('Perlu Perhatian'), findsWidgets);
-    expect(find.text('Kanal Pesanan'), findsWidgets);
+    // 1. Verify Tables Mode (Default Left Tab)
+    expect(find.text('Meja Belum Lunas'), findsWidgets);
+    expect(find.text('Tagihan Tertunda'), findsWidgets);
+    expect(find.text('Durasi Tamu'), findsWidgets);
+    expect(find.text('Menu Dinikmati'), findsWidgets);
 
-    // Verify Table Cards rendered
+    // Verify Dine-In Table Card rendered (Pak Joko Widodo, Meja 5)
     expect(find.text('MEJA 5'), findsWidgets);
-    expect(find.text('MEJA 12'), findsWidgets);
-    expect(find.text('Pak Joko Widodo'), findsWidgets);
-    expect(find.text('Ibu Siti'), findsWidgets);
-
-    // Test Search query by table
-    controller.openBillSearchQuery.value = '12';
-    await tester.pumpAndSettle();
-
-    expect(find.text('MEJA 12'), findsWidgets);
-    expect(find.text('MEJA 5'), findsNothing);
-
-    // Test Search query by customer name
-    controller.openBillSearchQuery.value = 'Joko';
-    await tester.pumpAndSettle();
-
     expect(find.text('Pak Joko Widodo'), findsWidgets);
     expect(find.text('Ibu Siti'), findsNothing);
+
+    // Test Search query in Tables Mode
+    controller.openBillSearchQuery.value = '5';
+    await tester.pumpAndSettle();
+    expect(find.text('MEJA 5'), findsWidgets);
+
+    controller.openBillSearchQuery.value = 'NonExistent';
+    await tester.pumpAndSettle();
+    expect(find.text('MEJA 5'), findsNothing);
 
     // Reset search
     controller.openBillSearchQuery.value = '';
     await tester.pumpAndSettle();
-
     expect(find.text('MEJA 5'), findsWidgets);
-    expect(find.text('MEJA 12'), findsWidgets);
 
-    // Test Status Filter: critical (> 60 mins)
+    // Test Status Filter in Tables Mode: critical (> 60 mins)
     controller.selectedOpenBillFilter.value = 'critical';
     await tester.pumpAndSettle();
-
     expect(find.text('MEJA 5'), findsWidgets); // 75 mins -> critical
-    expect(find.text('MEJA 12'), findsNothing); // 20 mins -> not critical
 
     // Test Status Filter: fresh (< 30 mins)
     controller.selectedOpenBillFilter.value = 'fresh';
     await tester.pumpAndSettle();
+    expect(find.text('MEJA 5'), findsNothing); // 75 mins is not fresh
 
-    expect(find.text('MEJA 12'), findsWidgets); // 20 mins -> fresh
-    expect(find.text('MEJA 5'), findsNothing);
+    // 2. Switch to 'Pesanan Online' (Right Tab)
+    await tester.tap(find.text('Pesanan Online'));
+    await tester.pumpAndSettle();
+
+    // Verify Online Mode KPI cards
+    expect(find.text('Pesanan Online'), findsWidgets);
+    expect(find.text('Menunggu Bayar'), findsWidgets);
+    expect(find.text('Antrean Dapur'), findsWidgets);
+    expect(find.text('Total Nilai Online'), findsWidgets);
+
+    // Verify Online Card rendered (Ibu Siti, Meja 12)
+    expect(find.text('MEJA 12'), findsWidgets);
+    expect(find.text('Ibu Siti'), findsWidgets);
+    expect(find.text('Pak Joko Widodo'), findsNothing);
   });
 
   testWidgets('Pumps AdminOpenBillsTab on mobile screen without overflow', (tester) async {
@@ -161,13 +164,19 @@ void main() {
 
     await tester.pumpAndSettle();
 
+    // Tables card on mobile (default)
     expect(find.text('MEJA 5'), findsWidgets);
-    expect(find.text('MEJA 12'), findsWidgets);
     expect(find.text('Pak Joko Widodo'), findsWidgets);
+
+    // Switch to Online on mobile
+    await tester.tap(find.text('Pesanan Online'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('MEJA 12'), findsWidgets);
     expect(find.text('Ibu Siti'), findsWidgets);
   });
 
-  testWidgets('Pumps AdminOpenBillsTab empty state when all tables settled', (tester) async {
+  testWidgets('Pumps AdminOpenBillsTab empty state when settled', (tester) async {
     final mockApi = MockApiProvider();
     Get.put<ApiProvider>(mockApi);
 
@@ -192,7 +201,59 @@ void main() {
 
     await tester.pumpAndSettle();
 
+    // In Tables mode empty state (default)
     expect(find.text('Semua Meja Telah Lunas'), findsWidgets);
     expect(find.text('Perbarui Data Meja'), findsWidgets);
+
+    // In Online mode empty state
+    await tester.tap(find.text('Pesanan Online'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tidak Ada Pesanan Online Aktif'), findsWidgets);
+    expect(find.text('Perbarui Data Meja'), findsWidgets);
+  });
+
+  testWidgets('Switches smoothly between Meja Belum Lunas and Pesanan Online', (tester) async {
+    final mockApi = MockApiProvider();
+    Get.put<ApiProvider>(mockApi);
+
+    final controller = TestAdminController();
+    Get.put<AdminController>(controller);
+
+    controller.openBills.value = openBillsJsonList.map((e) => AdminOpenBillModel.fromJson(e)).toList();
+    controller.openBillsTotalActive.value = 2;
+    controller.openBillsTotalAmount.value = 280000;
+
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      const GetMaterialApp(
+        home: Scaffold(
+          body: AdminOpenBillsTab(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Default: Tables Mode
+    expect(find.text('Pak Joko Widodo'), findsWidgets);
+    expect(find.text('Ibu Siti'), findsNothing);
+
+    // Switch to 'Pesanan Online'
+    await tester.tap(find.text('Pesanan Online'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ibu Siti'), findsWidgets);
+    expect(find.text('Pak Joko Widodo'), findsNothing);
+
+    // Switch back to 'Meja Belum Lunas'
+    await tester.tap(find.text('Meja Belum Lunas'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pak Joko Widodo'), findsWidgets);
+    expect(find.text('Ibu Siti'), findsNothing);
   });
 }

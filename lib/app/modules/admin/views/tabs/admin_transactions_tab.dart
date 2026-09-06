@@ -31,7 +31,12 @@ class AdminTransactionsTab extends GetView<AdminController> {
                 return const ListItemSkeleton();
               }
 
-              if (controller.transactions.isEmpty) {
+              // Filter transactions: If Open Bill status is selected, strictly display POS table bills (exclude self_order / online)
+              final displayList = controller.selectedTrxStatus.value == 'pending'
+                  ? controller.transactions.where((t) => !t.isSelfOrder).toList()
+                  : controller.transactions;
+
+              if (displayList.isEmpty) {
                 return _buildEmptyState();
               }
 
@@ -54,9 +59,9 @@ class AdminTransactionsTab extends GetView<AdminController> {
                           mainAxisSpacing: 14,
                           mainAxisExtent: 152,
                         ),
-                        itemCount: controller.transactions.length,
+                        itemCount: displayList.length,
                         itemBuilder: (context, index) {
-                          final tx = controller.transactions[index];
+                          final tx = displayList[index];
                           return _buildModernCard(context, tx);
                         },
                       );
@@ -64,10 +69,10 @@ class AdminTransactionsTab extends GetView<AdminController> {
 
                     return ListView.separated(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      itemCount: controller.transactions.length,
+                      itemCount: displayList.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
-                        final tx = controller.transactions[index];
+                        final tx = displayList[index];
                         return _buildModernCard(context, tx);
                       },
                     );
@@ -493,12 +498,12 @@ class AdminTransactionsTab extends GetView<AdminController> {
           controller.selectedTrxDate.value != null ||
           controller.trxSearchQuery.value.isNotEmpty;
 
-      // Calculate totals for Open Bill and Batal (Void)
-      int openBillsCount = controller.openBills.length;
+      // Calculate totals for Open Bill (Khusus meja kasir POS, pesanan online tidak masuk open bill) and Batal (Void)
+      int openBillsCount = controller.openBills.where((b) => !b.isSelfOrder).length;
       if (openBillsCount == 0 && controller.dashboardData.value.openBillsSummary.count > 0) {
         openBillsCount = controller.dashboardData.value.openBillsSummary.count;
       }
-      final int trxOpenCount = controller.transactions.where((t) => t.isPending).length;
+      final int trxOpenCount = controller.transactions.where((t) => t.isPending && !t.isSelfOrder).length;
       if (trxOpenCount > openBillsCount) {
         openBillsCount = trxOpenCount;
       }
@@ -552,6 +557,10 @@ class AdminTransactionsTab extends GetView<AdminController> {
             glow: openBillsCount > 0 || isPendingSelected,
             onTap: () {
               controller.selectedTrxStatus.value = 'pending';
+              // Open Bill khusus POS; reset saluran jika sebelumnya 'self_order'
+              if (controller.selectedTrxOrderSource.value == 'self_order') {
+                controller.selectedTrxOrderSource.value = 'all';
+              }
               controller.fetchTransactions();
             },
           ),
@@ -604,6 +613,10 @@ class AdminTransactionsTab extends GetView<AdminController> {
             isSelected: controller.selectedTrxOrderSource.value == 'self_order',
             onTap: () {
               controller.selectedTrxOrderSource.value = 'self_order';
+              // Pesanan online tidak masuk Open Bill; reset status jika sebelumnya 'pending'
+              if (controller.selectedTrxStatus.value == 'pending') {
+                controller.selectedTrxStatus.value = 'all';
+              }
               controller.fetchTransactions();
             },
           ),
@@ -1188,21 +1201,31 @@ class AdminTransactionsTab extends GetView<AdminController> {
 
   Widget _buildStatusBadge(AdminTransactionModel tx) {
     if (tx.isCancelled) {
+      final isExpired = tx.cancelledInfo?.cancelledReason.toLowerCase().contains('kadaluarsa') == true ||
+          (tx.isSelfOrder && tx.paymentStatus.toLowerCase() == 'failed');
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
         decoration: BoxDecoration(
-          color: const Color(0xFFFEF2F2),
+          color: isExpired ? const Color(0xFFFFF7ED) : const Color(0xFFFEF2F2),
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: const Color(0xFFFECDD3)),
+          border: Border.all(color: isExpired ? const Color(0xFFFED7AA) : const Color(0xFFFECDD3)),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.cancel, size: 10, color: Color(0xFFDC2626)),
-            SizedBox(width: 3.5),
+            Icon(
+              isExpired ? Icons.schedule_rounded : Icons.cancel,
+              size: 10,
+              color: isExpired ? const Color(0xFFEA580C) : const Color(0xFFDC2626),
+            ),
+            const SizedBox(width: 3.5),
             Text(
-              'Batal (Void)',
-              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFDC2626)),
+              isExpired ? 'Kadaluarsa' : 'Batal (Void)',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: isExpired ? const Color(0xFFEA580C) : const Color(0xFFDC2626),
+              ),
             ),
           ],
         ),

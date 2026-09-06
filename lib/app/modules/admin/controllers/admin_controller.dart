@@ -14,7 +14,7 @@ import '../../../routes/app_routes.dart';
 class AdminController extends GetxController {
   final ApiProvider _apiProvider = Get.find<ApiProvider>();
 
-  // Active Tab Index (0: Dashboard, 1: Transaksi & Void, 2: Audit Shift, 3: Meja Aktif)
+  // Active Tab Index (0: Dashboard, 1: Transaksi & Void, 2: Audit Shift, 3: Pesanan & Meja)
   final RxInt selectedTabIndex = 0.obs;
 
   // Sidebar Collapse / Expand State (Tablet / Desktop)
@@ -66,7 +66,7 @@ class AdminController extends GetxController {
     }).toList();
   }
 
-  // --- TAB 4: OPEN BILLS MONITORING ---
+  // --- TAB 4: OPEN BILLS & LIVE ONLINE ORDERS MONITORING ---
   final RxList<AdminOpenBillModel> openBills = <AdminOpenBillModel>[].obs;
   final RxInt openBillsTotalActive = 0.obs;
   final RxDouble openBillsTotalAmount = 0.0.obs;
@@ -75,18 +75,36 @@ class AdminController extends GetxController {
   final TextEditingController openBillSearchController = TextEditingController();
   final RxString selectedOpenBillFilter = 'all'.obs;
 
+  // Active Mode for Tab 4: 'tables' (Meja Belum Lunas), 'online' (Pesanan Online)
+  final RxString selectedActiveOrderMode = 'tables'.obs;
+
+  List<AdminOpenBillModel> get activeOnlineOrders =>
+      openBills.where((b) => b.isSelfOrder).toList();
+
+  List<AdminOpenBillModel> get activeTableBills =>
+      openBills.where((b) => !b.isSelfOrder).toList();
+
   List<AdminOpenBillModel> get filteredOpenBills {
     final query = openBillSearchQuery.value.trim().toLowerCase();
+    final mode = selectedActiveOrderMode.value;
     final filter = selectedOpenBillFilter.value;
 
     return openBills.where((b) {
-      // 1. Status Filter
+      // 1. Mode Filter (Online vs Tables)
+      if (mode == 'online' && !b.isSelfOrder) return false;
+      if (mode == 'tables' && b.isSelfOrder) return false;
+
+      // 2. Status Filter
       if (filter == 'critical' && b.elapsedMinutes < 60) return false;
       if (filter == 'fresh' && b.elapsedMinutes >= 30) return false;
       if (filter == 'self_order' && !b.isSelfOrder) return false;
       if (filter == 'pos' && b.isSelfOrder) return false;
+      if (filter == 'unpaid' && b.isPaid) return false;
+      if (filter == 'paid' && !b.isPaid) return false;
+      if (filter == 'cooking' && b.status.toLowerCase() != 'processing' && b.status.toLowerCase() != 'cooking') return false;
+      if (filter == 'ready' && b.status.toLowerCase() != 'ready') return false;
 
-      // 2. Search Query
+      // 3. Search Query
       if (query.isNotEmpty) {
         final matchesTable = b.tableNumber.toLowerCase().contains(query) ||
             'meja ${b.tableNumber}'.toLowerCase().contains(query);

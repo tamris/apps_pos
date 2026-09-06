@@ -108,6 +108,32 @@ void main() {
       expect(trx.cancelledInfo?.cancelledReason, 'Pesanan dobel');
     });
 
+    test('AdminTransactionModel defaults cancelledByName to Sistem when null (e.g. QRIS Expired)', () {
+      final json = {
+        'id': 102,
+        'invoice_number': 'INV-20260905-002',
+        'customer_name': 'Pelanggan Online',
+        'order_source': 'self_order',
+        'order_type': 'dine_in',
+        'payment_method': 'qris',
+        'payment_status': 'failed',
+        'status': 'cancelled',
+        'total': 50000,
+        'paid': 0,
+        'cancelled_info': {
+          'cancelled_at': '2026-09-05 12:30:00',
+          'cancelled_reason': 'Batas waktu pembayaran QRIS telah kadaluarsa.',
+        },
+      };
+
+      final trx = AdminTransactionModel.fromJson(json);
+      expect(trx.isCancelled, true);
+      expect(trx.isSelfOrder, true);
+      expect(trx.paymentStatus, 'failed');
+      expect(trx.cancelledInfo?.cancelledByName, 'Sistem');
+      expect(trx.cancelledInfo?.cancelledReason, contains('kadaluarsa'));
+    });
+
     test('AdminOpenBillModel computes elapsed minutes and items', () {
       final json = {
         'id': 12,

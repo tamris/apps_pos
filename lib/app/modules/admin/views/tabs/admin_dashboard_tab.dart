@@ -1035,7 +1035,10 @@ class AdminDashboardTab extends GetView<AdminController> {
       borderColor: openBillsCount > 0
           ? const Color(0xFFFDE68A)
           : const Color(0xFFE2E8F0),
-      onTap: () => controller.switchTab(3),
+      onTap: () {
+        controller.selectedActiveOrderMode.value = 'tables';
+        controller.switchTab(3);
+      },
     );
 
     final Widget cancellationsTile = _buildOperationActionTile(
@@ -2302,24 +2305,33 @@ class AdminDashboardTab extends GetView<AdminController> {
 
   Widget _buildCleanStatus(AdminTransactionModel tx) {
     if (tx.isCancelled) {
+      final isExpired = tx.cancelledInfo?.cancelledReason.toLowerCase().contains('kadaluarsa') == true ||
+          (tx.isSelfOrder && (tx.paymentStatus.toLowerCase() == 'failed' || tx.paid == 0));
+
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
         decoration: BoxDecoration(
-          color: const Color(0xFFFEF2F2),
+          color: isExpired ? const Color(0xFFFFF7ED) : const Color(0xFFFEF2F2),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFFECACA)),
+          border: Border.all(
+            color: isExpired ? const Color(0xFFFED7AA) : const Color(0xFFFECACA),
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
-          children: const [
-            Icon(Icons.fiber_manual_record, size: 6, color: Color(0xFFDC2626)),
-            SizedBox(width: 4),
+          children: [
+            Icon(
+              isExpired ? Icons.schedule_rounded : Icons.fiber_manual_record,
+              size: isExpired ? 8.5 : 6,
+              color: isExpired ? const Color(0xFFEA580C) : const Color(0xFFDC2626),
+            ),
+            const SizedBox(width: 4),
             Text(
-              'Batal',
+              isExpired ? 'Kadaluarsa' : 'Batal',
               style: TextStyle(
                 fontSize: 10.5,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFFDC2626),
+                color: isExpired ? const Color(0xFFEA580C) : const Color(0xFFDC2626),
               ),
             ),
           ],
@@ -2341,7 +2353,7 @@ class AdminDashboardTab extends GetView<AdminController> {
               Icon(Icons.hourglass_top_rounded, size: 7.5, color: Color(0xFFEA580C)),
               SizedBox(width: 4),
               Text(
-                'Unpaid',
+                'Menunggu Bayar',
                 style: TextStyle(
                   fontSize: 10.5,
                   fontWeight: FontWeight.w600,
