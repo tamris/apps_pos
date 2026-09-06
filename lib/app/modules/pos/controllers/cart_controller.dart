@@ -463,6 +463,10 @@ class CartController extends GetxController {
       }
     } catch (e) {
       // Offline fallback: jika error koneksi, simpan ke queue offline
+      final activeShiftId = Get.isRegistered<ShiftController>()
+          ? Get.find<ShiftController>().currentShift.value?.id
+          : _storageService.activeShift?.id;
+
       final offlineId = await _offlineSyncService.enqueueTransaction(
         orderType: currentOrderType,
         tableNumber: savedTable.isNotEmpty ? savedTable : null,
@@ -474,6 +478,7 @@ class CartController extends GetxController {
         paid: currentPaid,
         items: itemsPayload,
         openBillId: activeOpenBillId.value,
+        shiftId: activeShiftId,
       );
 
       AppSnackbar.warning(

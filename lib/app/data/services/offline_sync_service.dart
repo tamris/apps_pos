@@ -67,6 +67,7 @@ class OfflineSyncService extends GetxService {
     required double paid,
     required List<Map<String, dynamic>> items,
     int? openBillId,
+    int? shiftId,
   }) async {
     final offlineId = 'OFF-${DateTime.now().millisecondsSinceEpoch}-${_uuid.v4().substring(0, 5).toUpperCase()}';
 
@@ -95,6 +96,7 @@ class OfflineSyncService extends GetxService {
       'items': items,
       'created_at': DateTime.now().toIso8601String(),
       if (openBillId != null) 'open_bill_id': openBillId,
+      'shift_id': shiftId ?? _storageService.activeShift?.id,
     };
 
     await _storageService.addOfflineTransaction(payload);

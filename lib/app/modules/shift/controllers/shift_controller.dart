@@ -23,16 +23,14 @@ class ShiftController extends GetxController {
   /// Apakah koneksi ke server sedang offline
   bool get isConnectionOffline => !_apiProvider.isOnline.value || _storageService.isOfflineToken;
 
-  /// Jumlah transaksi offline yang belum disinkronkan ke server
+  /// Jumlah data offline yang belum disinkronkan ke server (transaksi & shift kasir)
   int get offlineTransactionsCount {
-    final queueLen = _storageService.getOfflineQueue().length;
-    final shiftCount = currentShift.value?.offlineTransactionsCount ?? 0;
-    int syncPending = 0;
     if (Get.isRegistered<OfflineSyncService>()) {
-      syncPending = Get.find<OfflineSyncService>().pendingCount.value;
+      return Get.find<OfflineSyncService>().pendingCount.value;
     }
-    final maxLocal = queueLen > shiftCount ? queueLen : shiftCount;
-    return maxLocal > syncPending ? maxLocal : syncPending;
+    final queueLen = _storageService.getOfflineQueue().length;
+    final closedShiftCount = _storageService.getOfflineClosedShifts().length;
+    return queueLen + closedShiftCount;
   }
 
   /// Apakah ada transaksi offline yang belum disinkronkan ke server
@@ -134,7 +132,20 @@ class ShiftController extends GetxController {
             double offQris = 0;
             double offTransfer = 0;
             double offTotal = 0;
+            int thisShiftOfflineCount = 0;
+
+            final shiftStartTime = DateTime.tryParse(shift.startTime ?? '') ?? DateTime.now();
+
             for (final q in queue) {
+              final txCreatedAt = DateTime.tryParse(q['created_at']?.toString() ?? '') ?? DateTime.now();
+
+              // Guard: Hanya akumulasikan transaksi yang dibuat selama shift aktif ini berjalan.
+              // Transaksi kemarin (shift sebelumnya) tidak boleh mencemari omset atau kas shift saat ini.
+              if (txCreatedAt.isBefore(shiftStartTime.subtract(const Duration(seconds: 5)))) {
+                continue;
+              }
+
+              thisShiftOfflineCount++;
               double txTotal = (q['total'] as num?)?.toDouble() ?? 0.0;
               if (txTotal <= 0 && q['items'] != null && q['items'] is List) {
                 double sub = 0;
@@ -166,9 +177,9 @@ class ShiftController extends GetxController {
               qrisSales: shift.qrisSales + offQris,
               transferSales: shift.transferSales + offTransfer,
               totalSales: shift.totalSales + offTotal,
-              totalTransactions: shift.totalTransactions + queue.length,
+              totalTransactions: shift.totalTransactions + thisShiftOfflineCount,
               expectedCash: shift.expectedCash + offCash,
-              offlineTransactionsCount: queue.length,
+              offlineTransactionsCount: thisShiftOfflineCount,
               isOffline: false, // Server online terhubung
             );
           }

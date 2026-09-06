@@ -32,6 +32,7 @@ class StorageService extends GetxService {
   static const String _keyOfflineCompletedServerBillIds = 'offline_completed_server_bill_ids';
   static const String _keyCachedTodayTransactions = 'cached_today_transactions';
   static const String _keyCachedTodayStats = 'cached_today_stats';
+  static const String _keyCachedTodayDate = 'cached_today_date';
 
   Future<StorageService> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -365,6 +366,17 @@ class StorageService extends GetxService {
 
   // --- Cached Today's Transactions (Snapshot saat online) ---
   List<Map<String, dynamic>> getCachedTodayTransactions() {
+    final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+    final savedDate = _prefs.getString(_keyCachedTodayDate);
+
+    // Jika tanggal yang tersimpan berbeda dengan hari ini (pergantian hari), bersihkan cache lama
+    if (savedDate != null && savedDate != todayStr) {
+      _prefs.remove(_keyCachedTodayTransactions);
+      _prefs.remove(_keyCachedTodayStats);
+      _prefs.remove(_keyCachedTodayDate);
+      return [];
+    }
+
     final raw = _prefs.getString(_keyCachedTodayTransactions);
     if (raw == null) return [];
     try {
@@ -376,10 +388,21 @@ class StorageService extends GetxService {
   }
 
   Future<void> saveCachedTodayTransactions(List<Map<String, dynamic>> txs) async {
+    final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+    await _prefs.setString(_keyCachedTodayDate, todayStr);
     await _prefs.setString(_keyCachedTodayTransactions, jsonEncode(txs));
   }
 
   Map<String, dynamic>? getCachedTodayStats() {
+    final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+    final savedDate = _prefs.getString(_keyCachedTodayDate);
+    if (savedDate != null && savedDate != todayStr) {
+      _prefs.remove(_keyCachedTodayTransactions);
+      _prefs.remove(_keyCachedTodayStats);
+      _prefs.remove(_keyCachedTodayDate);
+      return null;
+    }
+
     final raw = _prefs.getString(_keyCachedTodayStats);
     if (raw == null) return null;
     try {
@@ -390,12 +413,15 @@ class StorageService extends GetxService {
   }
 
   Future<void> saveCachedTodayStats(Map<String, dynamic> stats) async {
+    final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+    await _prefs.setString(_keyCachedTodayDate, todayStr);
     await _prefs.setString(_keyCachedTodayStats, jsonEncode(stats));
   }
 
   Future<void> clearCachedTodayTransactions() async {
     await _prefs.remove(_keyCachedTodayTransactions);
     await _prefs.remove(_keyCachedTodayStats);
+    await _prefs.remove(_keyCachedTodayDate);
   }
 
   // --- SHA-256 Helper ---
