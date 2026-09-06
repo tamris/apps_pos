@@ -32,8 +32,11 @@ void main() async {
   Get.put<EscPosPrinterService>(EscPosPrinterService());
   Get.put<OnlineOrderPollingService>(OnlineOrderPollingService());
 
-  // Tentukan rute awal (jika token tersimpan maka langsung ke POS)
-  final String initialRoute = storageService.hasToken ? AppRoutes.pos : AppRoutes.pinLogin;
+  // Tentukan rute awal (jika token tersimpan maka langsung ke Admin atau POS)
+  String initialRoute = AppRoutes.pinLogin;
+  if (storageService.hasToken) {
+    initialRoute = (storageService.user?.isAdmin == true) ? AppRoutes.admin : AppRoutes.pos;
+  }
 
   runApp(MainApp(initialRoute: initialRoute));
 }

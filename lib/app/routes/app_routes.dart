@@ -5,4 +5,5 @@ abstract class AppRoutes {
   static const transactions = '/transactions';
   static const onlineOrders = '/online-orders';
   static const settings = '/settings';
+  static const admin = '/admin';
 }
