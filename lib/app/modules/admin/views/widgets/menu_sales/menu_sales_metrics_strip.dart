@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:noli_apps/app/core/theme/app_colors.dart';
 import 'package:noli_apps/app/modules/admin/controllers/admin_controller.dart';
 
 class MenuSalesMetricsStrip extends GetView<AdminController> {
@@ -14,10 +15,10 @@ class MenuSalesMetricsStrip extends GetView<AdminController> {
           : null;
 
       return Container(
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
         decoration: const BoxDecoration(
           color: Colors.white,
-          border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9))),
+          border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
         ),
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -28,13 +29,10 @@ class MenuSalesMetricsStrip extends GetView<AdminController> {
                 child: Row(
                   children: [
                     _buildMetricCard(
-                      width: 175,
+                      width: 165,
                       label: 'Total Porsi Terjual',
                       value: '${summary.totalQuantitySold} Porsi',
-                      subtext: 'Akumulasi porsi terjual',
                       icon: Icons.restaurant_menu_rounded,
-                      iconColor: const Color(0xFF4F46E5),
-                      iconBg: const Color(0xFFEEF2FF),
                     ),
                     const SizedBox(width: 10),
                     _buildMetricCard(
@@ -45,31 +43,23 @@ class MenuSalesMetricsStrip extends GetView<AdminController> {
                           ? '${summary.topSellingProduct!.quantitySold} porsi terjual'
                           : 'Belum ada data',
                       icon: Icons.emoji_events_rounded,
-                      iconColor: const Color(0xFFD97706),
-                      iconBg: const Color(0xFFFEF3C7),
                     ),
                     const SizedBox(width: 10),
                     _buildMetricCard(
-                      width: 175,
+                      width: 165,
                       label: 'Varian Menu Aktif',
                       value: '${summary.totalUniqueItemsSold} Menu',
-                      subtext: 'Varian menu aktif terjual',
                       icon: Icons.fastfood_rounded,
-                      iconColor: const Color(0xFF0284C7),
-                      iconBg: const Color(0xFFF0F9FF),
                     ),
                     const SizedBox(width: 10),
                     _buildMetricCard(
                       width: 190,
                       label: 'Kategori Terfavorit',
-                      value:
-                          topCategory != null ? topCategory.categoryName : '-',
+                      value: topCategory != null ? topCategory.categoryName : '-',
                       subtext: topCategory != null
                           ? '${topCategory.revenueSharePercentage}% kontribusi'
                           : 'Belum ada data',
                       icon: Icons.category_rounded,
-                      iconColor: const Color(0xFF059669),
-                      iconBg: const Color(0xFFECFDF5),
                     ),
                   ],
                 ),
@@ -82,10 +72,7 @@ class MenuSalesMetricsStrip extends GetView<AdminController> {
                   child: _buildMetricCard(
                     label: 'Total Porsi Terjual',
                     value: '${summary.totalQuantitySold} Porsi',
-                    subtext: 'Akumulasi porsi terjual',
                     icon: Icons.restaurant_menu_rounded,
-                    iconColor: const Color(0xFF4F46E5),
-                    iconBg: const Color(0xFFEEF2FF),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -97,8 +84,6 @@ class MenuSalesMetricsStrip extends GetView<AdminController> {
                         ? '${summary.topSellingProduct!.quantitySold} porsi terjual'
                         : 'Belum ada data',
                     icon: Icons.emoji_events_rounded,
-                    iconColor: const Color(0xFFD97706),
-                    iconBg: const Color(0xFFFEF3C7),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -106,10 +91,7 @@ class MenuSalesMetricsStrip extends GetView<AdminController> {
                   child: _buildMetricCard(
                     label: 'Varian Menu Aktif',
                     value: '${summary.totalUniqueItemsSold} Menu',
-                    subtext: 'Varian menu aktif terjual',
                     icon: Icons.fastfood_rounded,
-                    iconColor: const Color(0xFF0284C7),
-                    iconBg: const Color(0xFFF0F9FF),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -121,8 +103,6 @@ class MenuSalesMetricsStrip extends GetView<AdminController> {
                         ? '${topCategory.revenueSharePercentage}% kontribusi'
                         : 'Belum ada data',
                     icon: Icons.category_rounded,
-                    iconColor: const Color(0xFF059669),
-                    iconBg: const Color(0xFFECFDF5),
                   ),
                 ),
               ],
@@ -137,10 +117,8 @@ class MenuSalesMetricsStrip extends GetView<AdminController> {
     double? width,
     required String label,
     required String value,
-    required String subtext,
+    String? subtext,
     required IconData icon,
-    required Color iconColor,
-    required Color iconBg,
   }) {
     return Container(
       width: width,
@@ -156,10 +134,14 @@ class MenuSalesMetricsStrip extends GetView<AdminController> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: iconBg,
+              color: AppColors.secondarySoft,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, color: iconColor, size: 18),
+            child: const Icon(
+              Icons.trending_up_rounded,
+              color: AppColors.secondary,
+              size: 16,
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -184,22 +166,26 @@ class MenuSalesMetricsStrip extends GetView<AdminController> {
                   child: Text(
                     value,
                     style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
                       color: Color(0xFF0F172A),
-                      letterSpacing: -0.3,
+                      letterSpacing: -0.2,
                     ),
                   ),
                 ),
-                Text(
-                  subtext,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: Color(0xFF94A3B8),
+                if (subtext != null && subtext.isNotEmpty) ...[
+                  const SizedBox(height: 1),
+                  Text(
+                    subtext,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF64748B),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                ],
               ],
             ),
           ),

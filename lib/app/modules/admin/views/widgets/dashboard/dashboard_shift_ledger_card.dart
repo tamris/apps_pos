@@ -67,84 +67,58 @@ class DashboardShiftLedgerCard extends StatelessWidget {
               const SizedBox(width: 8),
               if (shift != null)
                 Flexible(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 2.5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFECFDF5),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFA7F3D0)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: const [
-                            Icon(
-                              Icons.fiber_manual_record,
-                              size: 6.5,
-                              color: Color(0xFF10B981),
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              'Aktif',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF047857),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      CircleAvatar(
-                        radius: 11,
-                        backgroundColor: const Color(0xFFEEF2FF),
-                        child: Text(
-                          shift.cashierName.isNotEmpty
-                              ? shift.cashierName[0].toUpperCase()
-                              : 'K',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.secondary,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3.5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF10B981),
+                            shape: BoxShape.circle,
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 5),
-                      Flexible(
-                        child: Text(
-                          shift.cashierName,
-                          style: const TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF0F172A),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            shift.cashierName,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1E293B),
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 )
               else
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 2.5,
+                    horizontal: 8,
+                    vertical: 3.5,
                   ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(6),
                   ),
                   child: const Text(
                     'Belum Dibuka',
                     style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w500,
                       color: Color(0xFF64748B),
                     ),
                   ),
@@ -157,33 +131,26 @@ class DashboardShiftLedgerCard extends StatelessWidget {
             Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF8FAFC),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.storefront_outlined,
-                      color: Color(0xFF94A3B8),
-                      size: 22,
-                    ),
+                children: const [
+                  Icon(
+                    Icons.storefront_outlined,
+                    color: Color(0xFF94A3B8),
+                    size: 24,
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Tidak ada shift aktif hari ini',
+                  SizedBox(height: 8),
+                  Text(
+                    'Belum ada shift aktif hari ini',
                     style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF334155),
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'Buka kasir pada POS untuk mulai mencatat arus kas.',
+                  SizedBox(height: 3),
+                  Text(
+                    'Buka kasir pada aplikasi POS untuk mulai transaksi.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                    style: TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
                   ),
                 ],
               ),
@@ -196,16 +163,19 @@ class DashboardShiftLedgerCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Status Laci Kas',
-                      style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                    const Expanded(
+                      child: Text(
+                        'Status Laci Kas',
+                        style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                     InkWell(
                       onTap: onAuditShift,
                       child: const Text(
                         'Riwayat Shift →',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: AppColors.secondary,
                         ),
@@ -219,7 +189,7 @@ class DashboardShiftLedgerCard extends StatelessWidget {
             if (height == null) const SizedBox(height: 10),
             // 2. Cash In Drawer (Hero Box)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
               decoration: BoxDecoration(
                 color: const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(10),
@@ -230,24 +200,13 @@ class DashboardShiftLedgerCard extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Icon(
-                            Icons.point_of_sale_outlined,
-                            size: 14,
-                            color: AppColors.secondary,
-                          ),
-                          SizedBox(width: 5),
-                          Text(
-                            'Estimasi Kas di Laci',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF475569),
-                            ),
-                          ),
-                        ],
+                      const Text(
+                        'Estimasi Kas di Laci',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF475569),
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Flexible(
@@ -256,9 +215,9 @@ class DashboardShiftLedgerCard extends StatelessWidget {
                           child: Text(
                             CurrencyFormatter.format(shift.expectedCash),
                             style: const TextStyle(
-                              fontSize: 13.5,
+                              fontSize: 14,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.secondary,
+                              color: Color(0xFF0F172A),
                             ),
                           ),
                         ),
@@ -273,7 +232,7 @@ class DashboardShiftLedgerCard extends StatelessWidget {
                         child: Text(
                           'Modal: ${CurrencyFormatter.format(shift.startingCash)}',
                           style: const TextStyle(
-                            fontSize: 10.5,
+                            fontSize: 11.5,
                             color: Color(0xFF64748B),
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -284,7 +243,7 @@ class DashboardShiftLedgerCard extends StatelessWidget {
                         child: Text(
                           '+ Penjualan: ${CurrencyFormatter.format(shift.cashSales)}',
                           style: const TextStyle(
-                            fontSize: 10.5,
+                            fontSize: 11.5,
                             fontWeight: FontWeight.w500,
                             color: Color(0xFF047857),
                           ),
@@ -304,33 +263,21 @@ class DashboardShiftLedgerCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.insights_outlined,
-                        size: 13,
-                        color: Color(0xFF64748B),
-                      ),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          'Total Omzet: ${CurrencyFormatter.format(shift.totalSales > 0 ? shift.totalSales : shift.cashSales)}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF334155),
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    'Total Omzet: ${CurrencyFormatter.format(shift.totalSales > 0 ? shift.totalSales : shift.cashSales)}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF334155),
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   '${shift.totalTransactions} transaksi',
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF475569),
                   ),
@@ -347,43 +294,22 @@ class DashboardShiftLedgerCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.access_time_rounded,
-                          size: 12.5,
-                          color: Color(0xFF94A3B8),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Dibuka pukul ${_formatTime(shift.startTime)}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF64748B),
-                          ),
-                        ),
-                      ],
+                    Text(
+                      'Dibuka ${_formatTime(shift.startTime)}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF64748B),
+                      ),
                     ),
                     InkWell(
                       onTap: onAuditShift,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Text(
-                            'Audit Shift',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.secondary,
-                            ),
-                          ),
-                          SizedBox(width: 2),
-                          Icon(
-                            Icons.chevron_right_rounded,
-                            size: 14,
-                            color: AppColors.secondary,
-                          ),
-                        ],
+                      child: const Text(
+                        'Audit Shift →',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.secondary,
+                        ),
                       ),
                     ),
                   ],

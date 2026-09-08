@@ -75,32 +75,20 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 2.5,
+                        horizontal: 8,
+                        vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFECFDF5),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFA7F3D0)),
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.fiber_manual_record,
-                            size: 6.5,
-                            color: Color(0xFF10B981),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${list.length} Tercatat',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF047857),
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        '${list.length} Transaksi',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF475569),
+                        ),
                       ),
                     ),
                   ],
@@ -150,32 +138,25 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
                   border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
                 child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.receipt_long_outlined,
-                        size: 28,
-                        color: Color(0xFF94A3B8),
-                      ),
+                  children: const [
+                    Icon(
+                      Icons.receipt_long_outlined,
+                      size: 28,
+                      color: Color(0xFF94A3B8),
                     ),
-                    const SizedBox(height: 10),
-                    const Text(
+                    SizedBox(height: 10),
+                    Text(
                       'Belum ada transaksi pada periode ini',
                       style: TextStyle(
-                        fontSize: 12.5,
+                        fontSize: 13,
                         color: Color(0xFF475569),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    const Text(
-                      'Transaksi yang masuk hari ini akan tampil secara real-time.',
-                      style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                    SizedBox(height: 3),
+                    Text(
+                      'Transaksi yang masuk akan tampil di sini secara otomatis.',
+                      style: TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
                     ),
                   ],
                 ),
@@ -211,10 +192,10 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
                               child: Text(
                                 'WAKTU',
                                 style: TextStyle(
-                                  fontSize: 10,
+                                  fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFF94A3B8),
-                                  letterSpacing: 0.5,
+                                  color: Color(0xFF64748B),
+                                  letterSpacing: 0.3,
                                 ),
                               ),
                             ),
@@ -223,10 +204,10 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
                               child: Text(
                                 'INVOICE & PELANGGAN',
                                 style: TextStyle(
-                                  fontSize: 10,
+                                  fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFF94A3B8),
-                                  letterSpacing: 0.5,
+                                  color: Color(0xFF64748B),
+                                  letterSpacing: 0.3,
                                 ),
                               ),
                             ),
@@ -235,10 +216,10 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
                               child: Text(
                                 'TIPE PESANAN',
                                 style: TextStyle(
-                                  fontSize: 10,
+                                  fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFF94A3B8),
-                                  letterSpacing: 0.5,
+                                  color: Color(0xFF64748B),
+                                  letterSpacing: 0.3,
                                 ),
                               ),
                             ),
@@ -248,10 +229,10 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
                                 child: Text(
                                   'METODE',
                                   style: TextStyle(
-                                    fontSize: 10,
+                                    fontSize: 11,
                                     fontWeight: FontWeight.w700,
-                                    color: Color(0xFF94A3B8),
-                                    letterSpacing: 0.5,
+                                    color: Color(0xFF64748B),
+                                    letterSpacing: 0.3,
                                   ),
                                 ),
                               ),
@@ -261,10 +242,10 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
                                 child: Text(
                                   'STATUS',
                                   style: TextStyle(
-                                    fontSize: 10,
+                                    fontSize: 11,
                                     fontWeight: FontWeight.w700,
-                                    color: Color(0xFF94A3B8),
-                                    letterSpacing: 0.5,
+                                    color: Color(0xFF64748B),
+                                    letterSpacing: 0.3,
                                   ),
                                 ),
                               ),
@@ -275,10 +256,10 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
                                 'TOTAL',
                                 textAlign: TextAlign.end,
                                 style: TextStyle(
-                                  fontSize: 10,
+                                  fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFF94A3B8),
-                                  letterSpacing: 0.5,
+                                  color: Color(0xFF64748B),
+                                  letterSpacing: 0.3,
                                 ),
                               ),
                             ),
@@ -350,7 +331,7 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
             child: Text(
               _formatTime(tx.createdAt),
               style: const TextStyle(
-                fontSize: 11.5,
+                fontSize: 12,
                 color: Color(0xFF64748B),
                 fontWeight: FontWeight.w500,
               ),
@@ -360,55 +341,35 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
           // 2. Invoice & Pelanggan
           Expanded(
             flex: 3,
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  margin: const EdgeInsets.only(right: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(8),
+                Text(
+                  tx.invoiceNumber,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: tx.isCancelled
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF0F172A),
+                    decoration: tx.isCancelled
+                        ? TextDecoration.lineThrough
+                        : null,
                   ),
-                  child: const Icon(
-                    Icons.receipt_outlined,
-                    size: 16,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  tx.isSelfOrder
+                      ? '${tx.customerName.isNotEmpty ? tx.customerName : "Pelanggan"} • Online (Self-Order)'
+                      : '${tx.customerName.isNotEmpty ? tx.customerName : "Pelanggan Umum"} • Kasir: ${tx.cashierName}',
+                  style: const TextStyle(
+                    fontSize: 11.5,
                     color: Color(0xFF64748B),
                   ),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        tx.invoiceNumber,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: tx.isCancelled
-                              ? const Color(0xFF94A3B8)
-                              : const Color(0xFF0F172A),
-                          decoration: tx.isCancelled
-                              ? TextDecoration.lineThrough
-                              : null,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                      const SizedBox(height: 1),
-                      Text(
-                        tx.isSelfOrder
-                            ? '${tx.customerName.isNotEmpty ? tx.customerName : "Pelanggan"} • Online (Self-Order)'
-                            : '${tx.customerName.isNotEmpty ? tx.customerName : "Pelanggan Umum"} • Kasir: ${tx.cashierName}',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF94A3B8),
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ],
-                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
               ],
             ),
@@ -446,7 +407,7 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
                 Text(
                   CurrencyFormatter.format(tx.total),
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 13.5,
                     fontWeight: FontWeight.w700,
                     color: tx.isCancelled
                         ? const Color(0xFF94A3B8)
@@ -461,9 +422,9 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
                   Text(
                     tx.paymentMethod.toUpperCase(),
                     style: const TextStyle(
-                      fontSize: 10,
+                      fontSize: 10.5,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF94A3B8),
+                      color: Color(0xFF64748B),
                     ),
                   ),
                 ],
@@ -497,33 +458,19 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
           : (tx.orderType == 'takeaway' ? 'Online (Takeaway)' : 'Online');
 
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
         decoration: BoxDecoration(
           color: const Color(0xFFEEF2FF),
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: const Color(0xFFC7D2FE)),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.phone_android_rounded,
-              size: 11.5,
-              color: Color(0xFF4F46E5),
-            ),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF4338CA),
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF4338CA),
+          ),
+          overflow: TextOverflow.ellipsis,
         ),
       );
     }
@@ -533,39 +480,25 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
     final label = isTable
         ? 'Meja ${tx.tableNumber}'
         : (isDineIn ? 'Dine-in' : 'Takeaway');
-    final icon = isDineIn
-        ? Icons.table_restaurant_outlined
-        : Icons.shopping_bag_outlined;
     final bg = isDineIn ? const Color(0xFFECFDF5) : const Color(0xFFFFFBEB);
-    final border = isDineIn ? const Color(0xFFA7F3D0) : const Color(0xFFFDE68A);
     final textCol = isDineIn
         ? const Color(0xFF047857)
         : const Color(0xFFB45309);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: border),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 11.5, color: textCol),
-          const SizedBox(width: 4),
-          Flexible(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
-                color: textCol,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w600,
+          color: textCol,
+        ),
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
@@ -573,48 +506,32 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
   Widget _buildPaymentMethodBadge(String method) {
     final m = method.toLowerCase();
     Color bg = const Color(0xFFF1F5F9);
-    Color border = const Color(0xFFE2E8F0);
     Color textCol = const Color(0xFF475569);
-    IconData icon = Icons.payments_outlined;
 
     if (m.contains('cash') || m.contains('tunai')) {
       bg = const Color(0xFFF1F5F9);
-      border = const Color(0xFFE2E8F0);
       textCol = const Color(0xFF334155);
-      icon = Icons.payments_outlined;
     } else if (m.contains('qris')) {
       bg = const Color(0xFFEEF2FF);
-      border = const Color(0xFFC7D2FE);
       textCol = AppColors.secondary;
-      icon = Icons.qr_code_2_rounded;
     } else if (m.contains('transfer') || m.contains('bank')) {
       bg = const Color(0xFFF0F9FF);
-      border = const Color(0xFFBAE6FD);
       textCol = const Color(0xFF0284C7);
-      icon = Icons.account_balance_outlined;
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: border),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 11.5, color: textCol),
-          const SizedBox(width: 4),
-          Text(
-            method.toUpperCase(),
-            style: TextStyle(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-              color: textCol,
-            ),
-          ),
-        ],
+      child: Text(
+        method.toUpperCase(),
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: textCol,
+        ),
       ),
     );
   }
@@ -628,20 +545,6 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 32,
-                height: 32,
-                margin: const EdgeInsets.only(right: 10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.receipt_outlined,
-                  size: 16,
-                  color: Color(0xFF64748B),
-                ),
-              ),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -649,7 +552,7 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
                     Text(
                       tx.invoiceNumber,
                       style: TextStyle(
-                        fontSize: 12.5,
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: tx.isCancelled
                             ? const Color(0xFF94A3B8)
@@ -665,8 +568,8 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
                     Text(
                       '${_formatTime(tx.createdAt)} • ${tx.customerName.isNotEmpty ? tx.customerName : "Pelanggan Umum"}',
                       style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF94A3B8),
+                        fontSize: 11.5,
+                        color: Color(0xFF64748B),
                       ),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
@@ -681,7 +584,7 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
                   Text(
                     CurrencyFormatter.format(tx.total),
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 13.5,
                       fontWeight: FontWeight.w700,
                       color: tx.isCancelled
                           ? const Color(0xFF94A3B8)
@@ -707,8 +610,8 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
               Text(
                 tx.isSelfOrder ? 'Online (Self-Order)' : 'Kasir: ${tx.cashierName}',
                 style: const TextStyle(
-                  fontSize: 10.5,
-                  color: Color(0xFF94A3B8),
+                  fontSize: 11,
+                  color: Color(0xFF64748B),
                 ),
               ),
               const SizedBox(width: 4),
@@ -731,106 +634,68 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
           (tx.isSelfOrder && (tx.paymentStatus.toLowerCase() == 'failed' || tx.paid == 0));
 
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
           color: isExpired ? const Color(0xFFFFF7ED) : const Color(0xFFFEF2F2),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isExpired ? const Color(0xFFFED7AA) : const Color(0xFFFECACA),
-          ),
+          borderRadius: BorderRadius.circular(6),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isExpired ? Icons.schedule_rounded : Icons.fiber_manual_record,
-              size: isExpired ? 8.5 : 6,
-              color: isExpired ? const Color(0xFFEA580C) : const Color(0xFFDC2626),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              isExpired ? 'Kadaluarsa' : 'Batal',
-              style: TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
-                color: isExpired ? const Color(0xFFEA580C) : const Color(0xFFDC2626),
-              ),
-            ),
-          ],
+        child: Text(
+          isExpired ? 'Kadaluarsa' : 'Batal',
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+            color: isExpired ? const Color(0xFFEA580C) : const Color(0xFFDC2626),
+          ),
         ),
       );
     }
     if (tx.isPending) {
       if (tx.isSelfOrder) {
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
             color: const Color(0xFFFFF7ED),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFFED7AA)),
+            borderRadius: BorderRadius.circular(6),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(Icons.hourglass_top_rounded, size: 7.5, color: Color(0xFFEA580C)),
-              SizedBox(width: 4),
-              Text(
-                'Menunggu Bayar',
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFFEA580C),
-                ),
-              ),
-            ],
+          child: const Text(
+            'Menunggu Bayar',
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFFEA580C),
+            ),
           ),
         );
       }
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
           color: const Color(0xFFFFFBEB),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFFDE68A)),
+          borderRadius: BorderRadius.circular(6),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: const [
-            Icon(Icons.fiber_manual_record, size: 6, color: Color(0xFFD97706)),
-            SizedBox(width: 4),
-            Text(
-              'Open Bill',
-              style: TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFFD97706),
-              ),
-            ),
-          ],
+        child: const Text(
+          'Open Bill',
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFFD97706),
+          ),
         ),
       );
     }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: const Color(0xFFECFDF5),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFA7F3D0)),
+        borderRadius: BorderRadius.circular(6),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: const [
-          Icon(Icons.fiber_manual_record, size: 6, color: Color(0xFF10B981)),
-          SizedBox(width: 4),
-          Text(
-            'Selesai',
-            style: TextStyle(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF047857),
-            ),
-          ),
-        ],
+      child: const Text(
+        'Selesai',
+        style: TextStyle(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF047857),
+        ),
       ),
     );
   }

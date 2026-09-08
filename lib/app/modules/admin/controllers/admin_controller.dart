@@ -72,6 +72,8 @@ class AdminController extends GetxController {
   final RxString selectedTrxPaymentMethod = 'all'.obs; // 'all', 'cash', 'qris', 'transfer'
   final Rx<String?> selectedTrxDate =
       Rx<String?>(DateFormat('yyyy-MM-dd').format(DateTime.now()));
+  final Rx<DateTime?> selectedTrxStartDate = Rx<DateTime?>(DateTime.now());
+  final Rx<DateTime?> selectedTrxEndDate = Rx<DateTime?>(DateTime.now());
   final RxString trxSearchQuery = ''.obs;
   final TextEditingController trxSearchController = TextEditingController();
   final RxBool isLoadingTransactions = false.obs;
@@ -80,6 +82,8 @@ class AdminController extends GetxController {
   final RxList<AdminShiftModel> shifts = <AdminShiftModel>[].obs;
   final RxString selectedShiftStatus = 'all'.obs; // 'all', 'open', 'closed', 'balanced', 'discrepancy'
   final Rx<String?> selectedShiftDate = Rx<String?>(null);
+  final Rx<DateTime?> selectedShiftStartDate = Rx<DateTime?>(null);
+  final Rx<DateTime?> selectedShiftEndDate = Rx<DateTime?>(null);
   final RxString shiftSearchQuery = ''.obs;
   final TextEditingController shiftSearchController = TextEditingController();
   final RxBool isLoadingShifts = false.obs;
@@ -100,6 +104,29 @@ class AdminController extends GetxController {
         return s.isShortage || s.isOverage;
       } else if (selectedShiftStatus.value == 'balanced') {
         return !s.isOpen && s.isBalanced;
+      }
+
+      // Date range filtering (client-side safety)
+      if (selectedShiftStartDate.value != null &&
+          selectedShiftEndDate.value != null &&
+          s.startTime != null) {
+        try {
+          final shiftDt = DateTime.parse(s.startTime!);
+          final shiftDay = DateTime(shiftDt.year, shiftDt.month, shiftDt.day);
+          final startDay = DateTime(
+            selectedShiftStartDate.value!.year,
+            selectedShiftStartDate.value!.month,
+            selectedShiftStartDate.value!.day,
+          );
+          final endDay = DateTime(
+            selectedShiftEndDate.value!.year,
+            selectedShiftEndDate.value!.month,
+            selectedShiftEndDate.value!.day,
+          );
+          if (shiftDay.isBefore(startDay) || shiftDay.isAfter(endDay)) {
+            return false;
+          }
+        } catch (_) {}
       }
       return true;
     }).toList();
@@ -278,7 +305,21 @@ class AdminController extends GetxController {
       if (selectedTrxPaymentMethod.value != 'all') {
         params['payment_method'] = selectedTrxPaymentMethod.value;
       }
-      if (selectedTrxDate.value != null && selectedTrxDate.value!.isNotEmpty) {
+      if (selectedTrxDate.value == null || selectedTrxDate.value!.isEmpty) {
+        // No date filter - fetch all transactions
+      } else if (selectedTrxStartDate.value != null) {
+        final s = DateFormat('yyyy-MM-dd').format(selectedTrxStartDate.value!);
+        final e = selectedTrxEndDate.value != null
+            ? DateFormat('yyyy-MM-dd').format(selectedTrxEndDate.value!)
+            : s;
+        if (s == e) {
+          params['date'] = s;
+        } else {
+          params['start_date'] = s;
+          params['end_date'] = e;
+          params['date'] = s;
+        }
+      } else if (selectedTrxDate.value != null && selectedTrxDate.value!.isNotEmpty) {
         params['date'] = selectedTrxDate.value;
       }
       if (trxSearchQuery.value.trim().isNotEmpty) {
@@ -346,6 +387,40 @@ class AdminController extends GetxController {
     }
   }
 
+  void setTrxDateRange(DateTime? start, DateTime? end) {
+    selectedTrxStartDate.value = start;
+    selectedTrxEndDate.value = end;
+    if (start != null) {
+      final s = DateFormat('yyyy-MM-dd').format(start);
+      final e = end != null ? DateFormat('yyyy-MM-dd').format(end) : s;
+      selectedTrxDate.value = s == e ? s : '$s..$e';
+    } else {
+      selectedTrxDate.value = null;
+    }
+    fetchTransactions();
+  }
+
+  void clearTrxFilters() {
+    final now = DateTime.now();
+    selectedTrxStatus.value = 'all';
+    selectedTrxOrderSource.value = 'all';
+    selectedTrxPaymentMethod.value = 'all';
+    selectedTrxDate.value = DateFormat('yyyy-MM-dd').format(now);
+    selectedTrxStartDate.value = now;
+    selectedTrxEndDate.value = now;
+    trxSearchQuery.value = '';
+    trxSearchController.clear();
+    fetchTransactions();
+  }
+
+  void resetTrxDateToDefault() {
+    final now = DateTime.now();
+    selectedTrxDate.value = DateFormat('yyyy-MM-dd').format(now);
+    selectedTrxStartDate.value = now;
+    selectedTrxEndDate.value = now;
+    fetchTransactions();
+  }
+
   // ==========================================
   // 3. SHIFT AUDIT & Z-REPORT LOGIC
   // ==========================================
@@ -358,7 +433,18 @@ class AdminController extends GetxController {
       if (selectedShiftStatus.value == 'open' || selectedShiftStatus.value == 'closed') {
         params['status'] = selectedShiftStatus.value;
       }
-      if (selectedShiftDate.value != null && selectedShiftDate.value!.isNotEmpty) {
+
+      if (selectedShiftStartDate.value != null && selectedShiftEndDate.value != null) {
+        final startStr = DateFormat('yyyy-MM-dd').format(selectedShiftStartDate.value!);
+        final endStr = DateFormat('yyyy-MM-dd').format(selectedShiftEndDate.value!);
+        if (startStr == endStr) {
+          params['date'] = startStr;
+        } else {
+          params['start_date'] = startStr;
+          params['end_date'] = endStr;
+          params['date'] = startStr; // fallback for backend endpoints requiring single date
+        }
+      } else if (selectedShiftDate.value != null && selectedShiftDate.value!.isNotEmpty) {
         params['date'] = selectedShiftDate.value;
       }
 
@@ -378,6 +464,20 @@ class AdminController extends GetxController {
     } finally {
       isLoadingShifts.value = false;
     }
+  }
+
+  void setShiftDateRange(DateTime start, DateTime end) {
+    selectedShiftStartDate.value = start;
+    selectedShiftEndDate.value = end;
+    selectedShiftDate.value = DateFormat('yyyy-MM-dd').format(start);
+    fetchShifts();
+  }
+
+  void clearShiftDateFilter() {
+    selectedShiftStartDate.value = null;
+    selectedShiftEndDate.value = null;
+    selectedShiftDate.value = null;
+    fetchShifts();
   }
 
   Future<AdminShiftDetailModel?> fetchShiftDetail(int id) async {
@@ -580,11 +680,7 @@ class AdminController extends GetxController {
   }
 
   void setMenuCategory(int? categoryId) {
-    if (selectedMenuCategoryId.value == categoryId) {
-      selectedMenuCategoryId.value = null;
-    } else {
-      selectedMenuCategoryId.value = categoryId;
-    }
+    selectedMenuCategoryId.value = categoryId;
     fetchMenuSales();
   }
 
@@ -604,6 +700,9 @@ class AdminController extends GetxController {
   }
 
   void clearMenuFilters() {
+    selectedMenuPeriod.value = 'this_month';
+    menuCustomStartDate.value = null;
+    menuCustomEndDate.value = null;
     selectedMenuCategoryId.value = null;
     menuSearchQuery.value = '';
     menuSearchController.clear();
@@ -611,6 +710,7 @@ class AdminController extends GetxController {
     selectedMenuSortBy.value = 'quantity';
     selectedMenuSortDir.value = 'desc';
     fetchMenuSales();
+    fetchMenuCategories();
   }
 
   /// Trigger pull-to-refresh berdasarkan tab yang aktif saat ini

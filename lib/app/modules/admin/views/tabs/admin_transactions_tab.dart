@@ -44,15 +44,7 @@ class AdminTransactionsTab extends GetView<AdminController> {
 
               if (displayList.isEmpty) {
                 return TransactionsEmptyState(
-                  onResetFilter: () {
-                    controller.selectedTrxStatus.value = 'all';
-                    controller.selectedTrxOrderSource.value = 'all';
-                    controller.selectedTrxPaymentMethod.value = 'all';
-                    controller.selectedTrxDate.value = null;
-                    controller.trxSearchQuery.value = '';
-                    controller.trxSearchController.clear();
-                    controller.fetchTransactions();
-                  },
+                  onResetFilter: () => controller.clearTrxFilters(),
                 );
               }
 

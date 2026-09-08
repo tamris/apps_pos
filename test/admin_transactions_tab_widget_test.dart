@@ -162,15 +162,26 @@ void main() {
     expect(find.text('Kasir POS'), findsWidgets);
     expect(find.text('Online Order'), findsWidgets);
 
+    // Verify Reset Filter is NOT visible at initial daily default
+    expect(find.text('Reset Filter'), findsNothing);
+
     // Tap Open Bill filter
     await tester.tap(find.widgetWithText(InkWell, 'Open Bill').first);
     await tester.pumpAndSettle();
     expect(controller.selectedTrxStatus.value, 'pending');
+    expect(find.text('Reset Filter'), findsOneWidget);
 
     // Tap Batal (Void) filter
     await tester.tap(find.widgetWithText(InkWell, 'Batal (Void)').first);
     await tester.pumpAndSettle();
     expect(controller.selectedTrxStatus.value, 'cancelled');
+    expect(find.text('Reset Filter'), findsOneWidget);
+
+    // Tap Reset Filter and verify returns to default and Reset Filter hides
+    await tester.tap(find.text('Reset Filter'));
+    await tester.pumpAndSettle();
+    expect(controller.selectedTrxStatus.value, 'all');
+    expect(find.text('Reset Filter'), findsNothing);
   });
 
   testWidgets('Pumps AdminTransactionsTab on mobile screen without overflow', (tester) async {
@@ -201,5 +212,51 @@ void main() {
     expect(find.text('Pelanggan Bob'), findsWidgets);
     expect(find.text('Cari'), findsOneWidget);
     expect(find.text('Hari Ini'), findsOneWidget);
+  });
+
+  testWidgets('Opens AdminDateRangeDialog when tapping date filter button on transactions tab', (tester) async {
+    final mockApi = MockApiProvider();
+    Get.put<ApiProvider>(mockApi);
+
+    final controller = TestAdminController();
+    Get.put<AdminController>(controller);
+
+    controller.transactions.value = trxJsonList.map((e) => AdminTransactionModel.fromJson(e)).toList();
+
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      const GetMaterialApp(
+        home: Scaffold(
+          body: AdminTransactionsTab(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Tap date filter button
+    await tester.tap(find.text('Hari Ini'));
+    await tester.pumpAndSettle();
+
+    // Verify AdminDateRangeDialog is presented
+    expect(find.text('Pilih Rentang Tanggal'), findsOneWidget);
+    expect(find.text('Tentukan periode laporan transaksi & menu'), findsOneWidget);
+    expect(find.text('7 Hari Terakhir'), findsOneWidget);
+    expect(find.text('30 Hari Terakhir'), findsOneWidget);
+
+    // Tap '7 Hari Terakhir' preset chip
+    await tester.tap(find.text('7 Hari Terakhir'));
+    await tester.pumpAndSettle();
+
+    // Tap 'Terapkan Rentang'
+    await tester.tap(find.text('Terapkan Rentang'));
+    await tester.pumpAndSettle();
+
+    // Verify controller date range was updated
+    expect(controller.selectedTrxStartDate.value, isNotNull);
+    expect(controller.selectedTrxEndDate.value, isNotNull);
   });
 }

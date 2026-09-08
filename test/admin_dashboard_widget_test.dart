@@ -290,8 +290,69 @@ void main() {
     // Verify 0 (0%) is displayed, not 0 (100%)
     expect(find.text('0 (0%)'), findsWidgets);
     expect(find.text('0 (100%)'), findsNothing);
-    expect(find.text('POS: 0% • Online: 0%'), findsOneWidget);
-    expect(find.text('Dine-in: 0% • Takeaway: 0%'), findsOneWidget);
+    expect(find.text('Total Pesanan'), findsOneWidget);
+    expect(find.text('0 Pesanan'), findsOneWidget);
+  });
+
+  testWidgets('Opens AdminDateRangeDialog when tapping mobile date filter bar', (tester) async {
+    final mockApi = MockApiProvider();
+    Get.put<ApiProvider>(mockApi);
+
+    final controller = TestAdminController();
+    Get.put<AdminController>(controller);
+
+    final json = {
+      'date': '2026-09-05',
+      'summary': {
+        'total_revenue': 500000,
+        'total_transactions': 5,
+        'average_per_transaction': 100000,
+      },
+      'payment_breakdown': {
+        'cash': {'count': 5, 'total': 500000},
+        'qris': {'count': 0, 'total': 0},
+        'transfer': {'count': 0, 'total': 0},
+      },
+      'order_source_breakdown': {
+        'pos': {'count': 5, 'total': 500000, 'label': 'Kasir POS'},
+      },
+      'order_type_breakdown': {
+        'dine_in': {'count': 5, 'total': 500000, 'label': 'Dine In'},
+      },
+      'active_shift': null,
+      'open_bills_summary': {'count': 0, 'potential_revenue': 0},
+      'cancellations_summary': {'count': 0, 'total_nominal': 0},
+    };
+
+    controller.dashboardData.value = AdminDashboardModel.fromJson(json);
+
+    // Set size to mobile phone (390 x 844) so isScreenMobile is true
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      const GetMaterialApp(
+        home: Scaffold(
+          body: AdminDashboardTab(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Tap the calendar icon or date inkwell
+    final calendarIcon = find.byIcon(Icons.calendar_today_rounded).first;
+    expect(calendarIcon, findsOneWidget);
+
+    await tester.tap(calendarIcon);
+    await tester.pumpAndSettle();
+
+    // Verify AdminDateRangeDialog is shown
+    expect(find.text('Pilih Tanggal Dashboard'), findsOneWidget);
+    expect(find.text('Pilih tanggal untuk melihat ringkasan performa'), findsOneWidget);
+    expect(find.text('Hari Ini'), findsWidgets);
+    expect(find.text('Kemarin'), findsWidgets);
   });
 }
 

@@ -34,18 +34,18 @@ class DashboardOperationsWatchlistCard extends StatelessWidget {
           ? const Color(0xFFD97706)
           : const Color(0xFF64748B),
       title: openBillsCount > 0
-          ? '$openBillsCount Meja Belum Lunas'
-          : 'Semua Tagihan Meja Lunas',
+          ? '$openBillsCount Meja Belum Bayar'
+          : 'Semua Tagihan Selesai',
       subtitle: openBillsCount > 0
-          ? 'Potensi tertunda: ${CurrencyFormatter.format(openBillsPotential)}'
-          : 'Tidak ada open bill / tagihan gantung',
+          ? 'Tertunda: ${CurrencyFormatter.format(openBillsPotential)}'
+          : 'Tidak ada tagihan meja gantung',
       subtitleColor: openBillsCount > 0
           ? const Color(0xFFD97706)
-          : const Color(0xFF94A3B8),
+          : const Color(0xFF64748B),
       actionText: openBillsCount > 0 ? 'Lihat Meja' : 'Denah',
       actionColor: openBillsCount > 0
           ? AppColors.secondary
-          : const Color(0xFF64748B),
+          : const Color(0xFF475569),
       actionBg: openBillsCount > 0
           ? const Color(0xFFEEF2FF)
           : const Color(0xFFF1F5F9),
@@ -69,18 +69,18 @@ class DashboardOperationsWatchlistCard extends StatelessWidget {
           ? const Color(0xFFDC2626)
           : const Color(0xFF64748B),
       title: cancellationsCount > 0
-          ? '$cancellationsCount Pembatalan Nota (Void)'
-          : 'Nol Pembatalan Nota (Void)',
+          ? '$cancellationsCount Pembatalan (Void)'
+          : 'Pembatalan (Void)',
       subtitle: cancellationsCount > 0
           ? 'Total nominal: ${CurrencyFormatter.format(cancellationsNominal)}'
-          : 'Seluruh transaksi hari ini tercatat valid',
+          : 'Tidak ada nota dibatalkan',
       subtitleColor: cancellationsCount > 0
           ? const Color(0xFFDC2626)
-          : const Color(0xFF94A3B8),
+          : const Color(0xFF64748B),
       actionText: cancellationsCount > 0 ? 'Audit Void' : 'Riwayat',
       actionColor: cancellationsCount > 0
           ? const Color(0xFFDC2626)
-          : const Color(0xFF64748B),
+          : const Color(0xFF475569),
       actionBg: cancellationsCount > 0
           ? const Color(0xFFFEF2F2)
           : const Color(0xFFF1F5F9),
@@ -130,44 +130,31 @@ class DashboardOperationsWatchlistCard extends StatelessWidget {
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 7,
-                  vertical: 2.5,
+                  horizontal: 8,
+                  vertical: 3,
                 ),
                 decoration: BoxDecoration(
                   color: totalIssues > 0
                       ? const Color(0xFFFFFBEB)
-                      : const Color(0xFFECFDF5),
-                  borderRadius: BorderRadius.circular(12),
+                      : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(6),
                   border: Border.all(
                     color: totalIssues > 0
                         ? const Color(0xFFFDE68A)
-                        : const Color(0xFFA7F3D0),
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.fiber_manual_record,
-                      size: 6,
-                      color: totalIssues > 0
-                          ? const Color(0xFFD97706)
-                          : const Color(0xFF10B981),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      totalIssues > 0
-                          ? '$totalIssues Isu Perlu Perhatian'
-                          : 'Operasional Tertib',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: totalIssues > 0
-                            ? const Color(0xFFB45309)
-                            : const Color(0xFF047857),
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  totalIssues > 0
+                      ? '$totalIssues Perhatian'
+                      : 'Tertib',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: totalIssues > 0
+                        ? const Color(0xFFB45309)
+                        : const Color(0xFF475569),
+                  ),
                 ),
               ),
             ],
@@ -211,7 +198,7 @@ class DashboardOperationsWatchlistCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             color: cardBg,
             borderRadius: BorderRadius.circular(10),
@@ -220,13 +207,13 @@ class DashboardOperationsWatchlistCard extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
                   color: iconBg,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: iconColor, size: 18),
+                child: Icon(icon, color: iconColor, size: 16),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -247,9 +234,9 @@ class DashboardOperationsWatchlistCard extends StatelessWidget {
                     Text(
                       subtitle,
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 11.5,
                         color: subtitleColor,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w400,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -258,29 +245,18 @@ class DashboardOperationsWatchlistCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
                 decoration: BoxDecoration(
                   color: actionBg,
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      actionText,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: actionColor,
-                      ),
-                    ),
-                    const SizedBox(width: 3),
-                    Icon(
-                      Icons.arrow_forward_rounded,
-                      size: 12,
-                      color: actionColor,
-                    ),
-                  ],
+                child: Text(
+                  actionText,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: actionColor,
+                  ),
                 ),
               ),
             ],

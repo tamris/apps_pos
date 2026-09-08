@@ -27,7 +27,7 @@ class DashboardKpiSection extends StatelessWidget {
       icon: Icons.account_balance_wallet_outlined,
       iconColor: AppColors.secondary,
       iconBg: const Color(0xFFEEF2FF),
-      subtitle: '${summary.totalTransactions} pesanan berhasil diproses',
+      subtitle: '${summary.totalTransactions} pesanan berhasil',
       isCompact: isCompact,
     );
 
@@ -38,7 +38,7 @@ class DashboardKpiSection extends StatelessWidget {
       icon: Icons.trending_up_rounded,
       iconColor: const Color(0xFF7C3AED),
       iconBg: const Color(0xFFF5F3FF),
-      subtitle: '${marginVal.toStringAsFixed(1)}% margin keuntungan',
+      subtitle: '${marginVal.toStringAsFixed(1)}% margin laba',
       isCompact: isCompact,
     );
 
@@ -46,10 +46,10 @@ class DashboardKpiSection extends StatelessWidget {
       label: 'Total Menu / Cup Terjual',
       value: '$itemsSoldVal Item Terjual',
       valueColor: const Color(0xFF0F172A),
-      icon: Icons.local_cafe_rounded,
+      icon: Icons.local_cafe_outlined,
       iconColor: const Color(0xFFD97706),
       iconBg: const Color(0xFFFEF3C7),
-      subtitle: 'Total item diproduksi bar & dapur',
+      subtitle: 'Total produk terjual',
       isCompact: isCompact,
     );
 
@@ -130,7 +130,7 @@ class DashboardKpiSection extends StatelessWidget {
                 child: Text(
                   label,
                   style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF64748B),
                     letterSpacing: -0.1,
@@ -140,8 +140,8 @@ class DashboardKpiSection extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Container(
-                width: 30,
-                height: 30,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
                   color: iconBg,
                   borderRadius: BorderRadius.circular(8),
@@ -167,7 +167,11 @@ class DashboardKpiSection extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             subtitle,
-            style: const TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8)),
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF64748B),
+              fontWeight: FontWeight.w400,
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

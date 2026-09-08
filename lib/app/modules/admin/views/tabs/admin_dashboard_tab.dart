@@ -11,6 +11,7 @@ import '../widgets/dashboard/dashboard_operations_watchlist_card.dart';
 import '../widgets/dashboard/dashboard_channel_distribution_card.dart';
 import '../widgets/dashboard/dashboard_menu_sales_shortcut_card.dart';
 import '../widgets/dashboard/dashboard_recent_activity_section.dart';
+import '../widgets/common/admin_date_range_dialog.dart';
 
 class AdminDashboardTab extends GetView<AdminController> {
   const AdminDashboardTab({super.key});
@@ -181,40 +182,16 @@ class AdminDashboardTab extends GetView<AdminController> {
             child: InkWell(
               borderRadius: BorderRadius.circular(6),
               onTap: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: DateTime.tryParse(selected) ?? DateTime.now(),
-                  firstDate: DateTime(2024),
-                  lastDate: DateTime.now().add(const Duration(days: 30)),
-                  initialEntryMode: DatePickerEntryMode.calendarOnly,
-                  helpText: 'PILIH TANGGAL',
-                  cancelText: 'Batal',
-                  confirmText: 'Terapkan',
-                  builder: (context, child) {
-                    return Theme(
-                      data: Theme.of(context).copyWith(
-                        colorScheme: const ColorScheme.light(
-                          primary: AppColors.secondary,
-                          onPrimary: Colors.white,
-                          surface: Colors.white,
-                          onSurface: Color(0xFF0F172A),
-                        ),
-                        datePickerTheme: DatePickerThemeData(
-                          backgroundColor: Colors.white,
-                          headerBackgroundColor: AppColors.secondary,
-                          headerForegroundColor: Colors.white,
-                          surfaceTintColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                      ),
-                      child: child!,
-                    );
-                  },
+                final initial = DateTime.tryParse(selected) ?? DateTime.now();
+                final picked = await AdminDateRangeDialog.show(
+                  context,
+                  initialStartDate: initial,
+                  initialEndDate: initial,
+                  title: 'Pilih Tanggal Dashboard',
+                  subtitle: 'Pilih tanggal untuk melihat ringkasan performa',
                 );
                 if (picked != null) {
-                  controller.changeDashboardDate(picked);
+                  controller.changeDashboardDate(picked.start);
                 }
               },
               child: Row(

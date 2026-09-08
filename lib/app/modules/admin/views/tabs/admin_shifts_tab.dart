@@ -37,10 +37,9 @@ class AdminShiftsTab extends GetView<AdminController> {
                 return ShiftsEmptyState(
                   onReset: () {
                     controller.selectedShiftStatus.value = 'all';
-                    controller.selectedShiftDate.value = null;
+                    controller.clearShiftDateFilter();
                     controller.shiftSearchController.clear();
                     controller.shiftSearchQuery.value = '';
-                    controller.fetchShifts();
                   },
                 );
               }

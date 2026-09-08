@@ -22,7 +22,6 @@ class DashboardChannelDistributionCard extends StatelessWidget {
     final onlineCount = data.orderSourceBreakdown.onlineOrder.count;
     final channelCountSum = posCount + onlineCount;
     final channelSum = posTotal + onlineTotal;
-    final hasChannelData = channelCountSum > 0 || channelSum > 0;
 
     final dineInTotal = data.orderTypeBreakdown.dineIn.total;
     final takeawayTotal = data.orderTypeBreakdown.takeaway.total;
@@ -30,7 +29,6 @@ class DashboardChannelDistributionCard extends StatelessWidget {
     final takeawayCount = data.orderTypeBreakdown.takeaway.count;
     final typeCountSum = dineInCount + takeawayCount;
     final typeSum = dineInTotal + takeawayTotal;
-    final hasTypeData = typeCountSum > 0 || typeSum > 0;
 
     final posPercent = channelSum > 0
         ? (posTotal / channelSum)
@@ -38,6 +36,7 @@ class DashboardChannelDistributionCard extends StatelessWidget {
     final dineInPercent = typeSum > 0
         ? (dineInTotal / typeSum)
         : (typeCountSum > 0 ? (dineInCount / typeCountSum) : 0.0);
+    final totalOrders = channelCountSum > 0 ? channelCountSum : typeCountSum;
     final useSideBySide = isTablet || height != null;
 
     return Container(
@@ -153,31 +152,19 @@ class DashboardChannelDistributionCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Flexible(
-                    child: Text(
-                      hasChannelData
-                          ? 'POS: ${(posPercent * 100).toInt()}% • Online: ${((1 - posPercent) * 100).toInt()}%'
-                          : 'POS: 0% • Online: 0%',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF64748B),
-                      ),
-                      overflow: TextOverflow.ellipsis,
+                  const Text(
+                    'Total Pesanan',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF64748B),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      hasTypeData
-                          ? 'Dine-in: ${(dineInPercent * 100).toInt()}% • Takeaway: ${((1 - dineInPercent) * 100).toInt()}%'
-                          : 'Dine-in: 0% • Takeaway: 0%',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF475569),
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.end,
+                  Text(
+                    '$totalOrders Pesanan',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF0F172A),
                     ),
                   ),
                 ],
@@ -211,10 +198,10 @@ class DashboardChannelDistributionCard extends StatelessWidget {
         Text(
           title,
           style: const TextStyle(
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF94A3B8),
-            letterSpacing: 0.6,
+            color: Color(0xFF64748B),
+            letterSpacing: 0.5,
           ),
         ),
         const SizedBox(height: 8),
@@ -252,19 +239,19 @@ class DashboardChannelDistributionCard extends StatelessWidget {
               child: Row(
                 children: [
                   Container(
-                    width: 6,
-                    height: 6,
+                    width: 7,
+                    height: 7,
                     decoration: BoxDecoration(
                       color: colorA,
                       shape: BoxShape.circle,
                     ),
                   ),
-                  const SizedBox(width: 5),
+                  const SizedBox(width: 6),
                   Flexible(
                     child: Text(
                       labelA,
                       style: const TextStyle(
-                        fontSize: 11,
+                        fontSize: 12,
                         color: Color(0xFF334155),
                         fontWeight: FontWeight.w500,
                       ),
@@ -274,18 +261,18 @@ class DashboardChannelDistributionCard extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: 6),
             Text(
               '$countA ($percentA%)',
               style: const TextStyle(
-                fontSize: 10.5,
+                fontSize: 11.5,
                 color: Color(0xFF64748B),
                 fontWeight: FontWeight.w600,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 5),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -293,19 +280,19 @@ class DashboardChannelDistributionCard extends StatelessWidget {
               child: Row(
                 children: [
                   Container(
-                    width: 6,
-                    height: 6,
+                    width: 7,
+                    height: 7,
                     decoration: BoxDecoration(
                       color: colorB,
                       shape: BoxShape.circle,
                     ),
                   ),
-                  const SizedBox(width: 5),
+                  const SizedBox(width: 6),
                   Flexible(
                     child: Text(
                       labelB,
                       style: const TextStyle(
-                        fontSize: 11,
+                        fontSize: 12,
                         color: Color(0xFF334155),
                         fontWeight: FontWeight.w500,
                       ),
@@ -315,11 +302,11 @@ class DashboardChannelDistributionCard extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: 6),
             Text(
               '$countB ($percentB%)',
               style: const TextStyle(
-                fontSize: 10.5,
+                fontSize: 11.5,
                 color: Color(0xFF64748B),
                 fontWeight: FontWeight.w600,
               ),

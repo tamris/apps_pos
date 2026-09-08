@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:noli_apps/app/core/theme/app_colors.dart';
 import 'package:noli_apps/app/modules/admin/controllers/admin_controller.dart';
+import '../common/admin_date_range_dialog.dart';
 
 class TransactionsFilterBar extends GetView<AdminController> {
   const TransactionsFilterBar({super.key});
@@ -151,16 +152,46 @@ class TransactionsFilterBar extends GetView<AdminController> {
 
   Widget _buildDateSelectorBtn(BuildContext context) {
     return Obx(() {
+      final now = DateTime.now();
+      final todayStr = DateFormat('yyyy-MM-dd').format(now);
       final dateStr = controller.selectedTrxDate.value;
-      final isFiltered = dateStr != null && dateStr.isNotEmpty;
+      final start = controller.selectedTrxStartDate.value;
+      final end = controller.selectedTrxEndDate.value;
+
+      final isDateChanged = dateStr != todayStr ||
+          (start != null &&
+              DateFormat('yyyy-MM-dd').format(start) != todayStr) ||
+          (end != null && DateFormat('yyyy-MM-dd').format(end) != todayStr);
 
       String displayLabel = 'Filter Tanggal';
-      if (isFiltered) {
+      if (start != null) {
+        final isToday = start.year == now.year &&
+            start.month == now.month &&
+            start.day == now.day;
+        final yesterday = now.subtract(const Duration(days: 1));
+        final isYesterday = start.year == yesterday.year &&
+            start.month == yesterday.month &&
+            start.day == yesterday.day;
+
+        if (end == null ||
+            (start.year == end.year &&
+                start.month == end.month &&
+                start.day == end.day)) {
+          if (isToday) {
+            displayLabel = 'Hari Ini';
+          } else if (isYesterday) {
+            displayLabel = 'Kemarin';
+          } else {
+            displayLabel = DateFormat('dd MMM yyyy').format(start);
+          }
+        } else {
+          displayLabel =
+              '${DateFormat('d MMM').format(start)} - ${DateFormat('d MMM yyyy').format(end)}';
+        }
+      } else if (dateStr != null && dateStr.isNotEmpty) {
         try {
           final dt = DateTime.parse(dateStr);
-          final now = DateTime.now();
-          if (DateFormat('yyyy-MM-dd').format(dt) ==
-              DateFormat('yyyy-MM-dd').format(now)) {
+          if (DateFormat('yyyy-MM-dd').format(dt) == todayStr) {
             displayLabel = 'Hari Ini';
           } else {
             displayLabel = DateFormat('dd MMM yyyy').format(dt);
@@ -174,11 +205,11 @@ class TransactionsFilterBar extends GetView<AdminController> {
         height: 40,
         child: OutlinedButton.icon(
           style: OutlinedButton.styleFrom(
-            backgroundColor: isFiltered
+            backgroundColor: isDateChanged
                 ? const Color(0xFFEEF2FF)
                 : const Color(0xFFF8FAFC),
             side: BorderSide(
-              color: isFiltered
+              color: isDateChanged
                   ? const Color(0xFF818CF8)
                   : const Color(0xFFE2E8F0),
             ),
@@ -187,13 +218,13 @@ class TransactionsFilterBar extends GetView<AdminController> {
             ),
             padding: const EdgeInsets.symmetric(horizontal: 12),
             foregroundColor:
-                isFiltered ? AppColors.secondary : const Color(0xFF475569),
+                isDateChanged ? AppColors.secondary : const Color(0xFF475569),
           ),
           onPressed: () => _pickDate(context),
           icon: Icon(
             Icons.calendar_today_rounded,
             size: 15,
-            color: isFiltered ? AppColors.secondary : const Color(0xFF64748B),
+            color: isDateChanged ? AppColors.secondary : const Color(0xFF64748B),
           ),
           label: Row(
             mainAxisSize: MainAxisSize.min,
@@ -202,15 +233,14 @@ class TransactionsFilterBar extends GetView<AdminController> {
                 displayLabel,
                 style: TextStyle(
                   fontSize: 12,
-                  fontWeight: isFiltered ? FontWeight.w700 : FontWeight.w500,
+                  fontWeight: isDateChanged ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),
-              if (isFiltered) ...[
+              if (isDateChanged) ...[
                 const SizedBox(width: 6),
                 InkWell(
                   onTap: () {
-                    controller.selectedTrxDate.value = null;
-                    controller.fetchTransactions();
+                    controller.resetTrxDateToDefault();
                   },
                   borderRadius: BorderRadius.circular(10),
                   child: const Icon(
@@ -229,10 +259,21 @@ class TransactionsFilterBar extends GetView<AdminController> {
 
   Widget _buildFilterChipsRow() {
     return Obx(() {
+      final now = DateTime.now();
+      final todayStr = DateFormat('yyyy-MM-dd').format(now);
+      final dateStr = controller.selectedTrxDate.value;
+      final start = controller.selectedTrxStartDate.value;
+      final end = controller.selectedTrxEndDate.value;
+
+      final isDateChanged = dateStr != todayStr ||
+          (start != null &&
+              DateFormat('yyyy-MM-dd').format(start) != todayStr) ||
+          (end != null && DateFormat('yyyy-MM-dd').format(end) != todayStr);
+
       final isFilterActive = controller.selectedTrxStatus.value != 'all' ||
           controller.selectedTrxOrderSource.value != 'all' ||
           controller.selectedTrxPaymentMethod.value != 'all' ||
-          controller.selectedTrxDate.value != null ||
+          isDateChanged ||
           controller.trxSearchQuery.value.isNotEmpty;
 
       // Calculate totals for Open Bill (Khusus meja kasir POS) and Batal (Void)
@@ -340,15 +381,7 @@ class TransactionsFilterBar extends GetView<AdminController> {
             const SizedBox(width: 10),
             InkWell(
               borderRadius: BorderRadius.circular(8),
-              onTap: () {
-                controller.selectedTrxStatus.value = 'all';
-                controller.selectedTrxOrderSource.value = 'all';
-                controller.selectedTrxPaymentMethod.value = 'all';
-                controller.selectedTrxDate.value = null;
-                controller.trxSearchQuery.value = '';
-                controller.trxSearchController.clear();
-                controller.fetchTransactions();
-              },
+              onTap: () => controller.clearTrxFilters(),
               child: Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
@@ -612,90 +645,28 @@ class TransactionsFilterBar extends GetView<AdminController> {
 
   Future<void> _pickDate(BuildContext context) async {
     final now = DateTime.now();
-    DateTime initial = now;
-    if (controller.selectedTrxDate.value != null) {
+    DateTime initialStart = now;
+    DateTime initialEnd = now;
+
+    if (controller.selectedTrxStartDate.value != null) {
+      initialStart = controller.selectedTrxStartDate.value!;
+      initialEnd = controller.selectedTrxEndDate.value ?? initialStart;
+    } else if (controller.selectedTrxDate.value != null) {
       try {
-        initial = DateTime.parse(controller.selectedTrxDate.value!);
+        final parsed = DateTime.parse(controller.selectedTrxDate.value!);
+        initialStart = parsed;
+        initialEnd = parsed;
       } catch (_) {}
     }
 
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: DateTime(2023),
-      lastDate: DateTime(2030),
-      initialEntryMode: DatePickerEntryMode.calendarOnly,
-      helpText: 'PILIH TANGGAL TRANSAKSI',
-      cancelText: 'Batal',
-      confirmText: 'Terapkan',
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.secondary,
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Color(0xFF0F172A),
-            ),
-            datePickerTheme: DatePickerThemeData(
-              backgroundColor: Colors.white,
-              headerBackgroundColor: AppColors.secondary,
-              headerForegroundColor: Colors.white,
-              headerHeadlineStyle: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-              headerHelpStyle: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.8,
-                color: Color(0xFFC7D2FE),
-              ),
-              surfaceTintColor: Colors.transparent,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              dayStyle: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
-              todayBorder: const BorderSide(
-                color: AppColors.secondary,
-                width: 1.5,
-              ),
-              todayForegroundColor: WidgetStateProperty.all(
-                AppColors.secondary,
-              ),
-            ),
-            textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.secondary,
-                textStyle: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 8,
-                ),
-              ),
-            ),
-          ),
-          child: MediaQuery(
-            data: MediaQuery.of(context).copyWith(
-              size: const Size(360, 700),
-            ),
-            child: child!,
-          ),
-        );
-      },
+    final picked = await AdminDateRangeDialog.show(
+      context,
+      initialStartDate: initialStart,
+      initialEndDate: initialEnd,
     );
 
     if (picked != null) {
-      controller.selectedTrxDate.value =
-          DateFormat('yyyy-MM-dd').format(picked);
-      controller.fetchTransactions();
+      controller.setTrxDateRange(picked.start, picked.end);
     }
   }
 }

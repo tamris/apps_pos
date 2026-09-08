@@ -146,9 +146,9 @@ class DashboardPaymentDistributionCard extends StatelessWidget {
                 children: [
                   const Flexible(
                     child: Text(
-                      'Total Penerimaan Real-Time',
+                      'Total Pembayaran',
                       maxLines: 1,
-                      style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -157,7 +157,7 @@ class DashboardPaymentDistributionCard extends StatelessWidget {
                     '${p.cash.count + p.qris.count + p.transfer.count} Transaksi',
                     maxLines: 1,
                     style: const TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF0F172A),
                     ),
@@ -183,8 +183,8 @@ class DashboardPaymentDistributionCard extends StatelessWidget {
     return Row(
       children: [
         Container(
-          width: 8,
-          height: 8,
+          width: 7,
+          height: 7,
           decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
         ),
         const SizedBox(width: 8),
@@ -194,7 +194,7 @@ class DashboardPaymentDistributionCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 12,
+              fontSize: 12.5,
               fontWeight: FontWeight.w500,
               color: Color(0xFF334155),
             ),
@@ -203,14 +203,14 @@ class DashboardPaymentDistributionCard extends StatelessWidget {
         Text(
           '$count trx • $percentInt%',
           maxLines: 1,
-          style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+          style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
         ),
         const SizedBox(width: 10),
         Text(
           CurrencyFormatter.format(total),
           maxLines: 1,
           style: const TextStyle(
-            fontSize: 12.5,
+            fontSize: 13,
             fontWeight: FontWeight.w600,
             color: Color(0xFF0F172A),
           ),

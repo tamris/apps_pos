@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:noli_apps/app/core/theme/app_colors.dart';
 import 'package:noli_apps/app/modules/admin/controllers/admin_controller.dart';
+import '../common/admin_date_range_dialog.dart';
 
 class ShiftsFilterBar extends StatelessWidget {
   final AdminController controller;
@@ -143,6 +144,7 @@ class ShiftsFilterBar extends StatelessWidget {
       final list = controller.shifts;
       final discrepancyCount = list.where((s) => !s.isOpen && (s.isShortage || s.isOverage)).length;
       final isFilterActive = controller.selectedShiftStatus.value != 'all' ||
+          controller.selectedShiftStartDate.value != null ||
           controller.selectedShiftDate.value != null ||
           controller.shiftSearchQuery.value.isNotEmpty;
 
@@ -166,10 +168,9 @@ class ShiftsFilterBar extends StatelessWidget {
               borderRadius: BorderRadius.circular(6),
               onTap: () {
                 controller.selectedShiftStatus.value = 'all';
-                controller.selectedShiftDate.value = null;
+                controller.clearShiftDateFilter();
                 controller.shiftSearchQuery.value = '';
                 controller.shiftSearchController.clear();
-                controller.fetchShifts();
               },
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
@@ -274,10 +275,29 @@ class ShiftsFilterBar extends StatelessWidget {
   Widget _buildDateFilterBtn(BuildContext context) {
     return Obx(() {
       final date = controller.selectedShiftDate.value;
-      final isDateActive = date != null && date.isNotEmpty;
+      final start = controller.selectedShiftStartDate.value;
+      final end = controller.selectedShiftEndDate.value;
+      final isDateActive = (start != null && end != null) || (date != null && date.isNotEmpty);
 
       String displayLabel = 'Filter Tanggal';
-      if (isDateActive) {
+      if (start != null && end != null) {
+        final now = DateTime.now();
+        final isToday = start.year == now.year && start.month == now.month && start.day == now.day;
+        final yesterday = now.subtract(const Duration(days: 1));
+        final isYesterday = start.year == yesterday.year && start.month == yesterday.month && start.day == yesterday.day;
+
+        if (start.year == end.year && start.month == end.month && start.day == end.day) {
+          if (isToday) {
+            displayLabel = 'Hari Ini';
+          } else if (isYesterday) {
+            displayLabel = 'Kemarin';
+          } else {
+            displayLabel = DateFormat('dd MMM yyyy').format(start);
+          }
+        } else {
+          displayLabel = '${DateFormat('d MMM').format(start)} - ${DateFormat('d MMM yyyy').format(end)}';
+        }
+      } else if (date != null && date.isNotEmpty) {
         try {
           final dt = DateTime.parse(date);
           final now = DateTime.now();
@@ -304,81 +324,24 @@ class ShiftsFilterBar extends StatelessWidget {
             foregroundColor: isDateActive ? AppColors.secondary : const Color(0xFF475569),
           ),
           onPressed: () async {
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: DateTime.now(),
-              firstDate: DateTime(2024),
-              lastDate: DateTime.now().add(const Duration(days: 30)),
-              initialEntryMode: DatePickerEntryMode.calendarOnly,
-              helpText: 'PILIH TANGGAL AUDIT SHIFT',
-              cancelText: 'Batal',
-              confirmText: 'Terapkan',
-              builder: (context, child) {
-                return Theme(
-                  data: Theme.of(context).copyWith(
-                    colorScheme: const ColorScheme.light(
-                      primary: AppColors.secondary,
-                      onPrimary: Colors.white,
-                      surface: Colors.white,
-                      onSurface: Color(0xFF0F172A),
-                    ),
-                    datePickerTheme: DatePickerThemeData(
-                      backgroundColor: Colors.white,
-                      headerBackgroundColor: AppColors.secondary,
-                      headerForegroundColor: Colors.white,
-                      headerHeadlineStyle: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                      headerHelpStyle: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.8,
-                        color: Color(0xFFC7D2FE),
-                      ),
-                      surfaceTintColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      dayStyle: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                      todayBorder: const BorderSide(
-                        color: AppColors.secondary,
-                        width: 1.5,
-                      ),
-                      todayForegroundColor: WidgetStateProperty.all(
-                        AppColors.secondary,
-                      ),
-                    ),
-                    textButtonTheme: TextButtonThemeData(
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.secondary,
-                        textStyle: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 8,
-                        ),
-                      ),
-                    ),
-                  ),
-                  child: MediaQuery(
-                    data: MediaQuery.of(context).copyWith(
-                      size: const Size(360, 700),
-                    ),
-                    child: child!,
-                  ),
-                );
-              },
+            final now = DateTime.now();
+            DateTime initialStart = controller.selectedShiftStartDate.value ?? now;
+            DateTime initialEnd = controller.selectedShiftEndDate.value ?? initialStart;
+            if (controller.selectedShiftStartDate.value == null && controller.selectedShiftDate.value != null) {
+              final parsed = DateTime.tryParse(controller.selectedShiftDate.value!) ?? now;
+              initialStart = parsed;
+              initialEnd = parsed;
+            }
+
+            final picked = await AdminDateRangeDialog.show(
+              context,
+              initialStartDate: initialStart,
+              initialEndDate: initialEnd,
+              title: 'Pilih Tanggal Audit Shift',
+              subtitle: 'Pilih rentang tanggal untuk audit shift kasir & Z-Report',
             );
             if (picked != null) {
-              controller.selectedShiftDate.value = DateFormat('yyyy-MM-dd').format(picked);
-              controller.fetchShifts();
+              controller.setShiftDateRange(picked.start, picked.end);
             }
           },
           icon: Icon(
@@ -400,9 +363,9 @@ class ShiftsFilterBar extends StatelessWidget {
                 const SizedBox(width: 6),
                 InkWell(
                   onTap: () {
-                    controller.selectedShiftDate.value = null;
-                    controller.fetchShifts();
+                    controller.clearShiftDateFilter();
                   },
+                  borderRadius: BorderRadius.circular(10),
                   child: const Icon(
                     Icons.close_rounded,
                     size: 14,

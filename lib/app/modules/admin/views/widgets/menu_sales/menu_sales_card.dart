@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:noli_apps/app/core/theme/app_colors.dart';
 import 'package:noli_apps/app/core/utils/currency_formatter.dart';
 import 'package:noli_apps/app/core/widgets/app_cached_image.dart';
 import 'package:noli_apps/app/data/models/admin_menu_sales_model.dart';
@@ -17,7 +18,7 @@ class MenuSalesCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: const Color(0xFFE2E8F0),
           width: 1,
@@ -25,20 +26,20 @@ class MenuSalesCard extends StatelessWidget {
         boxShadow: const [
           BoxShadow(
             color: Color(0x04000000),
-            blurRadius: 8,
+            blurRadius: 6,
             offset: Offset(0, 2),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         child: InkWell(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           onTap: () => AdminMenuSalesDetailDialog.show(context, item.productId),
           child: Padding(
             padding:
-                const EdgeInsets.symmetric(horizontal: 14.0, vertical: 11.0),
+                const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -120,7 +121,7 @@ class MenuSalesCard extends StatelessWidget {
                   ],
                 ),
 
-                // Bottom Row: Sales Volume & Popularity Progress Strip
+                // Bottom Row: Sales Volume & Order Frequency
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
@@ -129,68 +130,27 @@ class MenuSalesCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: const Color(0xFFF1F5F9)),
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                  child: Row(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Icon(
-                                  item.rank <= 3
-                                      ? Icons.local_fire_department_rounded
-                                      : Icons.restaurant_menu_rounded,
-                                  size: 13.5,
-                                  color: item.rank == 1
-                                      ? const Color(0xFFD97706)
-                                      : item.rank <= 3
-                                          ? const Color(0xFFEA580C)
-                                          : const Color(0xFF4F46E5),
-                                ),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(
-                                    '${item.quantitySold} Porsi Terjual',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFF0F172A),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                      Expanded(
+                        child: Text(
+                          '${item.quantitySold} Porsi Terjual',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF0F172A),
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '${item.transactionsCount}x Pesanan',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF64748B),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                      const SizedBox(height: 5),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(2),
-                        child: LinearProgressIndicator(
-                          value: (item.salesSharePercentage / 100)
-                              .clamp(0.02, 1.0),
-                          minHeight: 3.5,
-                          backgroundColor: const Color(0xFFE2E8F0),
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            item.rank == 1
-                                ? const Color(0xFFD97706)
-                                : item.rank <= 3
-                                    ? const Color(0xFF6366F1)
-                                    : const Color(0xFF94A3B8),
-                          ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${item.transactionsCount}x Pesanan',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF64748B),
                         ),
                       ),
                     ],
@@ -206,8 +166,8 @@ class MenuSalesCard extends StatelessWidget {
 
   Widget _buildProductThumbnail(String? imageUrl) {
     return Container(
-      width: 42,
-      height: 42,
+      width: 40,
+      height: 40,
       decoration: BoxDecoration(
         color: const Color(0xFFF1F5F9),
         borderRadius: BorderRadius.circular(8),
@@ -215,8 +175,8 @@ class MenuSalesCard extends StatelessWidget {
       ),
       child: AppCachedImage(
         imageUrl: imageUrl,
-        width: 42,
-        height: 42,
+        width: 40,
+        height: 40,
         borderRadius: 7,
         placeholderIcon: Icons.restaurant_menu_rounded,
       ),
@@ -232,14 +192,10 @@ class MenuSalesCard extends StatelessWidget {
       bg = const Color(0xFFFEF3C7);
       border = const Color(0xFFFDE68A);
       text = const Color(0xFFB45309);
-    } else if (rank == 2) {
+    } else if (rank <= 3) {
       bg = const Color(0xFFF1F5F9);
       border = const Color(0xFFE2E8F0);
-      text = const Color(0xFF475569);
-    } else if (rank == 3) {
-      bg = const Color(0xFFFFF7ED);
-      border = const Color(0xFFFFEDD5);
-      text = const Color(0xFFC2410C);
+      text = const Color(0xFF334155);
     } else {
       bg = const Color(0xFFF8FAFC);
       border = const Color(0xFFE2E8F0);
@@ -268,16 +224,18 @@ class MenuSalesCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
       decoration: BoxDecoration(
-        color: const Color(0xFFEEF2FF),
+        color: AppColors.secondarySoft,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0xFFC7D2FE)),
+        border: Border.all(
+          color: AppColors.secondaryLight.withValues(alpha: 0.5),
+        ),
       ),
       child: Text(
         '$share% Pangsa',
         style: const TextStyle(
           fontSize: 10.5,
           fontWeight: FontWeight.w700,
-          color: Color(0xFF4338CA),
+          color: AppColors.secondary,
         ),
       ),
     );

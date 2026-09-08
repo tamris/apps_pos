@@ -21,20 +21,22 @@ class DashboardMenuSalesShortcutCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE4E4E7), width: 1),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
-              color: const Color(0xFFF4F4F5),
-              borderRadius: BorderRadius.circular(10),
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
             child: const Icon(
-              Icons.restaurant_menu_rounded,
-              size: 22,
-              color: Color(0xFF18181B),
+              Icons.restaurant_menu_outlined,
+              size: 18,
+              color: Color(0xFF0F172A),
             ),
           ),
           const SizedBox(width: 12),
@@ -49,26 +51,26 @@ class DashboardMenuSalesShortcutCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF09090B),
+                        color: Color(0xFF0F172A),
                       ),
                     ),
                     if (hasData) ...[
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 1.5,
+                          horizontal: 7,
+                          vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFDCFCE7),
+                          color: const Color(0xFFECFDF5),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
                           '${summary.totalQuantitySold} Terjual',
                           style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF16A34A),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF047857),
                           ),
                         ),
                       ),
@@ -79,10 +81,10 @@ class DashboardMenuSalesShortcutCard extends StatelessWidget {
                 Text(
                   topMenu != null
                       ? 'Menu terlaris: ${topMenu.name} (${topMenu.quantitySold} porsi terjual)'
-                      : 'Pantau ranking menu terlaris, omset per varian, tren harian, dan margin laba.',
+                      : 'Ringkasan performa menu terlaris dan analisis margin laba',
                   style: const TextStyle(
-                    fontSize: 11.5,
-                    color: Color(0xFF71717A),
+                    fontSize: 12,
+                    color: Color(0xFF64748B),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -90,21 +92,20 @@ class DashboardMenuSalesShortcutCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          OutlinedButton.icon(
+          const SizedBox(width: 10),
+          OutlinedButton(
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF18181B),
-              side: const BorderSide(color: Color(0xFFE4E4E7)),
+              foregroundColor: const Color(0xFF0F172A),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
             onPressed: onViewMenu,
-            icon: const Icon(Icons.arrow_forward_rounded, size: 14),
-            label: const Text(
+            child: const Text(
               'Lihat Menu',
-              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
             ),
           ),
         ],

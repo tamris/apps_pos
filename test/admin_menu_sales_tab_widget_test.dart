@@ -153,11 +153,9 @@ void main() {
     expect(find.text('Coffee & Beverage'), findsWidgets);
     expect(find.text('62.8% kontribusi'), findsOneWidget);
 
-    // 2. Verify Filter Chips (Periods and Category, No Sort dropdown)
-    expect(find.text('Hari Ini'), findsOneWidget);
-    expect(find.text('Minggu Ini'), findsOneWidget);
+    // 2. Verify Filter Controls (Date Button and Category Dropdown)
     expect(find.text('Bulan Ini'), findsWidgets);
-    expect(find.text('Semua Kategori'), findsOneWidget);
+    expect(find.text('Kategori: Semua'), findsOneWidget);
     expect(find.text('Urutkan: Terlaris'), findsNothing);
     expect(find.text('Urutkan: Omset'), findsNothing);
 
