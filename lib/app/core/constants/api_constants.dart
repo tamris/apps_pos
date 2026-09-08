@@ -1,8 +1,8 @@
 class ApiConstants {
   // Default Base URL for Android Emulator (10.0.2.2) or Physical Device via LAN
   // This can be modified dynamically at runtime in Settings
-  static const String defaultBaseUrl = 'https://delphia-formulable-kristyn.ngrok-free.dev/api';
-  static const String defaultStorageUrl = 'https://delphia-formulable-kristyn.ngrok-free.dev/storage';
+  static const String defaultBaseUrl = 'https://sincerely-generous-monkfish.ngrok-free.app/api';
+  static const String defaultStorageUrl = 'https://sincerely-generous-monkfish.ngrok-free.app/storage';
 
   // Auth Endpoints
   static const String cashiers = '/auth/cashiers';

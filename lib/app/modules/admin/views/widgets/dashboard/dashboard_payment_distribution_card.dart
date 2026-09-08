@@ -200,12 +200,16 @@ class DashboardPaymentDistributionCard extends StatelessWidget {
             ),
           ),
         ),
-        Text(
-          '$count trx • $percentInt%',
-          maxLines: 1,
-          style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            '$count trx • $percentInt%',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+          ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         Text(
           CurrencyFormatter.format(total),
           maxLines: 1,

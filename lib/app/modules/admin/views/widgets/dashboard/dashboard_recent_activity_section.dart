@@ -56,43 +56,51 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
           children: [
             // Section Header
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      isToday
-                          ? 'Aktivitas Transaksi Hari Ini'
-                          : 'Aktivitas Transaksi (${controller.selectedDashboardDate.value})',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF0F172A),
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        '${list.length} Transaksi',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF475569),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          availableWidth < 480
+                              ? 'Aktivitas Transaksi'
+                              : (isToday
+                                  ? 'Aktivitas Transaksi Hari Ini'
+                                  : 'Aktivitas Transaksi (${controller.selectedDashboardDate.value})'),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF0F172A),
+                            letterSpacing: -0.2,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          availableWidth < 400
+                              ? '${list.length}'
+                              : '${list.length} Transaksi',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF475569),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 4),
                 TextButton.icon(
                   onPressed: () => controller.switchTab(1),
                   iconAlignment: IconAlignment.end,
@@ -606,12 +614,19 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
               _buildOrderTypeBadge(tx, isDineIn),
               const SizedBox(width: 6),
               _buildPaymentMethodBadge(tx.paymentMethod),
-              const Spacer(),
-              Text(
-                tx.isSelfOrder ? 'Online (Self-Order)' : 'Kasir: ${tx.cashierName}',
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Color(0xFF64748B),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    tx.isSelfOrder ? 'Online' : 'Kasir: ${tx.cashierName}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF64748B),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
                 ),
               ),
               const SizedBox(width: 4),

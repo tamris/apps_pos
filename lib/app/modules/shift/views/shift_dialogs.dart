@@ -877,31 +877,36 @@ class ShiftDialogs {
 
                 // Tombol Aksi
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        child: const Text('Kembali', style: TextStyle(fontWeight: FontWeight.w600)),
                       ),
-                      onPressed: () => Navigator.of(dialogContext).pop(),
-                      child: const Text('Kembali', style: TextStyle(fontWeight: FontWeight.w600)),
                     ),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.warning,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.warning,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: const Icon(Icons.lock_clock_rounded, size: 18),
+                        label: const Text('Tutup Shift', style: TextStyle(fontWeight: FontWeight.bold)),
+                        onPressed: () async {
+                          Navigator.of(dialogContext).pop();
+                          if (context.mounted) {
+                            await showEndShiftDialog(context);
+                          }
+                        },
                       ),
-                      icon: const Icon(Icons.lock_clock_rounded, size: 18),
-                      label: const Text('Tutup Shift', style: TextStyle(fontWeight: FontWeight.bold)),
-                      onPressed: () async {
-                        Navigator.of(dialogContext).pop();
-                        if (context.mounted) {
-                          await showEndShiftDialog(context);
-                        }
-                      },
                     ),
                   ],
                 ),
@@ -1251,46 +1256,48 @@ class ShiftDialogs {
 
                   // Buttons
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextButton(
                         onPressed: () => Navigator.of(dialogContext).pop(false),
                         child: const Text('Batal'),
                       ),
                       const SizedBox(width: 8),
-                      Obx(() => ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.warning,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            icon: controller.isLoading.value
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                  )
-                                : const Icon(Icons.lock_clock_rounded, size: 18),
-                            label: Text(
-                              controller.isLoading.value ? 'Menyinkronkan & Menutup...' : 'Tutup Shift',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            onPressed: controller.isLoading.value
-                                ? null
-                                : () async {
-                                    if (formKey.currentState!.validate()) {
-                                      final raw = cashController.text.replaceAll(RegExp(r'[^0-9]'), '');
-                                      final amount = double.tryParse(raw) ?? 0;
-                                      final notes = notesController.text.trim();
+                      Expanded(
+                        child: Obx(() => ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.warning,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              icon: controller.isLoading.value
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                    )
+                                  : const Icon(Icons.lock_clock_rounded, size: 18),
+                              label: Text(
+                                controller.isLoading.value ? 'Menutup...' : 'Tutup Shift',
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              onPressed: controller.isLoading.value
+                                  ? null
+                                  : () async {
+                                      if (formKey.currentState!.validate()) {
+                                        final raw = cashController.text.replaceAll(RegExp(r'[^0-9]'), '');
+                                        final amount = double.tryParse(raw) ?? 0;
+                                        final notes = notesController.text.trim();
 
-                                      final success = await controller.endShift(amount, notes);
-                                      if (success && dialogContext.mounted) {
-                                        Navigator.of(dialogContext).pop(true);
+                                        final success = await controller.endShift(amount, notes);
+                                        if (success && dialogContext.mounted) {
+                                          Navigator.of(dialogContext).pop(true);
+                                        }
                                       }
-                                    }
-                                  },
-                          )),
+                                    },
+                            )),
+                      ),
                     ],
                   ),
                 ],
