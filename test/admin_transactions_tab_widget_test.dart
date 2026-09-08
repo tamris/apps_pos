@@ -145,7 +145,7 @@ void main() {
 
     // Verify Searchbar
     expect(find.text('Cari no. invoice, kasir, meja, pelanggan...'), findsOneWidget);
-    expect(find.text('Filter Tanggal'), findsOneWidget);
+    expect(find.text('Hari Ini'), findsOneWidget);
     expect(find.text('Cari'), findsOneWidget);
 
     // Verify Status Filters
@@ -200,6 +200,6 @@ void main() {
     expect(find.text('Pelanggan Alice'), findsWidgets);
     expect(find.text('Pelanggan Bob'), findsWidgets);
     expect(find.text('Cari'), findsOneWidget);
-    expect(find.text('Filter Tanggal'), findsOneWidget);
+    expect(find.text('Hari Ini'), findsOneWidget);
   });
 }

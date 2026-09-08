@@ -32,8 +32,10 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
     final isTablet = availableWidth >= 640;
 
     return Obx(() {
-      final list = controller.transactions;
+      final list = controller.dashboardRecentTransactions;
       final displayList = list.take(6).toList();
+      final isToday = controller.selectedDashboardDate.value ==
+          DateFormat('yyyy-MM-dd').format(DateTime.now());
 
       return Container(
         padding: const EdgeInsets.all(18),
@@ -59,9 +61,11 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      'Aktivitas Transaksi Hari Ini',
-                      style: TextStyle(
+                    Text(
+                      isToday
+                          ? 'Aktivitas Transaksi Hari Ini'
+                          : 'Aktivitas Transaksi (${controller.selectedDashboardDate.value})',
+                      style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: Color(0xFF0F172A),
@@ -126,7 +130,7 @@ class DashboardRecentActivitySection extends GetView<AdminController> {
             ),
             const SizedBox(height: 14),
 
-            if (controller.isLoadingTransactions.value && list.isEmpty)
+            if (controller.isLoadingDashboardRecentTrx.value && list.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 32),
                 child: Center(

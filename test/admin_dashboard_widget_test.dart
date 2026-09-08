@@ -16,6 +16,9 @@ class TestAdminController extends AdminController {
   Future<void> fetchDashboard({String? date}) async {}
 
   @override
+  Future<void> fetchDashboardTransactions({String? date}) async {}
+
+  @override
   Future<void> fetchTransactions() async {}
 
   @override

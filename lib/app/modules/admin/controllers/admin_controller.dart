@@ -70,7 +70,8 @@ class AdminController extends GetxController {
   final RxString selectedTrxStatus = 'all'.obs; // 'all', 'completed', 'pending', 'cancelled'
   final RxString selectedTrxOrderSource = 'all'.obs; // 'all', 'pos', 'self_order'
   final RxString selectedTrxPaymentMethod = 'all'.obs; // 'all', 'cash', 'qris', 'transfer'
-  final Rx<String?> selectedTrxDate = Rx<String?>(null);
+  final Rx<String?> selectedTrxDate =
+      Rx<String?>(DateFormat('yyyy-MM-dd').format(DateTime.now()));
   final RxString trxSearchQuery = ''.obs;
   final TextEditingController trxSearchController = TextEditingController();
   final RxBool isLoadingTransactions = false.obs;
@@ -224,10 +225,34 @@ class AdminController extends GetxController {
       isLoadingDashboard.value = false;
     }
 
-    // Sync transactions and open bills for this dashboard date
-    selectedTrxDate.value = targetDate;
-    fetchTransactions();
+    // Fetch dashboard-specific transactions and open bills for this dashboard date
+    fetchDashboardTransactions(date: targetDate);
     fetchOpenBills();
+  }
+
+  Future<void> fetchDashboardTransactions({String? date}) async {
+    isLoadingDashboardRecentTrx.value = true;
+    try {
+      final targetDate = date ?? selectedDashboardDate.value;
+      final response = await _apiProvider.get(
+        ApiConstants.adminTransactions,
+        queryParameters: {
+          'date': targetDate,
+          'per_page': 20,
+        },
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        final List list = response.data['data'] ?? [];
+        dashboardRecentTransactions.assignAll(
+          list.map((e) => AdminTransactionModel.fromJson(e)).toList(),
+        );
+      }
+    } catch (_) {
+      // Ignored for dashboard background sync
+    } finally {
+      isLoadingDashboardRecentTrx.value = false;
+    }
   }
 
   void changeDashboardDate(DateTime dt) {
