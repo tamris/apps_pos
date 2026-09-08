@@ -5,6 +5,7 @@ import '../../../data/models/admin_dashboard_model.dart';
 import '../../../data/models/admin_shift_model.dart';
 import '../../../data/models/admin_transaction_model.dart';
 import '../../../data/models/admin_open_bill_model.dart';
+import '../../../data/models/admin_menu_sales_model.dart';
 import '../../../data/providers/api_provider.dart';
 import '../../../data/services/storage_service.dart';
 import '../../../core/constants/api_constants.dart';
@@ -14,7 +15,7 @@ import '../../../routes/app_routes.dart';
 class AdminController extends GetxController {
   final ApiProvider _apiProvider = Get.find<ApiProvider>();
 
-  // Active Tab Index (0: Dashboard, 1: Transaksi & Void, 2: Audit Shift, 3: Pesanan & Meja)
+  // Active Tab Index (0: Dashboard, 1: Penjualan Menu, 2: Transaksi & Void, 3: Audit Shift, 4: Pesanan & Meja)
   final RxInt selectedTabIndex = 0.obs;
 
   // Sidebar Collapse / Expand State (Tablet / Desktop)
@@ -27,7 +28,42 @@ class AdminController extends GetxController {
   final RxString selectedDashboardDate = DateFormat('yyyy-MM-dd').format(DateTime.now()).obs;
   final RxBool isLoadingDashboard = false.obs;
 
-  // --- TAB 2: TRANSACTIONS & VOID AUTHORITY ---
+  // --- TAB 2: MENU SALES ANALYTICS & REPORTS ---
+  final RxList<AdminMenuSalesItemModel> menuSalesItems = <AdminMenuSalesItemModel>[].obs;
+  final Rx<AdminMenuSalesSummaryModel> menuSalesSummary = AdminMenuSalesSummaryModel.empty().obs;
+  final Rx<AdminMenuSalesPeriodModel> menuSalesPeriod = AdminMenuSalesPeriodModel.empty().obs;
+  final RxList<AdminMenuSalesCategoryModel> menuSalesCategories = <AdminMenuSalesCategoryModel>[].obs;
+  final RxList<AdminMenuSalesItemModel> topSellingMenuItems = <AdminMenuSalesItemModel>[].obs;
+  final RxString selectedMenuPeriod = 'this_month'.obs; // 'today', 'yesterday', 'this_week', 'this_month', 'last_month', 'this_year', 'all', 'custom'
+  final Rx<DateTime?> menuCustomStartDate = Rx<DateTime?>(null);
+  final Rx<DateTime?> menuCustomEndDate = Rx<DateTime?>(null);
+  final Rx<int?> selectedMenuCategoryId = Rx<int?>(null);
+  final RxString selectedMenuSortBy = 'quantity'.obs; // 'quantity', 'revenue', 'profit', 'name'
+  final RxString selectedMenuSortDir = 'desc'.obs; // 'desc', 'asc'
+  final RxString selectedMenuSource = 'all'.obs; // 'all', 'pos', 'self_order'
+  final RxString menuSearchQuery = ''.obs;
+  final TextEditingController menuSearchController = TextEditingController();
+  final RxBool isLoadingMenuSales = false.obs;
+  final RxBool isLoadingMenuDetail = false.obs;
+  final Rx<AdminMenuSalesDetailModel?> selectedMenuDetail = Rx<AdminMenuSalesDetailModel?>(null);
+
+  List<AdminMenuSalesItemModel> get filteredMenuSalesItems {
+    final query = menuSearchQuery.value.trim().toLowerCase();
+    final catId = selectedMenuCategoryId.value;
+
+    return menuSalesItems.where((item) {
+      if (catId != null && item.categoryId != catId) return false;
+      if (query.isNotEmpty) {
+        final matchesName = item.productName.toLowerCase().contains(query);
+        final matchesSku = item.sku.toLowerCase().contains(query);
+        final matchesCat = item.categoryName.toLowerCase().contains(query);
+        if (!matchesName && !matchesSku && !matchesCat) return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  // --- TAB 3: TRANSACTIONS & VOID AUTHORITY ---
   final RxList<AdminTransactionModel> transactions = <AdminTransactionModel>[].obs;
   final RxString selectedTrxStatus = 'all'.obs; // 'all', 'completed', 'pending', 'cancelled'
   final RxString selectedTrxOrderSource = 'all'.obs; // 'all', 'pos', 'self_order'
@@ -131,6 +167,7 @@ class AdminController extends GetxController {
 
   @override
   void onClose() {
+    menuSearchController.dispose();
     trxSearchController.dispose();
     shiftSearchController.dispose();
     openBillSearchController.dispose();
@@ -147,9 +184,13 @@ class AdminController extends GetxController {
         fetchTransactions();
         break;
       case 2:
-        fetchShifts();
+        fetchMenuSales();
+        fetchMenuCategories();
         break;
       case 3:
+        fetchShifts();
+        break;
+      case 4:
         fetchOpenBills();
         break;
     }
@@ -348,6 +389,203 @@ class AdminController extends GetxController {
     }
   }
 
+  // ==========================================
+  // 5. MENU SALES ANALYTICS LOGIC
+  // ==========================================
+  Future<void> fetchMenuSales({bool refresh = false}) async {
+    isLoadingMenuSales.value = true;
+
+    try {
+      final queryParams = <String, dynamic>{
+        'per_page': 'all',
+        'sort_by': selectedMenuSortBy.value,
+        'sort_dir': selectedMenuSortDir.value,
+      };
+
+      if (selectedMenuPeriod.value == 'custom' && menuCustomStartDate.value != null) {
+        queryParams['start_date'] = DateFormat('yyyy-MM-dd').format(menuCustomStartDate.value!);
+        if (menuCustomEndDate.value != null) {
+          queryParams['end_date'] = DateFormat('yyyy-MM-dd').format(menuCustomEndDate.value!);
+        } else {
+          queryParams['end_date'] = queryParams['start_date'];
+        }
+      } else {
+        queryParams['range'] = selectedMenuPeriod.value;
+      }
+
+      if (selectedMenuCategoryId.value != null) {
+        queryParams['category_id'] = selectedMenuCategoryId.value;
+      }
+
+      if (menuSearchQuery.value.trim().isNotEmpty) {
+        queryParams['search'] = menuSearchQuery.value.trim();
+      }
+
+      if (selectedMenuSource.value != 'all') {
+        queryParams['source'] = selectedMenuSource.value;
+      }
+
+      final response = await _apiProvider.get(
+        ApiConstants.adminMenuSales,
+        queryParameters: queryParams,
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        final data = response.data;
+        if (data['summary'] != null) {
+          menuSalesSummary.value = AdminMenuSalesSummaryModel.fromJson(data['summary']);
+        }
+        if (data['period'] != null) {
+          menuSalesPeriod.value = AdminMenuSalesPeriodModel.fromJson(data['period']);
+        }
+        if (data['data'] != null && data['data'] is List) {
+          final list = (data['data'] as List)
+              .map((e) => AdminMenuSalesItemModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+          menuSalesItems.assignAll(list);
+        } else {
+          menuSalesItems.clear();
+        }
+      } else {
+        AppSnackbar.warning('Info', response.data?['message'] ?? 'Gagal memuat penjualan menu.');
+      }
+    } catch (e) {
+      AppSnackbar.danger('Kendala Penjualan Menu', ApiProvider.getErrorMessage(e));
+    } finally {
+      isLoadingMenuSales.value = false;
+    }
+  }
+
+  Future<void> fetchMenuCategories() async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (selectedMenuPeriod.value == 'custom' && menuCustomStartDate.value != null) {
+        queryParams['start_date'] = DateFormat('yyyy-MM-dd').format(menuCustomStartDate.value!);
+        if (menuCustomEndDate.value != null) {
+          queryParams['end_date'] = DateFormat('yyyy-MM-dd').format(menuCustomEndDate.value!);
+        }
+      } else {
+        queryParams['range'] = selectedMenuPeriod.value;
+      }
+
+      final response = await _apiProvider.get(
+        ApiConstants.adminMenuSalesCategories,
+        queryParameters: queryParams,
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        if (response.data['data'] != null && response.data['data'] is List) {
+          final list = (response.data['data'] as List)
+              .map((e) => AdminMenuSalesCategoryModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+          menuSalesCategories.assignAll(list);
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> fetchTopSelling({int limit = 5}) async {
+    try {
+      final queryParams = <String, dynamic>{'limit': limit};
+      if (selectedMenuPeriod.value == 'custom' && menuCustomStartDate.value != null) {
+        queryParams['start_date'] = DateFormat('yyyy-MM-dd').format(menuCustomStartDate.value!);
+        if (menuCustomEndDate.value != null) {
+          queryParams['end_date'] = DateFormat('yyyy-MM-dd').format(menuCustomEndDate.value!);
+        }
+      } else {
+        queryParams['range'] = selectedMenuPeriod.value;
+      }
+
+      final response = await _apiProvider.get(
+        ApiConstants.adminMenuSalesTop,
+        queryParameters: queryParams,
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        if (response.data['data'] != null && response.data['data'] is List) {
+          final list = (response.data['data'] as List)
+              .map((e) => AdminMenuSalesItemModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+          topSellingMenuItems.assignAll(list);
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> fetchMenuSalesDetail(int productId) async {
+    isLoadingMenuDetail.value = true;
+    selectedMenuDetail.value = null;
+
+    try {
+      final queryParams = <String, dynamic>{};
+      if (selectedMenuPeriod.value == 'custom' && menuCustomStartDate.value != null) {
+        queryParams['start_date'] = DateFormat('yyyy-MM-dd').format(menuCustomStartDate.value!);
+        if (menuCustomEndDate.value != null) {
+          queryParams['end_date'] = DateFormat('yyyy-MM-dd').format(menuCustomEndDate.value!);
+        }
+      } else {
+        queryParams['range'] = selectedMenuPeriod.value;
+      }
+
+      final response = await _apiProvider.get(
+        ApiConstants.adminMenuSalesDetail(productId),
+        queryParameters: queryParams,
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        selectedMenuDetail.value = AdminMenuSalesDetailModel.fromJson(response.data);
+      } else {
+        AppSnackbar.warning('Info', response.data?['message'] ?? 'Gagal memuat detail menu.');
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Memuat Detail', ApiProvider.getErrorMessage(e));
+    } finally {
+      isLoadingMenuDetail.value = false;
+    }
+  }
+
+  void changeMenuPeriod(String range, {DateTime? start, DateTime? end}) {
+    selectedMenuPeriod.value = range;
+    menuCustomStartDate.value = start;
+    menuCustomEndDate.value = end;
+    fetchMenuSales();
+    fetchMenuCategories();
+  }
+
+  void setMenuCategory(int? categoryId) {
+    if (selectedMenuCategoryId.value == categoryId) {
+      selectedMenuCategoryId.value = null;
+    } else {
+      selectedMenuCategoryId.value = categoryId;
+    }
+    fetchMenuSales();
+  }
+
+  void setMenuSort(String sortBy) {
+    if (selectedMenuSortBy.value == sortBy) {
+      selectedMenuSortDir.value = selectedMenuSortDir.value == 'desc' ? 'asc' : 'desc';
+    } else {
+      selectedMenuSortBy.value = sortBy;
+      selectedMenuSortDir.value = 'desc';
+    }
+    fetchMenuSales();
+  }
+
+  void setMenuSource(String source) {
+    selectedMenuSource.value = source;
+    fetchMenuSales();
+  }
+
+  void clearMenuFilters() {
+    selectedMenuCategoryId.value = null;
+    menuSearchQuery.value = '';
+    menuSearchController.clear();
+    selectedMenuSource.value = 'all';
+    selectedMenuSortBy.value = 'quantity';
+    selectedMenuSortDir.value = 'desc';
+    fetchMenuSales();
+  }
+
   /// Trigger pull-to-refresh berdasarkan tab yang aktif saat ini
   Future<void> refreshCurrentTab() async {
     switch (selectedTabIndex.value) {
@@ -358,9 +596,13 @@ class AdminController extends GetxController {
         await fetchTransactions();
         break;
       case 2:
-        await fetchShifts();
+        await fetchMenuSales(refresh: true);
+        await fetchMenuCategories();
         break;
       case 3:
+        await fetchShifts();
+        break;
+      case 4:
         await fetchOpenBills();
         break;
     }

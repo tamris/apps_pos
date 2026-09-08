@@ -6,6 +6,7 @@ import '../controllers/admin_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/services/storage_service.dart';
 import 'tabs/admin_dashboard_tab.dart';
+import 'tabs/admin_menu_sales_tab.dart';
 import 'tabs/admin_transactions_tab.dart';
 import 'tabs/admin_shifts_tab.dart';
 import 'tabs/admin_open_bills_tab.dart';
@@ -197,6 +198,14 @@ class AdminView extends GetView<AdminController> {
                         label: 'Transaksi',
                       ),
                       const NavigationDestination(
+                        icon: Icon(Icons.restaurant_menu_outlined, size: 20),
+                        selectedIcon: Icon(
+                          Icons.restaurant_menu_rounded,
+                          color: AppColors.secondary,
+                        ),
+                        label: 'Menu',
+                      ),
+                      const NavigationDestination(
                         icon: Icon(Icons.assignment_outlined, size: 20),
                         selectedIcon: Icon(
                           Icons.assignment_rounded,
@@ -222,7 +231,7 @@ class AdminView extends GetView<AdminController> {
                           Icons.table_restaurant_rounded,
                           color: AppColors.secondary,
                         ),
-                        label: 'Pesanan & Meja',
+                        label: 'Pesanan',
                       ),
                     ],
                   ),
@@ -459,13 +468,19 @@ class AdminView extends GetView<AdminController> {
                 const SizedBox(height: 3),
                 _buildExpandedNavItem(
                   index: 2,
+                  icon: Icons.restaurant_menu_rounded,
+                  label: 'Penjualan Menu',
+                ),
+                const SizedBox(height: 3),
+                _buildExpandedNavItem(
+                  index: 3,
                   icon: Icons.assignment_rounded,
                   label: 'Audit Shift Kasir',
                 ),
                 const SizedBox(height: 3),
                 Obx(
                   () => _buildExpandedNavItem(
-                    index: 3,
+                    index: 4,
                     icon: Icons.table_restaurant_rounded,
                     label: 'Pesanan & Meja',
                     badgeCount: controller.openBillsTotalActive.value,
@@ -554,13 +569,19 @@ class AdminView extends GetView<AdminController> {
                 const SizedBox(height: 4),
                 _buildCollapsedNavItem(
                   index: 2,
+                  icon: Icons.restaurant_menu_rounded,
+                  label: 'Penjualan Menu',
+                ),
+                const SizedBox(height: 4),
+                _buildCollapsedNavItem(
+                  index: 3,
                   icon: Icons.assignment_rounded,
                   label: 'Audit Shift Kasir',
                 ),
                 const SizedBox(height: 4),
                 Obx(
                   () => _buildCollapsedNavItem(
-                    index: 3,
+                    index: 4,
                     icon: Icons.table_restaurant_rounded,
                     label: 'Pesanan & Meja',
                     badgeCount: controller.openBillsTotalActive.value,
@@ -861,9 +882,12 @@ class AdminView extends GetView<AdminController> {
                   title = 'Riwayat Transaksi';
                   break;
                 case 2:
-                  title = 'Audit Shift Kasir';
+                  title = 'Laporan Penjualan Menu';
                   break;
                 case 3:
+                  title = 'Audit Shift Kasir';
+                  break;
+                case 4:
                   title = 'Pesanan & Meja';
                   break;
                 default:
@@ -1110,8 +1134,10 @@ class AdminView extends GetView<AdminController> {
       case 1:
         return const AdminTransactionsTab();
       case 2:
-        return const AdminShiftsTab();
+        return const AdminMenuSalesTab();
       case 3:
+        return const AdminShiftsTab();
+      case 4:
         return const AdminOpenBillsTab();
       default:
         return const AdminDashboardTab();

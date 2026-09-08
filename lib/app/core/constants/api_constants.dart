@@ -55,4 +55,10 @@ class ApiConstants {
   static String adminTransactionDetail(int id) => '/admin/transactions/$id';
   static String adminVoidTransaction(int id) => '/admin/transactions/$id/void';
   static const String adminOpenBills = '/admin/open-bills';
+
+  // Admin Menu Sales Analytics
+  static const String adminMenuSales = '/admin/menu-sales';
+  static const String adminMenuSalesTop = '/admin/menu-sales/top';
+  static const String adminMenuSalesCategories = '/admin/menu-sales/categories';
+  static String adminMenuSalesDetail(int id) => '/admin/menu-sales/$id';
 }

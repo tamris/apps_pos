@@ -95,6 +95,10 @@ class AdminDashboardTab extends GetView<AdminController> {
                   const SizedBox(height: 14),
                   _buildChannelAndOrderTypeCard(data, false),
                 ],
+                const SizedBox(height: 16),
+
+                // 3.5 Menu Sales Spotlight Card
+                _buildMenuSalesShortcutCard(context),
                 const SizedBox(height: 18),
 
                 // 4. Live Recent Activity Stream (Table if >= 640, Card Stream if < 640)
@@ -584,7 +588,7 @@ class AdminDashboardTab extends GetView<AdminController> {
                       style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                     ),
                     InkWell(
-                      onTap: () => controller.switchTab(2),
+                      onTap: () => controller.switchTab(3),
                       child: const Text(
                         'Riwayat Shift →',
                         style: TextStyle(
@@ -748,7 +752,7 @@ class AdminDashboardTab extends GetView<AdminController> {
                       ],
                     ),
                     InkWell(
-                      onTap: () => controller.switchTab(2),
+                      onTap: () => controller.switchTab(3),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: const [
@@ -1037,7 +1041,7 @@ class AdminDashboardTab extends GetView<AdminController> {
           : const Color(0xFFE2E8F0),
       onTap: () {
         controller.selectedActiveOrderMode.value = 'tables';
-        controller.switchTab(3);
+        controller.switchTab(4);
       },
     );
 
@@ -2431,5 +2435,105 @@ class AdminDashboardTab extends GetView<AdminController> {
     } catch (_) {
       return dtStr;
     }
+  }
+
+  Widget _buildMenuSalesShortcutCard(BuildContext context) {
+    return Obx(() {
+      final summary = controller.menuSalesSummary.value;
+      final hasData = summary.totalQuantitySold > 0;
+      final topMenu = summary.topSellingProduct;
+
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE4E4E7), width: 1),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF4F4F5),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.restaurant_menu_rounded,
+                size: 22,
+                color: Color(0xFF18181B),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text(
+                        'Laporan Penjualan Menu',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF09090B),
+                        ),
+                      ),
+                      if (hasData) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFDCFCE7),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '${summary.totalQuantitySold} Terjual',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF16A34A),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    topMenu != null
+                        ? 'Menu terlaris: ${topMenu.name} (${topMenu.quantitySold} porsi terjual)'
+                        : 'Pantau ranking menu terlaris, omset per varian, tren harian, dan margin laba.',
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: Color(0xFF71717A),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF18181B),
+                side: const BorderSide(color: Color(0xFFE4E4E7)),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: () => controller.switchTab(2),
+              icon: const Icon(Icons.arrow_forward_rounded, size: 14),
+              label: const Text(
+                'Lihat Menu',
+                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      );
+    });
   }
 }
