@@ -158,10 +158,9 @@ void main() {
     // Verify Badges for Open Bill (count: 1, self_order excluded) and Batal (count: 1)
     expect(find.text('1'), findsWidgets); // Open Bill & Batal count
 
-    // Verify Channel Filters
-    expect(find.text('Semua Saluran'), findsOneWidget);
+    // Verify Order Source on Cards
     expect(find.text('Kasir POS'), findsWidgets);
-    expect(find.text('Online (Self-Order)'), findsWidgets);
+    expect(find.text('Online Order'), findsWidgets);
 
     // Tap Open Bill filter
     await tester.tap(find.widgetWithText(InkWell, 'Open Bill').first);

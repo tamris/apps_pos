@@ -332,42 +332,7 @@ class TransactionsFilterBar extends GetView<AdminController> {
           Container(height: 18, width: 1, color: const Color(0xFFCBD5E1)),
           const SizedBox(width: 8),
 
-          // 2. Channel Filters
-          _buildFilterChip(
-            label: 'Semua Saluran',
-            isSelected: controller.selectedTrxOrderSource.value == 'all',
-            onTap: () {
-              controller.selectedTrxOrderSource.value = 'all';
-              controller.fetchTransactions();
-            },
-          ),
-          _buildFilterChip(
-            label: 'Kasir POS',
-            icon: Icons.point_of_sale_rounded,
-            isSelected: controller.selectedTrxOrderSource.value == 'pos',
-            onTap: () {
-              controller.selectedTrxOrderSource.value = 'pos';
-              controller.fetchTransactions();
-            },
-          ),
-          _buildFilterChip(
-            label: 'Online (Self-Order)',
-            icon: Icons.phone_android_rounded,
-            isSelected: controller.selectedTrxOrderSource.value == 'self_order',
-            onTap: () {
-              controller.selectedTrxOrderSource.value = 'self_order';
-              if (controller.selectedTrxStatus.value == 'pending') {
-                controller.selectedTrxStatus.value = 'all';
-              }
-              controller.fetchTransactions();
-            },
-          ),
-
-          const SizedBox(width: 8),
-          Container(height: 18, width: 1, color: const Color(0xFFCBD5E1)),
-          const SizedBox(width: 8),
-
-          // 3. Payment Method Filter
+          // 2. Payment Method Filter
           _buildPaymentDropdown(),
 
           // 4. Reset Filter Action
@@ -545,49 +510,104 @@ class TransactionsFilterBar extends GetView<AdminController> {
       final method = controller.selectedTrxPaymentMethod.value;
       final isSelected = method != 'all';
 
-      return Container(
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color:
-              isSelected ? const Color(0xFFEEF2FF) : const Color(0xFFF1F5F9),
+      String getLabel() {
+        switch (method) {
+          case 'cash':
+            return 'Metode: Tunai';
+          case 'qris':
+            return 'Metode: QRIS';
+          case 'transfer':
+            return 'Metode: Transfer';
+          default:
+            return 'Metode: Semua';
+        }
+      }
+
+      return PopupMenuButton<String>(
+        tooltip: 'Pilih Metode Pembayaran',
+        offset: const Offset(0, 36),
+        elevation: 3,
+        shadowColor: Colors.black.withValues(alpha: 0.08),
+        shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected
-                ? AppColors.secondaryLight.withValues(alpha: 0.5)
-                : const Color(0xFFE2E8F0),
-          ),
+          side: const BorderSide(color: Color(0xFFE2E8F0)),
         ),
-        child: DropdownButtonHideUnderline(
-          child: DropdownButton<String>(
-            value: method,
-            icon: Icon(
-              Icons.arrow_drop_down_rounded,
-              size: 18,
-              color: isSelected ? AppColors.secondary : const Color(0xFF64748B),
+        color: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        onSelected: (val) {
+          controller.selectedTrxPaymentMethod.value = val;
+          controller.fetchTransactions();
+        },
+        itemBuilder: (context) => [
+          _buildPaymentMenuItem('all', 'Semua Metode', isSelected: method == 'all'),
+          _buildPaymentMenuItem('cash', 'Tunai', isSelected: method == 'cash'),
+          _buildPaymentMenuItem('qris', 'QRIS', isSelected: method == 'qris'),
+          _buildPaymentMenuItem('transfer', 'Transfer', isSelected: method == 'transfer'),
+        ],
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.secondarySoft : const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected
+                  ? AppColors.secondaryLight.withValues(alpha: 0.5)
+                  : const Color(0xFFE2E8F0),
             ),
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              color: isSelected ? AppColors.secondary : const Color(0xFF475569),
-            ),
-            items: const [
-              DropdownMenuItem(value: 'all', child: Text('Metode: Semua')),
-              DropdownMenuItem(value: 'cash', child: Text('Metode: Tunai')),
-              DropdownMenuItem(value: 'qris', child: Text('Metode: QRIS')),
-              DropdownMenuItem(
-                  value: 'transfer', child: Text('Metode: Transfer')),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                getLabel(),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  color: isSelected ? AppColors.secondary : const Color(0xFF475569),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 16,
+                color: isSelected ? AppColors.secondary : const Color(0xFF64748B),
+              ),
             ],
-            onChanged: (val) {
-              if (val != null) {
-                controller.selectedTrxPaymentMethod.value = val;
-                controller.fetchTransactions();
-              }
-            },
           ),
         ),
       );
     });
+  }
+
+  PopupMenuItem<String> _buildPaymentMenuItem(
+    String value,
+    String label, {
+    required bool isSelected,
+  }) {
+    return PopupMenuItem<String>(
+      value: value,
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+              color: isSelected ? AppColors.secondary : const Color(0xFF1E293B),
+            ),
+          ),
+          if (isSelected)
+            const Icon(
+              Icons.check_rounded,
+              size: 15,
+              color: AppColors.secondary,
+            ),
+        ],
+      ),
+    );
   }
 
   Future<void> _pickDate(BuildContext context) async {

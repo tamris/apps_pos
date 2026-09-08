@@ -27,6 +27,8 @@ class AdminController extends GetxController {
   final Rx<AdminDashboardModel> dashboardData = AdminDashboardModel.empty().obs;
   final RxString selectedDashboardDate = DateFormat('yyyy-MM-dd').format(DateTime.now()).obs;
   final RxBool isLoadingDashboard = false.obs;
+  final RxList<AdminTransactionModel> dashboardRecentTransactions = <AdminTransactionModel>[].obs;
+  final RxBool isLoadingDashboardRecentTrx = false.obs;
 
   // --- TAB 2: MENU SALES ANALYTICS & REPORTS ---
   final RxList<AdminMenuSalesItemModel> menuSalesItems = <AdminMenuSalesItemModel>[].obs;
