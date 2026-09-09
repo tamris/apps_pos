@@ -50,6 +50,12 @@ class CashFlowSummaryModel {
   // Net Cash Flow
   final double netCashFlow;
 
+  // Real-Time Total Cash Balance (All-Time / Saldo Kas Nyata Toko - Tidak terpengaruh filter)
+  final double totalRealBalance;
+  final double cashBalance; // Saldo Tunai (Laci + Kas Toko)
+  final double bankBalance; // Saldo Non-Tunai (Rekening Bank)
+  final double totalInflow; // Total Pemasukan (Penjualan + Kas Masuk)
+
   // Breakdown
   final List<CashFlowCategoryBreakdown> categoryBreakdown;
 
@@ -67,6 +73,10 @@ class CashFlowSummaryModel {
     required this.cashOutBank,
     required this.cashOutPettyCash,
     required this.netCashFlow,
+    this.totalRealBalance = 0.0,
+    this.cashBalance = 0.0,
+    this.bankBalance = 0.0,
+    this.totalInflow = 0.0,
     required this.categoryBreakdown,
   });
 
@@ -77,6 +87,7 @@ class CashFlowSummaryModel {
     final sales = json['sales'] as Map<String, dynamic>? ?? {};
     final cashIn = json['cash_in'] as Map<String, dynamic>? ?? {};
     final cashOut = json['cash_out'] as Map<String, dynamic>? ?? {};
+    final totalBalance = json['total_balance'] as Map<String, dynamic>? ?? {};
 
     final breakdownList = <CashFlowCategoryBreakdown>[];
     if (json['category_breakdown'] is List) {
@@ -87,21 +98,37 @@ class CashFlowSummaryModel {
       }
     }
 
+    final double tSales = (sales['total_sales'] != null)
+        ? double.tryParse(sales['total_sales'].toString()) ?? 0.0
+        : 0.0;
+    final double cInTotal = (cashIn['total'] != null)
+        ? double.tryParse(cashIn['total'].toString()) ?? 0.0
+        : 0.0;
+    final double tInflow = (cashIn['total_inflow'] != null)
+        ? double.tryParse(cashIn['total_inflow'].toString()) ?? (tSales + cInTotal)
+        : (tSales + cInTotal);
+
+    final double realBal = (totalBalance['real_balance'] != null)
+        ? double.tryParse(totalBalance['real_balance'].toString()) ?? 0.0
+        : 0.0;
+    final double cashBal = (totalBalance['cash_balance'] != null)
+        ? double.tryParse(totalBalance['cash_balance'].toString()) ?? 0.0
+        : 0.0;
+    final double bankBal = (totalBalance['bank_balance'] != null)
+        ? double.tryParse(totalBalance['bank_balance'].toString()) ?? 0.0
+        : 0.0;
+
     return CashFlowSummaryModel(
       startDate: period['start_date']?.toString() ?? '',
       endDate: period['end_date']?.toString() ?? '',
-      totalSales: (sales['total_sales'] != null)
-          ? double.tryParse(sales['total_sales'].toString()) ?? 0.0
-          : 0.0,
+      totalSales: tSales,
       cashSales: (sales['cash_sales'] != null)
           ? double.tryParse(sales['cash_sales'].toString()) ?? 0.0
           : 0.0,
       nonCashSales: (sales['non_cash_sales'] != null)
           ? double.tryParse(sales['non_cash_sales'].toString()) ?? 0.0
           : 0.0,
-      cashInTotal: (cashIn['total'] != null)
-          ? double.tryParse(cashIn['total'].toString()) ?? 0.0
-          : 0.0,
+      cashInTotal: cInTotal,
       cashInDrawer: (cashIn['drawer'] != null)
           ? double.tryParse(cashIn['drawer'].toString()) ?? 0.0
           : 0.0,
@@ -123,6 +150,10 @@ class CashFlowSummaryModel {
       netCashFlow: (json['net_cash_flow'] != null)
           ? double.tryParse(json['net_cash_flow'].toString()) ?? 0.0
           : 0.0,
+      totalRealBalance: realBal,
+      cashBalance: cashBal,
+      bankBalance: bankBal,
+      totalInflow: tInflow,
       categoryBreakdown: breakdownList,
     );
   }
@@ -142,6 +173,10 @@ class CashFlowSummaryModel {
       cashOutBank: 0.0,
       cashOutPettyCash: 0.0,
       netCashFlow: 0.0,
+      totalRealBalance: 0.0,
+      cashBalance: 0.0,
+      bankBalance: 0.0,
+      totalInflow: 0.0,
       categoryBreakdown: const [],
     );
   }
