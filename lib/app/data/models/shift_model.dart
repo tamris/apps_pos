@@ -8,6 +8,8 @@ class ShiftModel {
   final double cashSales;
   final double qrisSales;
   final double transferSales;
+  final double totalCashIn;
+  final double totalCashOut;
   final double totalSales;
   final int totalTransactions;
   final double expectedCash;
@@ -27,6 +29,8 @@ class ShiftModel {
     this.cashSales = 0.0,
     this.qrisSales = 0.0,
     this.transferSales = 0.0,
+    this.totalCashIn = 0.0,
+    this.totalCashOut = 0.0,
     this.totalSales = 0.0,
     this.totalTransactions = 0,
     required this.expectedCash,
@@ -46,33 +50,47 @@ class ShiftModel {
         ? json['offline_transactions_count']
         : int.tryParse(json['offline_transactions_count']?.toString() ?? '0') ?? 0;
 
+    final double startCash = (json['starting_cash'] != null)
+        ? double.tryParse(json['starting_cash'].toString()) ?? 0.0
+        : 0.0;
+    final double cSales = (json['cash_sales'] != null)
+        ? double.tryParse(json['cash_sales'].toString()) ?? 0.0
+        : 0.0;
+    final double cashIn = (json['total_cash_in'] != null)
+        ? double.tryParse(json['total_cash_in'].toString()) ?? 0.0
+        : 0.0;
+    final double cashOut = (json['total_cash_out'] != null)
+        ? double.tryParse(json['total_cash_out'].toString()) ?? 0.0
+        : 0.0;
+
+    // Fallback hitung expectedCash jika dari server belum terhitung
+    final double expCash = (json['expected_cash'] != null)
+        ? double.tryParse(json['expected_cash'].toString()) ?? (startCash + cSales + cashIn - cashOut)
+        : (startCash + cSales + cashIn - cashOut);
+
     return ShiftModel(
       id: rawId,
       userId: json['user_id'] is int ? json['user_id'] : int.tryParse(json['user_id']?.toString() ?? '0'),
       status: json['status'] ?? 'open',
       startTime: json['start_time']?.toString(),
       endTime: json['end_time']?.toString(),
-      startingCash: (json['starting_cash'] != null)
-          ? double.tryParse(json['starting_cash'].toString()) ?? 0.0
-          : 0.0,
-      cashSales: (json['cash_sales'] != null)
-          ? double.tryParse(json['cash_sales'].toString()) ?? 0.0
-          : 0.0,
+      startingCash: startCash,
+      cashSales: cSales,
       qrisSales: (json['qris_sales'] != null)
           ? double.tryParse(json['qris_sales'].toString()) ?? 0.0
           : 0.0,
       transferSales: (json['transfer_sales'] != null)
           ? double.tryParse(json['transfer_sales'].toString()) ?? 0.0
           : 0.0,
+      totalCashIn: cashIn,
+      totalCashOut: cashOut,
       totalSales: (json['total_sales'] != null)
           ? double.tryParse(json['total_sales'].toString()) ?? 0.0
           : 0.0,
       totalTransactions: json['total_transactions'] is int
           ? json['total_transactions']
           : int.tryParse(json['total_transactions']?.toString() ?? '0') ?? 0,
-      expectedCash: (json['expected_cash'] != null)
-          ? double.tryParse(json['expected_cash'].toString()) ?? 0.0
-          : 0.0,
+      expectedCash: expCash,
       actualCash: (json['actual_cash'] != null)
           ? double.tryParse(json['actual_cash'].toString())
           : null,
@@ -96,6 +114,8 @@ class ShiftModel {
       'cash_sales': cashSales,
       'qris_sales': qrisSales,
       'transfer_sales': transferSales,
+      'total_cash_in': totalCashIn,
+      'total_cash_out': totalCashOut,
       'total_sales': totalSales,
       'total_transactions': totalTransactions,
       'expected_cash': expectedCash,
@@ -117,6 +137,8 @@ class ShiftModel {
     double? cashSales,
     double? qrisSales,
     double? transferSales,
+    double? totalCashIn,
+    double? totalCashOut,
     double? totalSales,
     int? totalTransactions,
     double? expectedCash,
@@ -136,6 +158,8 @@ class ShiftModel {
       cashSales: cashSales ?? this.cashSales,
       qrisSales: qrisSales ?? this.qrisSales,
       transferSales: transferSales ?? this.transferSales,
+      totalCashIn: totalCashIn ?? this.totalCashIn,
+      totalCashOut: totalCashOut ?? this.totalCashOut,
       totalSales: totalSales ?? this.totalSales,
       totalTransactions: totalTransactions ?? this.totalTransactions,
       expectedCash: expectedCash ?? this.expectedCash,
@@ -173,6 +197,23 @@ class ShiftModel {
       expectedCash: newExpectedCash,
       offlineTransactionsCount: offlineTransactionsCount + 1,
       isOffline: true,
+    );
+  }
+
+  /// Update kas di laci saat kasir mencatat kas masuk / kas keluar
+  ShiftModel recordCashMovement({
+    required double amount,
+    required String type, // 'in' or 'out'
+  }) {
+    final bool isIn = type == 'in';
+    final double newCashIn = isIn ? totalCashIn + amount : totalCashIn;
+    final double newCashOut = !isIn ? totalCashOut + amount : totalCashOut;
+    final double newExpectedCash = isIn ? expectedCash + amount : expectedCash - amount;
+
+    return copyWith(
+      totalCashIn: newCashIn,
+      totalCashOut: newCashOut,
+      expectedCash: newExpectedCash,
     );
   }
 }

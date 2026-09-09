@@ -54,6 +54,10 @@ class AdminShiftDetailDialog extends StatelessWidget {
                         _buildTimelineCard(),
                         const SizedBox(height: 14),
                         _buildReconciliationCard(),
+                        if (shift.cashMovements.isNotEmpty) ...[
+                          const SizedBox(height: 14),
+                          _buildCashMovementsCard(context),
+                        ],
                         const SizedBox(height: 14),
                         _buildPaymentBreakdownCard(),
                         if (shift.notes.trim().isNotEmpty) ...[
@@ -496,6 +500,22 @@ class AdminShiftDetailDialog extends StatelessWidget {
                   value: '+ ${CurrencyFormatter.format(shift.cashSales)}',
                   valueColor: const Color(0xFF059669),
                 ),
+                if (shift.totalCashIn > 0) ...[
+                  const SizedBox(height: 8),
+                  _buildLedgerLine(
+                    label: 'Kas Masuk Laci (+)',
+                    value: '+ ${CurrencyFormatter.format(shift.totalCashIn)}',
+                    valueColor: const Color(0xFF059669),
+                  ),
+                ],
+                if (shift.totalCashOut > 0) ...[
+                  const SizedBox(height: 8),
+                  _buildLedgerLine(
+                    label: 'Kas Keluar Laci / Petty (-)',
+                    value: '- ${CurrencyFormatter.format(shift.totalCashOut)}',
+                    valueColor: const Color(0xFFDC2626),
+                  ),
+                ],
                 const SizedBox(height: 12),
 
                 // Subtotal Box (Ekspektasi Uang Laci)
@@ -981,7 +1001,163 @@ class AdminShiftDetailDialog extends StatelessWidget {
   }
 
   // ---------------------------------------------------------------------------
-  // 5. Notes Card
+  // 5. Cash Movements Card (Petty Cash & Cash In)
+  // ---------------------------------------------------------------------------
+  Widget _buildCashMovementsCard(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.payments_outlined, size: 16, color: Color(0xFF0F172A)),
+                    SizedBox(width: 8),
+                    Text(
+                      'Mutasi Kas Laci (Petty Cash & Pay In)',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: Text(
+                    '${shift.cashMovements.length} Mutasi',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF475569),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(12),
+            itemCount: shift.cashMovements.length,
+            separatorBuilder: (_, __) => const Divider(height: 14, color: Color(0xFFF1F5F9)),
+            itemBuilder: (context, i) {
+              final m = shift.cashMovements[i];
+              final isOut = m.isOut;
+              final Color color = isOut ? const Color(0xFFDC2626) : const Color(0xFF059669);
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: isOut ? const Color(0xFFFEF2F2) : const Color(0xFFECFDF5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isOut ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+                      size: 14,
+                      color: color,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              m.categoryName,
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1E293B),
+                              ),
+                            ),
+                            Text(
+                              isOut ? '- ${CurrencyFormatter.format(m.amount)}' : '+ ${CurrencyFormatter.format(m.amount)}',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.bold,
+                                color: color,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          m.notes,
+                          style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (m.hasReceiptImage) ...[
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.image_outlined, size: 16, color: AppColors.secondary),
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => Dialog(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              constraints: const BoxConstraints(maxWidth: 380),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Text(
+                                    'Bukti: ${m.categoryName}',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.network(
+                                      m.receiptImageUrl!,
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 6. Notes Card
   // ---------------------------------------------------------------------------
   Widget _buildNotesCard() {
     return Container(

@@ -25,7 +25,10 @@ class PosView extends GetView<PosController> {
     final shiftController = Get.find<ShiftController>();
     final onlineOrderPollingService = Get.find<OnlineOrderPollingService>();
 
+    final isTablet = MediaQuery.of(context).size.width >= 768;
+
     return Scaffold(
+      resizeToAvoidBottomInset: !isTablet,
       backgroundColor: AppColors.lightBackground,
       appBar: AppBar(
         titleSpacing: 16,

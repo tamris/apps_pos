@@ -8,6 +8,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/app_snackbar.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
+import 'cash_movement_dialog.dart';
+import 'shift_movements_history_dialog.dart';
 
 import 'package:flutter/services.dart';
 
@@ -518,124 +520,135 @@ class ShiftDialogs {
       context: context,
       builder: (dialogContext) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          width: 460,
-          padding: const EdgeInsets.all(24),
-          child: Obx(() {
-            final shift = controller.currentShift.value;
-            if (shift == null) {
-              return const Padding(
-                padding: EdgeInsets.symmetric(vertical: 36.0),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 480,
+            maxHeight: MediaQuery.of(context).size.height * 0.90,
+          ),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(22, 18, 22, 18),
+            child: Obx(() {
+              final shift = controller.currentShift.value;
+              if (shift == null) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 36.0),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(strokeWidth: 2.5),
+                        SizedBox(height: 16),
+                        Text(
+                          'Memuat data shift kasir...',
+                          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              final isConnOffline = controller.isConnectionOffline;
+              final isShiftOffline = controller.isShiftOffline;
+              final offlineCount = controller.offlineTransactionsCount;
+              final hasPending = offlineCount > 0;
+              final isReallyOffline = isConnOffline || isShiftOffline;
+
+              final Color badgeBg;
+              final Color badgeBorder;
+              final Color badgeColor;
+              final IconData badgeIcon;
+              final String badgeText;
+
+              if (isReallyOffline) {
+                badgeBg = AppColors.warningSoft;
+                badgeBorder = AppColors.warning.withAlpha(80);
+                badgeColor = AppColors.warningDark;
+                badgeIcon = Icons.wifi_off_rounded;
+                badgeText = offlineCount > 0 ? 'Shift Offline ($offlineCount)' : 'Mode Offline';
+              } else if (hasPending) {
+                badgeBg = AppColors.infoSoft;
+                badgeBorder = AppColors.info.withAlpha(80);
+                badgeColor = AppColors.info;
+                badgeIcon = Icons.cloud_sync_rounded;
+                badgeText = 'Sinkronisasi ($offlineCount)';
+              } else {
+                badgeBg = AppColors.successSoft;
+                badgeBorder = AppColors.success.withAlpha(80);
+                badgeColor = AppColors.success;
+                badgeIcon = Icons.circle;
+                badgeText = 'Shift Aktif';
+              }
+
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header Dialog (PINNED)
+                  Row(
                     children: [
-                      CircularProgressIndicator(strokeWidth: 2.5),
-                      SizedBox(height: 16),
-                      Text(
-                        'Memuat data shift kasir...',
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.primarySoft,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.query_stats_rounded, color: AppColors.primary, size: 24),
+                      ),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Ringkasan Shift Kasir',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Detail operasional & perputaran kas',
+                              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: badgeBg,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: badgeBorder),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              badgeIcon,
+                              size: badgeIcon == Icons.circle ? 8 : 12,
+                              color: badgeColor,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              badgeText,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: badgeColor,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                ),
-              );
-            }
+                  const SizedBox(height: 14),
 
-            final isConnOffline = controller.isConnectionOffline;
-            final isShiftOffline = controller.isShiftOffline;
-            final offlineCount = controller.offlineTransactionsCount;
-            final hasPending = offlineCount > 0;
-            final isReallyOffline = isConnOffline || isShiftOffline;
-
-            final Color badgeBg;
-            final Color badgeBorder;
-            final Color badgeColor;
-            final IconData badgeIcon;
-            final String badgeText;
-
-            if (isReallyOffline) {
-              badgeBg = AppColors.warningSoft;
-              badgeBorder = AppColors.warning.withAlpha(80);
-              badgeColor = AppColors.warningDark;
-              badgeIcon = Icons.wifi_off_rounded;
-              badgeText = offlineCount > 0 ? 'Shift Offline ($offlineCount)' : 'Mode Offline';
-            } else if (hasPending) {
-              badgeBg = AppColors.infoSoft;
-              badgeBorder = AppColors.info.withAlpha(80);
-              badgeColor = AppColors.info;
-              badgeIcon = Icons.cloud_sync_rounded;
-              badgeText = 'Sinkronisasi ($offlineCount)';
-            } else {
-              badgeBg = AppColors.successSoft;
-              badgeBorder = AppColors.success.withAlpha(80);
-              badgeColor = AppColors.success;
-              badgeIcon = Icons.circle;
-              badgeText = 'Shift Aktif';
-            }
-
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header Dialog
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppColors.primarySoft,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.query_stats_rounded, color: AppColors.primary, size: 24),
-                    ),
-                    const SizedBox(width: 14),
-                    const Expanded(
+                  // Body Form (SCROLLABLE DENGAN ZERO OVERFLOW)
+                  Flexible(
+                    child: SingleChildScrollView(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Ringkasan Shift Kasir',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Detail operasional & perputaran kas',
-                            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: badgeBg,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: badgeBorder),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            badgeIcon,
-                            size: badgeIcon == Icons.circle ? 8 : 12,
-                            color: badgeColor,
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            badgeText,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: badgeColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
 
                 // Info Banner jika Offline Murni
                 if (isReallyOffline) ...[
@@ -806,6 +819,13 @@ class ShiftDialogs {
                           valueColor: AppColors.warningDark,
                         ),
                       ],
+                      if (shift.totalCashIn > 0 || shift.totalCashOut > 0) ...[
+                        const Divider(height: 14),
+                        if (shift.totalCashIn > 0)
+                          _buildRow('(+) Total Kas Masuk', CurrencyFormatter.format(shift.totalCashIn), valueColor: AppColors.primary),
+                        if (shift.totalCashOut > 0)
+                          _buildRow('(-) Total Kas Keluar', CurrencyFormatter.format(shift.totalCashOut), valueColor: AppColors.danger),
+                      ],
                     ],
                   ),
                 ),
@@ -847,7 +867,7 @@ class ShiftDialogs {
                                   ),
                                   SizedBox(height: 1),
                                   Text(
-                                    '(Modal Awal + Tunai)',
+                                    '(Modal + Tunai + In - Out)',
                                     style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -873,10 +893,100 @@ class ShiftDialogs {
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 10),
 
-                // Tombol Aksi
-                Row(
+                // Card 4: Action Tombol Kas Keluar & Kas Masuk
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.lightBorder),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 9),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                side: const BorderSide(color: AppColors.danger),
+                                foregroundColor: AppColors.danger,
+                              ),
+                              icon: const Icon(Icons.arrow_upward_rounded, size: 15),
+                              label: const Text(
+                                '- Kas Keluar',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
+                              ),
+                              onPressed: () async {
+                                Navigator.of(dialogContext).pop();
+                                await CashMovementDialog.show(context, initialType: 'out');
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 9),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                side: const BorderSide(color: AppColors.primary),
+                                foregroundColor: AppColors.primary,
+                              ),
+                              icon: const Icon(Icons.arrow_downward_rounded, size: 15),
+                              label: const Text(
+                                '+ Kas Masuk',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
+                              ),
+                              onPressed: () async {
+                                Navigator.of(dialogContext).pop();
+                                await CashMovementDialog.show(context, initialType: 'in');
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      InkWell(
+                        onTap: () async {
+                          Navigator.of(dialogContext).pop();
+                          await ShiftMovementsHistoryDialog.show(context);
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.history_rounded, size: 15, color: AppColors.textSecondary),
+                              const SizedBox(width: 5),
+                              Text(
+                                (shift.totalCashIn > 0 || shift.totalCashOut > 0)
+                                    ? 'Lihat Mutasi Kas Shift Ini'
+                                    : 'Riwayat Arus Kas Shift',
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // Tombol Aksi (PINNED DI BAWAH)
+        Row(
                   children: [
                     Expanded(
                       child: OutlinedButton(
@@ -915,8 +1025,9 @@ class ShiftDialogs {
           }),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   /// Modal Tutup Shift Kasir (Input Uang Fisik Riil & Hitung Selisih)
   static Future<bool> showEndShiftDialog(BuildContext context) async {
@@ -1055,6 +1166,14 @@ class ShiftDialogs {
                           _buildRow('Modal Awal', CurrencyFormatter.format(current.startingCash)),
                           const SizedBox(height: 2),
                           _buildRow('Penjualan Tunai', CurrencyFormatter.format(current.cashSales)),
+                          if (current.totalCashIn > 0) ...[
+                            const SizedBox(height: 2),
+                            _buildRow('(+) Kas Masuk Laci', CurrencyFormatter.format(current.totalCashIn), valueColor: AppColors.primary),
+                          ],
+                          if (current.totalCashOut > 0) ...[
+                            const SizedBox(height: 2),
+                            _buildRow('(-) Kas Keluar Laci', CurrencyFormatter.format(current.totalCashOut), valueColor: AppColors.danger),
+                          ],
                           const SizedBox(height: 2),
                           _buildRow('Penjualan Non-Tunai', CurrencyFormatter.format(current.qrisSales + current.transferSales)),
                           const Divider(height: 12),

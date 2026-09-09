@@ -63,6 +63,9 @@ class ApiProvider extends getx.GetxService {
           // Always use dynamic current base url in case updated in settings
           options.baseUrl = _storageService.baseUrl;
           options.headers['ngrok-skip-browser-warning'] = 'true';
+          if (options.data is FormData) {
+            options.headers.remove('Content-Type');
+          }
           final token = _storageService.token;
           if (token != null && token.isNotEmpty) {
             // Jangan kirim offline token ke server karena server Laravel pasti 401
@@ -196,6 +199,20 @@ class ApiProvider extends getx.GetxService {
   }) async {
     try {
       return await _dio.post(path, data: data, queryParameters: queryParameters, options: options);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // PUT Request
+  Future<Response> put(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) async {
+    try {
+      return await _dio.put(path, data: data, queryParameters: queryParameters, options: options);
     } catch (e) {
       rethrow;
     }
