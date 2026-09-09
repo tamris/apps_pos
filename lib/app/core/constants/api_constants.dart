@@ -69,8 +69,9 @@ class ApiConstants {
   static String adminMenuSalesDetail(int id) => '/admin/menu-sales/$id';
 
   // Admin Cash Flow & Expense Management
-  static const String adminCashFlow = '/cash-flow';
-  static const String adminCashFlowSummary = '/cash-flow/summary';
-  static String adminCashFlowDetail(int id) => '/cash-flow/$id';
-  static const String adminExpenseCategories = '/expense-categories';
+  static const String adminCashFlow = '/admin/cash-flow';
+  static const String adminCashFlowSummary = '/admin/cash-flow/summary';
+  static String adminCashFlowDetail(int id) => '/admin/cash-flow/$id';
+  static const String adminExpenseCategories = '/admin/expense-categories';
+  static String adminExpenseCategoryDetail(int id) => '/admin/expense-categories/$id';
 }

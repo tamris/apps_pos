@@ -6,6 +6,7 @@ class ExpenseCategoryModel {
   final String? description;
   final bool isDefault;
   final bool isActive;
+  final int cashMovementsCount;
 
   ExpenseCategoryModel({
     required this.id,
@@ -15,6 +16,7 @@ class ExpenseCategoryModel {
     this.description,
     this.isDefault = false,
     this.isActive = true,
+    this.cashMovementsCount = 0,
   });
 
   bool get isExpense => type == 'expense' || type == 'both';
@@ -29,6 +31,9 @@ class ExpenseCategoryModel {
       description: json['description']?.toString(),
       isDefault: json['is_default'] == true || json['is_default'] == 1,
       isActive: json['is_active'] != false && json['is_active'] != 0,
+      cashMovementsCount: json['cash_movements_count'] is int
+          ? json['cash_movements_count']
+          : int.tryParse(json['cash_movements_count']?.toString() ?? '0') ?? 0,
     );
   }
 
@@ -41,6 +46,7 @@ class ExpenseCategoryModel {
       'description': description,
       'is_default': isDefault,
       'is_active': isActive,
+      'cash_movements_count': cashMovementsCount,
     };
   }
 }
