@@ -226,6 +226,24 @@ class ShiftController extends GetxController {
     }
   }
 
+  /// Sesuaikan omset per metode dan kas di laci saat kasir mengubah metode pembayaran transaksi offline
+  void switchOfflineSalePaymentMethod({
+    required double amount,
+    required String oldPaymentMethod,
+    required String newPaymentMethod,
+  }) {
+    final current = currentShift.value ?? _storageService.activeShift;
+    if (current != null) {
+      final updated = current.switchSalePaymentMethod(
+        amount: amount,
+        oldPaymentMethod: oldPaymentMethod,
+        newPaymentMethod: newPaymentMethod,
+      );
+      currentShift.value = updated;
+      _storageService.saveActiveShift(updated);
+    }
+  }
+
   /// Buka Shift Kasir dengan Modal Awal
   Future<bool> startShift(double startingCash) async {
     isLoading.value = true;

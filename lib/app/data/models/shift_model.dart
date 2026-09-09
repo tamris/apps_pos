@@ -216,4 +216,50 @@ class ShiftModel {
       expectedCash: newExpectedCash,
     );
   }
+
+  /// Update omset dan kas di laci saat kasir mengubah metode pembayaran transaksi offline
+  ShiftModel switchSalePaymentMethod({
+    required double amount,
+    required String oldPaymentMethod,
+    required String newPaymentMethod,
+  }) {
+    final oldMethod = oldPaymentMethod.trim().toLowerCase();
+    final newMethod = newPaymentMethod.trim().toLowerCase();
+
+    final wasCash = oldMethod == 'cash' || oldMethod == 'tunai';
+    final wasQris = oldMethod == 'qris';
+    final wasTransfer = oldMethod == 'transfer' || oldMethod == 'bank' || oldMethod == 'debit';
+
+    final isCash = newMethod == 'cash' || newMethod == 'tunai';
+    final isQris = newMethod == 'qris';
+    final isTransfer = newMethod == 'transfer' || newMethod == 'bank' || newMethod == 'debit';
+
+    double newCashSales = cashSales;
+    if (wasCash) newCashSales -= amount;
+    if (isCash) newCashSales += amount;
+
+    double newQrisSales = qrisSales;
+    if (wasQris) newQrisSales -= amount;
+    if (isQris) newQrisSales += amount;
+
+    double newTransferSales = transferSales;
+    if (wasTransfer) newTransferSales -= amount;
+    if (isTransfer) newTransferSales += amount;
+
+    // Expected cash di laci kasir berkurang jika dari tunai -> non-tunai, atau bertambah jika sebaliknya
+    double newExpectedCash = expectedCash;
+    if (wasCash && !isCash) {
+      newExpectedCash -= amount;
+    } else if (!wasCash && isCash) {
+      newExpectedCash += amount;
+    }
+
+    return copyWith(
+      cashSales: (newCashSales < 0) ? 0.0 : newCashSales,
+      qrisSales: (newQrisSales < 0) ? 0.0 : newQrisSales,
+      transferSales: (newTransferSales < 0) ? 0.0 : newTransferSales,
+      expectedCash: newExpectedCash,
+      isOffline: true,
+    );
+  }
 }

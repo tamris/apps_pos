@@ -9,6 +9,8 @@ import '../../../data/services/storage_service.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/app_snackbar.dart';
 import '../../pos/controllers/pos_controller.dart';
+import '../../shift/controllers/shift_controller.dart';
+import '../../../data/models/shift_model.dart';
 import '../views/widgets/receipt_view_dialog.dart';
 
 class TransactionsController extends GetxController {
@@ -22,6 +24,7 @@ class TransactionsController extends GetxController {
   RxString get selectedStatus => selectedTab;
   final RxString searchQuery = ''.obs;
   final RxBool isLoading = false.obs;
+  final RxBool isUpdatingPayment = false.obs;
   final TextEditingController searchController = TextEditingController();
 
   @override
@@ -463,4 +466,125 @@ class TransactionsController extends GetxController {
 
   void onSearchChanged(String query) => onSearch(query);
   void onStatusChanged(String status) => changeTab(status);
+
+  /// Update metode pembayaran transaksi yang sudah selesai (completed)
+  /// Mendukung transaksi Online normal maupun transaksi Offline lokal di antrean
+  Future<bool> updatePaymentMethod({
+    required int transactionId,
+    required String newPaymentMethod,
+    double? paid,
+  }) async {
+    final cleanMethod = newPaymentMethod.toLowerCase().trim();
+    const validMethods = ['cash', 'qris', 'transfer', 'debit'];
+    if (!validMethods.contains(cleanMethod)) {
+      AppSnackbar.danger('Metode Tidak Valid', 'Pilihan metode pembayaran tidak dikenali sistem.');
+      return false;
+    }
+
+    // 1. Cabang Transaksi Offline (ID < 0 atau tercatat di antrean offline lokal)
+    final rawQueue = _storageService.getOfflineQueue();
+    final offlineQueue = List<Map<String, dynamic>>.from(rawQueue);
+    final localTx = transactions.firstWhereOrNull((t) => t.id == transactionId);
+
+    int offlineIndex = -1;
+    if (transactionId < 0) {
+      final targetIndex = (-transactionId) - 1;
+      if (targetIndex >= 0 && targetIndex < offlineQueue.length) {
+        offlineIndex = targetIndex;
+      }
+    }
+    if (offlineIndex == -1 && localTx != null) {
+      offlineIndex = offlineQueue.indexWhere((q) => q['offline_id'] == localTx.invoiceNumber);
+    }
+
+    if (offlineIndex != -1) {
+      try {
+        isUpdatingPayment.value = true;
+        final oldItem = Map<String, dynamic>.from(offlineQueue[offlineIndex]);
+        final oldMethod = oldItem['payment_method']?.toString() ?? 'cash';
+        final grandTotal = (oldItem['total'] as num?)?.toDouble() ?? localTx?.total ?? 0.0;
+        final double finalPaid = (cleanMethod == 'cash') ? (paid ?? grandTotal) : grandTotal;
+
+        // Update item di dalam antrean offline lokal
+        oldItem['payment_method'] = cleanMethod;
+        oldItem['paid'] = finalPaid;
+        offlineQueue[offlineIndex] = oldItem;
+        await _storageService.saveOfflineQueue(offlineQueue);
+
+        // Sesuaikan omset & saldo laci kasir di ShiftController secara real-time
+        if (Get.isRegistered<ShiftController>()) {
+          try {
+            final shiftCtrl = Get.find<ShiftController>();
+            shiftCtrl.switchOfflineSalePaymentMethod(
+              amount: grandTotal,
+              oldPaymentMethod: oldMethod,
+              newPaymentMethod: cleanMethod,
+            );
+          } catch (_) {}
+        }
+
+        AppSnackbar.success(
+          'Metode Offline Diperbarui',
+          'Metode pembayaran berhasil diubah menjadi ${cleanMethod.toUpperCase()} (Tersimpan Lokal).',
+        );
+
+        // Refresh daftar transaksi hari ini (agar tampilan riwayat lokal langsung berubah)
+        await fetchTodayTransactions();
+        return true;
+      } catch (e) {
+        AppSnackbar.danger('Gagal Ubah Metode Offline', e.toString());
+        return false;
+      } finally {
+        isUpdatingPayment.value = false;
+      }
+    }
+
+    // 2. Cabang Transaksi Online Normal (ID > 0)
+    try {
+      isUpdatingPayment.value = true;
+
+      final Map<String, dynamic> body = {
+        'payment_method': cleanMethod,
+      };
+      if (paid != null) {
+        body['paid'] = paid;
+      }
+
+      final url = ApiConstants.updatePaymentMethod(transactionId);
+      final response = await _apiProvider.post(url, data: body);
+
+      if (response.data != null && response.data['success'] == true) {
+        AppSnackbar.success(
+          'Metode Diperbarui',
+          response.data['message'] ?? 'Metode pembayaran berhasil diubah.',
+        );
+
+        // Jika response mengembalikan data shift terbaru, update ShiftController secara real-time
+        if (response.data['shift'] != null && Get.isRegistered<ShiftController>()) {
+          try {
+            final shiftCtrl = Get.find<ShiftController>();
+            shiftCtrl.currentShift.value = ShiftModel.fromJson(response.data['shift']);
+          } catch (_) {}
+        }
+
+        // Refresh daftar transaksi hari ini
+        await fetchTodayTransactions();
+        return true;
+      } else {
+        AppSnackbar.danger(
+          'Gagal Mengubah Metode',
+          response.data?['message'] ?? 'Tidak dapat mengubah metode pembayaran.',
+        );
+        return false;
+      }
+    } catch (e) {
+      AppSnackbar.danger(
+        'Gagal Mengubah Metode',
+        ApiProvider.getErrorMessage(e),
+      );
+      return false;
+    } finally {
+      isUpdatingPayment.value = false;
+    }
+  }
 }

@@ -23,6 +23,7 @@ class ApiConstants {
   static const String checkout = '/pos/checkout';
   static const String todayTransactions = '/pos/transactions/today';
   static String receiptData(int transactionId) => '/pos/transactions/$transactionId/receipt';
+  static String updatePaymentMethod(int transactionId) => '/pos/transactions/$transactionId/payment-method';
 
   // Open Bills
   static const String openBills = '/pos/open-bills';

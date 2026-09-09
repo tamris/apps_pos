@@ -3,6 +3,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../data/models/transaction_model.dart';
 import '../../controllers/transactions_controller.dart';
+import 'change_payment_method_dialog.dart';
 
 class TransactionDetailDialog {
   static void show(
@@ -119,6 +120,40 @@ class TransactionDetailDialog {
                         : 'Metode: ${tx.paymentMethod.toUpperCase()}',
                     tx.isPending ? AppColors.warning : AppColors.secondary,
                   ),
+                  if (!tx.isPending && !tx.isCancelled)
+                    InkWell(
+                      onTap: () {
+                        Navigator.of(dialogContext).pop();
+                        ChangePaymentMethodDialog.show(
+                          context,
+                          transaction: tx,
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
+                        decoration: BoxDecoration(
+                          color: AppColors.primarySoft,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.primaryLight.withAlpha(120)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.swap_horiz_rounded, size: 13, color: AppColors.primaryDark),
+                            SizedBox(width: 4),
+                            Text(
+                              'Ubah Metode',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryDark,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   if (tx.customerName != null && tx.customerName!.isNotEmpty)
                     _buildBadge(
                       Icons.person_outline_rounded,
@@ -301,6 +336,17 @@ class TransactionDetailDialog {
                             fontWeight: FontWeight.bold,
                             color: AppColors.primaryDark,
                           ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Metode Bayar', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                        Text(
+                          tx.paymentMethod.toUpperCase(),
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                         ),
                       ],
                     ),
