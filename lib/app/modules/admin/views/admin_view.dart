@@ -6,9 +6,11 @@ import '../controllers/admin_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/services/storage_service.dart';
 import 'tabs/admin_dashboard_tab.dart';
+import 'tabs/admin_menu_sales_tab.dart';
 import 'tabs/admin_transactions_tab.dart';
 import 'tabs/admin_shifts_tab.dart';
 import 'tabs/admin_open_bills_tab.dart';
+import 'widgets/common/admin_date_range_dialog.dart';
 
 class AdminView extends GetView<AdminController> {
   const AdminView({super.key});
@@ -197,6 +199,14 @@ class AdminView extends GetView<AdminController> {
                         label: 'Transaksi',
                       ),
                       const NavigationDestination(
+                        icon: Icon(Icons.restaurant_menu_outlined, size: 20),
+                        selectedIcon: Icon(
+                          Icons.restaurant_menu_rounded,
+                          color: AppColors.secondary,
+                        ),
+                        label: 'Menu',
+                      ),
+                      const NavigationDestination(
                         icon: Icon(Icons.assignment_outlined, size: 20),
                         selectedIcon: Icon(
                           Icons.assignment_rounded,
@@ -222,7 +232,7 @@ class AdminView extends GetView<AdminController> {
                           Icons.table_restaurant_rounded,
                           color: AppColors.secondary,
                         ),
-                        label: 'Pesanan & Meja',
+                        label: 'Pesanan',
                       ),
                     ],
                   ),
@@ -459,13 +469,19 @@ class AdminView extends GetView<AdminController> {
                 const SizedBox(height: 3),
                 _buildExpandedNavItem(
                   index: 2,
+                  icon: Icons.restaurant_menu_rounded,
+                  label: 'Penjualan Menu',
+                ),
+                const SizedBox(height: 3),
+                _buildExpandedNavItem(
+                  index: 3,
                   icon: Icons.assignment_rounded,
                   label: 'Audit Shift Kasir',
                 ),
                 const SizedBox(height: 3),
                 Obx(
                   () => _buildExpandedNavItem(
-                    index: 3,
+                    index: 4,
                     icon: Icons.table_restaurant_rounded,
                     label: 'Pesanan & Meja',
                     badgeCount: controller.openBillsTotalActive.value,
@@ -554,13 +570,19 @@ class AdminView extends GetView<AdminController> {
                 const SizedBox(height: 4),
                 _buildCollapsedNavItem(
                   index: 2,
+                  icon: Icons.restaurant_menu_rounded,
+                  label: 'Penjualan Menu',
+                ),
+                const SizedBox(height: 4),
+                _buildCollapsedNavItem(
+                  index: 3,
                   icon: Icons.assignment_rounded,
                   label: 'Audit Shift Kasir',
                 ),
                 const SizedBox(height: 4),
                 Obx(
                   () => _buildCollapsedNavItem(
-                    index: 3,
+                    index: 4,
                     icon: Icons.table_restaurant_rounded,
                     label: 'Pesanan & Meja',
                     badgeCount: controller.openBillsTotalActive.value,
@@ -861,9 +883,12 @@ class AdminView extends GetView<AdminController> {
                   title = 'Riwayat Transaksi';
                   break;
                 case 2:
-                  title = 'Audit Shift Kasir';
+                  title = 'Laporan Penjualan Menu';
                   break;
                 case 3:
+                  title = 'Audit Shift Kasir';
+                  break;
+                case 4:
                   title = 'Pesanan & Meja';
                   break;
                 default:
@@ -927,89 +952,19 @@ class AdminView extends GetView<AdminController> {
                           child: InkWell(
                             borderRadius: BorderRadius.circular(7),
                             onTap: () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate:
-                                    DateTime.tryParse(selected) ??
-                                    DateTime.now(),
-                                firstDate: DateTime(2024),
-                                lastDate: DateTime.now().add(
-                                  const Duration(days: 30),
-                                ),
-                                initialEntryMode:
-                                    DatePickerEntryMode.calendarOnly,
-                                helpText: 'PILIH TANGGAL',
-                                cancelText: 'Batal',
-                                confirmText: 'Terapkan',
-                                builder: (context, child) {
-                                  return Theme(
-                                    data: Theme.of(context).copyWith(
-                                      colorScheme: const ColorScheme.light(
-                                        primary: AppColors.secondary,
-                                        onPrimary: Colors.white,
-                                        surface: Colors.white,
-                                        onSurface: Color(0xFF0F172A),
-                                      ),
-                                      datePickerTheme: DatePickerThemeData(
-                                        backgroundColor: Colors.white,
-                                        headerBackgroundColor:
-                                            AppColors.secondary,
-                                        headerForegroundColor: Colors.white,
-                                        headerHeadlineStyle: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                        ),
-                                        headerHelpStyle: const TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                          letterSpacing: 0.8,
-                                          color: Color(0xFFC7D2FE),
-                                        ),
-                                        surfaceTintColor: Colors.transparent,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                        ),
-                                        dayStyle: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 13,
-                                        ),
-                                        todayBorder: const BorderSide(
-                                          color: AppColors.secondary,
-                                          width: 1.5,
-                                        ),
-                                        todayForegroundColor:
-                                            WidgetStateProperty.all(
-                                          AppColors.secondary,
-                                        ),
-                                      ),
-                                      textButtonTheme: TextButtonThemeData(
-                                        style: TextButton.styleFrom(
-                                          foregroundColor:
-                                              AppColors.secondary,
-                                          textStyle: const TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 14,
-                                            vertical: 8,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    child: MediaQuery(
-                                      data: MediaQuery.of(context).copyWith(
-                                        size: const Size(360, 700),
-                                      ),
-                                      child: child!,
-                                    ),
-                                  );
-                                },
+                              final initial =
+                                  DateTime.tryParse(selected) ??
+                                  DateTime.now();
+                              final picked = await AdminDateRangeDialog.show(
+                                context,
+                                initialStartDate: initial,
+                                initialEndDate: initial,
+                                title: 'Pilih Tanggal Dashboard',
+                                subtitle:
+                                    'Pilih tanggal untuk melihat ringkasan performa',
                               );
                               if (picked != null) {
-                                controller.changeDashboardDate(picked);
+                                controller.changeDashboardDate(picked.start);
                               }
                             },
                             child: Container(
@@ -1110,8 +1065,10 @@ class AdminView extends GetView<AdminController> {
       case 1:
         return const AdminTransactionsTab();
       case 2:
-        return const AdminShiftsTab();
+        return const AdminMenuSalesTab();
       case 3:
+        return const AdminShiftsTab();
+      case 4:
         return const AdminOpenBillsTab();
       default:
         return const AdminDashboardTab();

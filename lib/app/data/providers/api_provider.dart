@@ -34,6 +34,7 @@ class ApiResponse<T> {
 class ApiProvider extends getx.GetxService {
   late Dio _dio;
   final StorageService _storageService = getx.Get.find<StorageService>();
+  final getx.RxBool isOnline = true.obs;
 
   @override
   void onInit() {
@@ -71,7 +72,15 @@ class ApiProvider extends getx.GetxService {
           }
           return handler.next(options);
         },
+        onResponse: (response, handler) {
+          isOnline.value = true;
+          return handler.next(response);
+        },
         onError: (DioException error, handler) {
+          if (isNetworkError(error)) {
+            isOnline.value = false;
+          }
+
           if (error.response?.statusCode == 401) {
             // Jika dalam mode offline, jangan logout paksa
             if (_storageService.isOfflineToken) {
@@ -92,6 +101,41 @@ class ApiProvider extends getx.GetxService {
         },
       ),
     );
+  }
+
+  /// Deteksi apakah error berkaitan dengan jaringan / offline
+  static bool isNetworkError(dynamic error) {
+    if (error is DioException) {
+      return error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.sendTimeout ||
+          error.type == DioExceptionType.receiveTimeout ||
+          error.type == DioExceptionType.connectionError ||
+          error.type == DioExceptionType.unknown;
+    }
+    return false;
+  }
+
+  /// Cek cepat konektivitas ke server backend
+  Future<bool> checkConnection() async {
+    if (_storageService.isOfflineToken) {
+      isOnline.value = false;
+      return false;
+    }
+    try {
+      final res = await _dio.get(
+        ApiConstants.currentShift,
+        options: Options(
+          sendTimeout: const Duration(seconds: 3),
+          receiveTimeout: const Duration(seconds: 3),
+        ),
+      );
+      final ok = (res.statusCode ?? 0) >= 200 && (res.statusCode ?? 0) < 300;
+      isOnline.value = ok;
+      return ok;
+    } catch (_) {
+      isOnline.value = false;
+      return false;
+    }
   }
 
   /// Memastikan token valid sebelum request penting (seperti sync). Melakukan auto re-auth jika masih offline token.

@@ -1,8 +1,8 @@
 class ApiConstants {
   // Default Base URL for Android Emulator (10.0.2.2) or Physical Device via LAN
   // This can be modified dynamically at runtime in Settings
-  static const String defaultBaseUrl = 'https://delphia-formulable-kristyn.ngrok-free.dev/api';
-  static const String defaultStorageUrl = 'https://delphia-formulable-kristyn.ngrok-free.dev/storage';
+  static const String defaultBaseUrl = 'https://sincerely-generous-monkfish.ngrok-free.app/api';
+  static const String defaultStorageUrl = 'https://sincerely-generous-monkfish.ngrok-free.app/storage';
 
   // Auth Endpoints
   static const String cashiers = '/auth/cashiers';
@@ -55,4 +55,10 @@ class ApiConstants {
   static String adminTransactionDetail(int id) => '/admin/transactions/$id';
   static String adminVoidTransaction(int id) => '/admin/transactions/$id/void';
   static const String adminOpenBills = '/admin/open-bills';
+
+  // Admin Menu Sales Analytics
+  static const String adminMenuSales = '/admin/menu-sales';
+  static const String adminMenuSalesTop = '/admin/menu-sales/top';
+  static const String adminMenuSalesCategories = '/admin/menu-sales/categories';
+  static String adminMenuSalesDetail(int id) => '/admin/menu-sales/$id';
 }

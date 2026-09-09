@@ -94,10 +94,12 @@ class _AdminVoidDialogState extends State<AdminVoidDialog> {
                 ),
               ],
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                 // Header Alert
                 Row(
                   children: [
@@ -304,6 +306,7 @@ class _AdminVoidDialogState extends State<AdminVoidDialog> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

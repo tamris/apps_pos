@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import '../controllers/settings_controller.dart';
 import '../../../core/services/sound_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/currency_formatter.dart';
+import '../../../core/utils/date_formatter.dart';
 
 class SettingsView extends GetView<SettingsController> {
   const SettingsView({super.key});
@@ -12,7 +14,7 @@ class SettingsView extends GetView<SettingsController> {
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
       appBar: AppBar(
-        title: const Text('Pengaturan & Perangkat', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Pengaturan', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16.0),
@@ -369,71 +371,563 @@ class SettingsView extends GetView<SettingsController> {
   }
 
   Widget _buildOfflineSyncSection(BuildContext context) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: AppColors.lightBorder, width: 1.2),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.cloud_sync_rounded, color: AppColors.info),
-                SizedBox(width: 8),
-                Text('Sinkronisasi Offline', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Obx(() {
-              final count = controller.offlineSyncService.pendingCount.value;
-              final isSyncing = controller.offlineSyncService.isSyncing.value;
+    return Obx(() {
+      final syncService = controller.offlineSyncService;
+      final count = syncService.pendingCount.value;
+      final txCount = syncService.pendingTxCount.value;
+      final shiftCount = syncService.pendingShiftCount.value;
+      final isSyncing = syncService.isSyncing.value;
+      final isOnline = controller.isOnline.value;
+      final lastSync = syncService.lastSyncTime.value;
 
-              return Row(
+      final Color statusColor = count > 0 ? AppColors.warning : AppColors.success;
+      final Color statusBg = count > 0 ? AppColors.warningSoft : AppColors.successSoft;
+
+      return Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AppColors.lightBorder, width: 1.2),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header: Icon + Title + Status Chip
+              Row(
                 children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: isSyncing ? AppColors.primaryLight : statusBg,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      isSyncing
+                          ? Icons.sync_rounded
+                          : (count > 0 ? Icons.cloud_upload_rounded : Icons.cloud_done_rounded),
+                      color: isSyncing ? AppColors.primary : statusColor,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          count > 0 ? '$count Transaksi Tersimpan Offline' : 'Semua transaksi tersinkronisasi',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: count > 0 ? AppColors.warning : AppColors.success,
-                          ),
+                        const Text(
+                          'Sinkronisasi Cloud & Offline',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                         ),
                         const SizedBox(height: 2),
-                        const Text(
-                          'Data tersimpan aman di penyimpanan lokal.',
-                          style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                        Text(
+                          isSyncing
+                              ? 'Sedang menyinkronkan data...'
+                              : (count > 0 ? '$count data menunggu koneksi' : 'Semua data aman & tersinkron'),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: isSyncing ? AppColors.primary : statusColor,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: count > 0 ? AppColors.primary : AppColors.lightBackground,
-                      foregroundColor: count > 0 ? Colors.white : AppColors.textPrimary,
-                      side: BorderSide(color: count > 0 ? AppColors.primary : AppColors.lightBorder),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: isSyncing ? AppColors.primaryLight : statusBg,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: (isSyncing ? AppColors.primary : statusColor).withValues(alpha: 0.3),
+                        width: 1,
+                      ),
                     ),
-                    icon: isSyncing
-                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.sync_rounded, size: 16),
-                    label: const Text('Sync', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                    onPressed: isSyncing ? null : () => controller.syncOffline(),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isSyncing)
+                          const SizedBox(
+                            width: 10,
+                            height: 10,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                          )
+                        else
+                          Container(
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: statusColor,
+                            ),
+                          ),
+                        const SizedBox(width: 6),
+                        Text(
+                          isSyncing ? 'Syncing' : (count > 0 ? '$count Pending' : 'Tersinkron'),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: isSyncing ? AppColors.primary : statusColor,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
-              );
-            }),
-          ],
+              ),
+              const SizedBox(height: 14),
+
+              // Monitoring Dashboard Container
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.lightBackground,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.lightBorder),
+                ),
+                child: Column(
+                  children: [
+                    // Status Koneksi
+                    Row(
+                      children: [
+                        Icon(
+                          isOnline ? Icons.wifi_rounded : Icons.wifi_off_rounded,
+                          size: 16,
+                          color: isOnline ? AppColors.success : AppColors.danger,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Koneksi Backend:',
+                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                        const Spacer(),
+                        Text(
+                          isOnline ? 'Online (Terhubung)' : 'Offline (Lokal)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: isOnline ? AppColors.success : AppColors.danger,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8.0),
+                      child: Divider(height: 1, color: AppColors.lightBorder),
+                    ),
+                    // Terakhir Sinkron
+                    Row(
+                      children: [
+                        const Icon(Icons.access_time_rounded, size: 16, color: AppColors.textSecondary),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Terakhir Disinkronkan:',
+                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                        const Spacer(),
+                        Text(
+                          lastSync != null
+                              ? DateFormatter.formatDateTime(lastSync.toIso8601String())
+                              : 'Belum pernah disinkronkan',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // Pending items breakdown (if count > 0)
+              if (count > 0) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.warningSoft.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.info_outline_rounded, size: 16, color: AppColors.warning),
+                          SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Data offline tersimpan aman di perangkat.',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Rincian antrean: $txCount transaksi, $shiftCount shift kasir.',
+                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(height: 8),
+                      InkWell(
+                        onTap: () => _showPendingQueueBottomSheet(context),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.list_alt_rounded, size: 14, color: AppColors.textPrimary),
+                              SizedBox(width: 6),
+                              Text(
+                                'Lihat Rincian Antrean',
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                              ),
+                              SizedBox(width: 4),
+                              Icon(Icons.chevron_right_rounded, size: 14, color: AppColors.textSecondary),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              // Info otomatis background
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.bolt_rounded, size: 16, color: AppColors.primary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Sistem otomatis mengunggah data transaksi & shift kasir ke server setiap kali online. Tidak ada data yang hilang.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
+                        height: 1.3,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Action button: Sinkronkan Sekarang
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: count > 0 ? AppColors.primary : AppColors.lightBackground,
+                    foregroundColor: count > 0 ? Colors.white : AppColors.textPrimary,
+                    side: BorderSide(
+                      color: count > 0 ? AppColors.primary : AppColors.lightBorder,
+                      width: 1.2,
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  icon: isSyncing
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                        )
+                      : Icon(
+                          Icons.sync_rounded,
+                          size: 18,
+                          color: count > 0 ? Colors.white : AppColors.textPrimary,
+                        ),
+                  label: Text(
+                    isSyncing
+                        ? 'Sedang Menyinkronkan Data...'
+                        : (count > 0 ? 'Sinkronkan Sekarang ($count Data)' : 'Sinkronkan Ulang Sekarang'),
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: isSyncing ? null : () => controller.syncOffline(),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
+      );
+    });
+  }
+
+  void _showPendingQueueBottomSheet(BuildContext context) {
+    final pendingTx = controller.offlineSyncService.getPendingTransactions();
+    final pendingShifts = controller.offlineSyncService.getPendingClosedShifts();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.75,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle bar
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.lightBorder,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Title & Close Button
+              Row(
+                children: [
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Antrean Data Offline',
+                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Data yang tersimpan lokal dan menunggu dikirim ke server',
+                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Divider(height: 1, color: AppColors.lightBorder),
+              const SizedBox(height: 12),
+
+              // List of Pending Items
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    if (pendingTx.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          const Icon(Icons.receipt_long_rounded, size: 16, color: AppColors.primary),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Transaksi Offline (${pendingTx.length})',
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ...pendingTx.map((tx) {
+                        final offlineId = tx['offline_id']?.toString() ?? '-';
+                        final orderType = tx['order_type']?.toString().toUpperCase() ?? 'DINE IN';
+                        final table = tx['table_number'] != null ? 'Meja ${tx['table_number']}' : null;
+                        final cust = tx['customer_name']?.toString();
+                        final sub = [orderType, if (table != null) table, if (cust != null) cust].join(' • ');
+
+                        double amount = 0.0;
+                        if (tx['items'] != null && tx['items'] is List) {
+                          for (final itm in (tx['items'] as List)) {
+                            final qty = int.tryParse(itm['quantity']?.toString() ?? '1') ?? 1;
+                            final price = (itm['price'] as num?)?.toDouble() ?? 0.0;
+                            amount += price * qty;
+                          }
+                        }
+                        if (amount == 0.0) {
+                          amount = (tx['paid'] as num?)?.toDouble() ?? 0.0;
+                        }
+
+                        final dateStr = tx['created_at'] != null
+                            ? DateFormatter.formatDateTime(tx['created_at'].toString())
+                            : '-';
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.lightBackground,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.lightBorder),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: AppColors.lightBorder),
+                                ),
+                                child: const Icon(Icons.receipt_rounded, size: 20, color: AppColors.primary),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      offlineId,
+                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(sub, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                                    const SizedBox(height: 2),
+                                    Text(dateStr, style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                CurrencyFormatter.format(amount),
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                      const SizedBox(height: 12),
+                    ],
+
+                    if (pendingShifts.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          const Icon(Icons.point_of_sale_rounded, size: 16, color: AppColors.warning),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Shift Kasir Ditutup Offline (${pendingShifts.length})',
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ...pendingShifts.map((cs) {
+                        final actualCash = (cs['summary']?['actual_cash'] as num?)?.toDouble() ?? 0.0;
+                        final endTime = cs['end_time'] != null
+                            ? DateFormatter.formatDateTime(cs['end_time'].toString())
+                            : '-';
+                        final notes = cs['notes']?.toString();
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.lightBackground,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.lightBorder),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: AppColors.lightBorder),
+                                ),
+                                child: const Icon(Icons.lock_clock_rounded, size: 20, color: AppColors.warning),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Tutup Shift Kasir', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 2),
+                                    Text('Waktu: $endTime', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                                    if (notes != null && notes.isNotEmpty)
+                                      Text('Catatan: $notes', style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                                  ],
+                                ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  const Text('Kas Fisik', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                                  Text(
+                                    CurrencyFormatter.format(actualCash),
+                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Bottom buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Tutup'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      icon: const Icon(Icons.sync_rounded, size: 18),
+                      label: const Text('Sinkronkan Sekarang', style: TextStyle(fontWeight: FontWeight.bold)),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        controller.syncOffline();
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

@@ -16,6 +16,7 @@ class AppColors {
   static const Color success = Color(0xFF10B981);
   static const Color successSoft = Color(0xFFD1FAE5);
   static const Color warning = Color(0xFFF59E0B);
+  static const Color warningDark = Color(0xFFD97706);
   static const Color warningSoft = Color(0xFFFEF3C7);
   static const Color danger = Color(0xFFEF4444);
   static const Color dangerSoft = Color(0xFFFEE2E2);

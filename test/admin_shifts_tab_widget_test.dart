@@ -268,4 +268,87 @@ void main() {
     expect(find.text('Transfer Bank'), findsWidgets);
     expect(find.text('Tutup'), findsWidgets);
   });
+
+  testWidgets('Opens AdminDateRangeDialog when tapping date filter on shifts tab and tests reset', (tester) async {
+    final mockApi = MockApiProvider();
+    Get.put<ApiProvider>(mockApi);
+
+    final todayShift = {
+      'id': 3,
+      'cashier': {
+        'id': 3,
+        'name': 'Kasir Budi',
+        'email': 'budi@example.com',
+      },
+      'start_time': DateTime.now().toIso8601String(),
+      'end_time': null,
+      'status': 'open',
+      'starting_cash': 200000,
+      'cash_sales': 500000,
+      'qris_sales': 300000,
+      'transfer_sales': 100000,
+      'total_sales': 900000,
+      'total_transactions': 15,
+      'expected_cash': 700000,
+      'actual_cash': null,
+      'difference': null,
+      'discrepancy_status': 'balanced',
+      'notes': '',
+    };
+
+    final controller = TestAdminController();
+    Get.put<AdminController>(controller);
+
+    controller.shifts.value = [
+      ...shiftJsonList.map((e) => AdminShiftModel.fromJson(e)),
+      AdminShiftModel.fromJson(todayShift),
+    ];
+
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      const GetMaterialApp(
+        home: Scaffold(
+          body: AdminShiftsTab(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Verify initial button says "Filter Tanggal" and no reset button is shown
+    expect(find.text('Filter Tanggal'), findsOneWidget);
+    expect(find.text('Reset Filter'), findsNothing);
+
+    // Tap the date filter button
+    await tester.tap(find.text('Filter Tanggal'));
+    await tester.pumpAndSettle();
+
+    // Verify dialog opened
+    expect(find.text('Pilih Tanggal Audit Shift'), findsOneWidget);
+    expect(find.text('Pilih rentang tanggal untuk audit shift kasir & Z-Report'), findsOneWidget);
+    expect(find.text('Hari Ini'), findsWidgets);
+
+    // Tap preset 'Hari Ini' in the dialog
+    await tester.tap(find.text('Hari Ini').last);
+    await tester.pumpAndSettle();
+
+    // Tap 'Terapkan Rentang'
+    await tester.tap(find.text('Terapkan Rentang'));
+    await tester.pumpAndSettle();
+
+    // Now dialog is closed, button should show 'Hari Ini' and 'Reset Filter' should appear
+    expect(find.text('Hari Ini'), findsOneWidget);
+    expect(find.text('Reset Filter'), findsOneWidget);
+
+    // Tap 'Reset Filter'
+    await tester.tap(find.text('Reset Filter'));
+    await tester.pumpAndSettle();
+
+    // Should return to 'Filter Tanggal' and reset button disappears
+    expect(find.text('Filter Tanggal'), findsOneWidget);
+    expect(find.text('Reset Filter'), findsNothing);
+  });
 }
