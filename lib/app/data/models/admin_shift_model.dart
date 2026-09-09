@@ -1,3 +1,5 @@
+import 'cash_movement_model.dart';
+
 class AdminShiftModel {
   final int id;
   final String cashierName;
@@ -10,6 +12,8 @@ class AdminShiftModel {
   final double cashSales;
   final double qrisSales;
   final double transferSales;
+  final double totalCashIn;
+  final double totalCashOut;
   final double totalSales;
   final int totalTransactions;
   final double expectedCash;
@@ -30,6 +34,8 @@ class AdminShiftModel {
     required this.cashSales,
     required this.qrisSales,
     required this.transferSales,
+    this.totalCashIn = 0.0,
+    this.totalCashOut = 0.0,
     required this.totalSales,
     required this.totalTransactions,
     required this.expectedCash,
@@ -58,6 +64,8 @@ class AdminShiftModel {
       cashSales: (json['cash_sales'] as num?)?.toDouble() ?? 0.0,
       qrisSales: (json['qris_sales'] as num?)?.toDouble() ?? 0.0,
       transferSales: (json['transfer_sales'] as num?)?.toDouble() ?? 0.0,
+      totalCashIn: (json['total_cash_in'] as num?)?.toDouble() ?? 0.0,
+      totalCashOut: (json['total_cash_out'] as num?)?.toDouble() ?? 0.0,
       totalSales: (json['total_sales'] as num?)?.toDouble() ?? 0.0,
       totalTransactions: (json['total_transactions'] as num?)?.toInt() ?? 0,
       expectedCash: (json['expected_cash'] as num?)?.toDouble() ?? 0.0,
@@ -103,6 +111,7 @@ class AdminShiftTransactionItemModel {
 
 class AdminShiftDetailModel extends AdminShiftModel {
   final List<AdminShiftTransactionItemModel> transactions;
+  final List<CashMovementModel> cashMovements;
 
   AdminShiftDetailModel({
     required super.id,
@@ -116,6 +125,8 @@ class AdminShiftDetailModel extends AdminShiftModel {
     required super.cashSales,
     required super.qrisSales,
     required super.transferSales,
+    super.totalCashIn,
+    super.totalCashOut,
     required super.totalSales,
     required super.totalTransactions,
     required super.expectedCash,
@@ -124,11 +135,14 @@ class AdminShiftDetailModel extends AdminShiftModel {
     required super.discrepancyStatus,
     required super.notes,
     required this.transactions,
+    this.cashMovements = const [],
   });
 
   factory AdminShiftDetailModel.fromJson(Map<String, dynamic> json) {
     final cashier = json['cashier'] is Map ? json['cashier'] : {};
     final rawTrx = (json['transactions'] as List?) ?? [];
+    final rawMovements = (json['cash_movements'] as List?) ?? [];
+
     return AdminShiftDetailModel(
       id: (json['id'] as num?)?.toInt() ?? 0,
       cashierName: cashier['name']?.toString() ?? 'Kasir',
@@ -141,6 +155,8 @@ class AdminShiftDetailModel extends AdminShiftModel {
       cashSales: (json['cash_sales'] as num?)?.toDouble() ?? 0.0,
       qrisSales: (json['qris_sales'] as num?)?.toDouble() ?? 0.0,
       transferSales: (json['transfer_sales'] as num?)?.toDouble() ?? 0.0,
+      totalCashIn: (json['total_cash_in'] as num?)?.toDouble() ?? 0.0,
+      totalCashOut: (json['total_cash_out'] as num?)?.toDouble() ?? 0.0,
       totalSales: (json['total_sales'] as num?)?.toDouble() ?? 0.0,
       totalTransactions: (json['total_transactions'] as num?)?.toInt() ?? 0,
       expectedCash: (json['expected_cash'] as num?)?.toDouble() ?? 0.0,
@@ -149,6 +165,7 @@ class AdminShiftDetailModel extends AdminShiftModel {
       discrepancyStatus: json['discrepancy_status']?.toString() ?? 'balanced',
       notes: json['notes']?.toString() ?? '',
       transactions: rawTrx.map((e) => AdminShiftTransactionItemModel.fromJson(e)).toList(),
+      cashMovements: rawMovements.map((e) => CashMovementModel.fromJson(e)).toList(),
     );
   }
 }

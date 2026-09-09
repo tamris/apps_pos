@@ -521,6 +521,8 @@ class EscPosPrinterService extends GetxService {
     final double cashSales = (summary['cash_sales'] != null) ? double.tryParse(summary['cash_sales'].toString()) ?? 0 : 0;
     final double qrisSales = (summary['qris_sales'] != null) ? double.tryParse(summary['qris_sales'].toString()) ?? 0 : 0;
     final double transferSales = (summary['transfer_sales'] != null) ? double.tryParse(summary['transfer_sales'].toString()) ?? 0 : 0;
+    final double totalCashIn = (summary['total_cash_in'] != null) ? double.tryParse(summary['total_cash_in'].toString()) ?? 0 : 0;
+    final double totalCashOut = (summary['total_cash_out'] != null) ? double.tryParse(summary['total_cash_out'].toString()) ?? 0 : 0;
     final double totalSales = (summary['total_sales'] != null) ? double.tryParse(summary['total_sales'].toString()) ?? 0 : 0;
     final int totalTx = (summary['total_transactions'] != null) ? int.tryParse(summary['total_transactions'].toString()) ?? 0 : 0;
     final double expectedCash = (summary['expected_cash'] != null) ? double.tryParse(summary['expected_cash'].toString()) ?? 0 : 0;
@@ -572,6 +574,12 @@ class EscPosPrinterService extends GetxService {
     buffer.write('REKONSILIASI KAS LACI\n');
     buffer.write('${line32("Modal Kas Awal", "Rp ${formatNumber(startingCash)}")}\n');
     buffer.write('${line32("(+) Total Tunai", "Rp ${formatNumber(cashSales)}")}\n');
+    if (totalCashIn > 0) {
+      buffer.write('${line32("(+) Kas Masuk", "Rp ${formatNumber(totalCashIn)}")}\n');
+    }
+    if (totalCashOut > 0) {
+      buffer.write('${line32("(-) Kas Keluar", "Rp ${formatNumber(totalCashOut)}")}\n');
+    }
     buffer.write('${line32("(=) Kas Harapan", "Rp ${formatNumber(expectedCash)}")}\n');
 
     if (status == 'closed') {
@@ -770,6 +778,96 @@ class EscPosPrinterService extends GetxService {
       // menerimanya sebagai java.util.List dan tidak crash ClassCastException
       final List<int> intList = List<int>.from(rawBytes);
       final bool result = await PrintBluetoothThermal.writeBytes(intList);
+      return result;
+    } catch (e) {
+      AppSnackbar.danger('Gagal Mencetak', e.toString());
+      return false;
+    }
+  }
+
+  /// Generate ESC/POS byte data untuk Bukti Kas Keluar / Kas Masuk Kasir (58mm)
+  Future<List<int>> generateCashMovementSlipBytes(Map<String, dynamic> payload) async {
+    final header = payload['header'] ?? {};
+    final shopName = (header['shop_name'] ?? 'NOLI POS CAFE').toString().toUpperCase();
+    final isOut = (payload['type']?.toString().toLowerCase() == 'out');
+    final title = (header['title'] ?? (isOut ? 'BUKTI KAS KELUAR' : 'BUKTI KAS MASUK')).toString();
+
+    final movementNumber = payload['movement_number']?.toString() ?? '-';
+    final date = payload['date']?.toString() ?? DateTime.now().toString().substring(0, 16);
+    final cashier = payload['cashier_name']?.toString() ?? 'Kasir';
+    final shiftId = payload['shift_id'] != null ? '#SFT-${payload['shift_id']}' : '-';
+    final source = payload['source']?.toString() ?? 'Laci Kasir';
+    final category = payload['category']?.toString() ?? 'Pengeluaran';
+    final double amount = (payload['amount'] != null)
+        ? double.tryParse(payload['amount'].toString()) ?? 0.0
+        : 0.0;
+    final notes = payload['notes']?.toString() ?? '-';
+
+    final buffer = StringBuffer();
+    buffer.write(init);
+    buffer.write(resetBold);
+    buffer.write(fontNormal);
+
+    // Header
+    buffer.write(alignCenter);
+    buffer.write('$shopName\n');
+    buffer.write('--------------------------------\n');
+    buffer.write(doubleHeight);
+    buffer.write('$title\n');
+    buffer.write(fontNormal);
+    buffer.write('--------------------------------\n');
+
+    // Meta
+    buffer.write(alignLeft);
+    buffer.write('${line32("No. Bukti", movementNumber)}\n');
+    buffer.write('${line32("Waktu", date)}\n');
+    buffer.write('${line32("Kasir", cashier)}\n');
+    buffer.write('${line32("Shift ID", shiftId)}\n');
+    buffer.write('${line32("Sumber Dana", source)}\n');
+    buffer.write('--------------------------------\n');
+
+    // Nominal
+    buffer.write('${line32("Kategori", category)}\n');
+    buffer.write(doubleHeight);
+    final sign = isOut ? '(-) ' : '(+) ';
+    buffer.write('${line32(isOut ? "KAS KELUAR" : "KAS MASUK", "$sign Rp ${formatNumber(amount)}")}\n');
+    buffer.write(fontNormal);
+    buffer.write('--------------------------------\n');
+
+    // Keterangan
+    buffer.write('Keperluan / Catatan:\n');
+    buffer.write('$notes\n');
+    buffer.write('--------------------------------\n');
+
+    // Tanda tangan
+    buffer.write('\n');
+    buffer.write('${line32("    Kasir", "Disetujui/Penerima")}\n\n\n');
+    final kasirName = cashier.length > 10 ? cashier.substring(0, 10) : cashier;
+    buffer.write('${line32("  ( $kasirName )", " ( ............ )")}\n');
+
+    buffer.write('--------------------------------\n');
+    buffer.write(alignCenter);
+    buffer.write('Simpan bukti ini untuk arsip\n');
+    buffer.write('rekonsiliasi kas laci kasir.\n');
+    buffer.write(cutPaper);
+
+    return safeEncodeEscPos(buffer.toString());
+  }
+
+  /// Eksekusi cetak slip bukti kas keluar / kas masuk
+  Future<bool> printCashMovementSlip(Map<String, dynamic> slipPayload) async {
+    if (!isConnected.value) {
+      AppSnackbar.warning('Printer Belum Terhubung', 'Silakan hubungkan printer Bluetooth di Pengaturan.');
+      return false;
+    }
+
+    try {
+      final List<int> rawBytes = await generateCashMovementSlipBytes(slipPayload);
+      final List<int> intList = List<int>.from(rawBytes);
+      final bool result = await PrintBluetoothThermal.writeBytes(intList);
+      if (result) {
+        AppSnackbar.success('Struk Dicetak', 'Bukti arus kas berhasil dikirim ke printer.');
+      }
       return result;
     } catch (e) {
       AppSnackbar.danger('Gagal Mencetak', e.toString());

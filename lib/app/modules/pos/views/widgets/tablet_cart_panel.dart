@@ -269,39 +269,46 @@ class TabletCartPanel extends StatelessWidget {
             child: Obx(() {
               if (cartController.items.isEmpty) {
                 return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          color: AppColors.lightBackground,
-                          shape: BoxShape.circle,
+                  child: SingleChildScrollView(
+                    physics: const ClampingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: const BoxDecoration(
+                            color: AppColors.lightBackground,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.remove_shopping_cart_outlined,
+                            size: 34,
+                            color: AppColors.textMuted,
+                          ),
                         ),
-                        child: const Icon(
-                          Icons.remove_shopping_cart_outlined,
-                          size: 36,
-                          color: AppColors.textMuted,
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Keranjang Masih Kosong',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Keranjang Masih Kosong',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Ketuk menu di sebelah kiri untuk memesan',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Ketuk menu di sebelah kiri untuk memesan',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 );
               }

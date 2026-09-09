@@ -15,97 +15,90 @@ class MenuSalesMetricsStrip extends GetView<AdminController> {
           : null;
 
       return Container(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
         decoration: const BoxDecoration(
           color: Colors.white,
-          border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+          border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9))),
         ),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final isNarrow = constraints.maxWidth < 650;
+            final isNarrow = constraints.maxWidth < 860;
+
+            final cardPorsi = _buildMetricCard(
+              width: isNarrow ? 210 : null,
+              label: 'Total Porsi Terjual',
+              value: '${summary.totalQuantitySold} Porsi',
+              subtext: 'Akumulasi porsi terjual',
+              icon: Icons.restaurant_menu_rounded,
+              iconColor: AppColors.secondary,
+              iconBg: const Color(0xFFEEF2FF),
+            );
+
+            final cardTerlaris = _buildMetricCard(
+              width: isNarrow ? 210 : null,
+              label: 'Menu Terlaris #1',
+              value: summary.topSellingProduct?.name ?? '-',
+              subtext: summary.topSellingProduct != null
+                  ? '${summary.topSellingProduct!.quantitySold} porsi terjual'
+                  : 'Belum ada data',
+              icon: Icons.emoji_events_rounded,
+              iconColor: const Color(0xFFD97706),
+              iconBg: const Color(0xFFFEF3C7),
+            );
+
+            final cardVarian = _buildMetricCard(
+              width: isNarrow ? 210 : null,
+              label: 'Varian Menu Aktif',
+              value: '${summary.totalUniqueItemsSold} Menu',
+              subtext: 'Varian menu aktif terjual',
+              icon: Icons.fastfood_rounded,
+              iconColor: const Color(0xFF0284C7),
+              iconBg: const Color(0xFFF0F9FF),
+            );
+
+            final cardKategori = _buildMetricCard(
+              width: isNarrow ? 210 : null,
+              label: 'Kategori Terfavorit',
+              value: topCategory != null ? topCategory.categoryName : '-',
+              subtext: topCategory != null
+                  ? '${topCategory.revenueSharePercentage}% kontribusi'
+                  : 'Belum ada data',
+              icon: Icons.category_rounded,
+              iconColor: const Color(0xFF059669),
+              iconBg: const Color(0xFFECFDF5),
+            );
+
             if (isNarrow) {
               return SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
                 child: Row(
                   children: [
-                    _buildMetricCard(
-                      width: 165,
-                      label: 'Total Porsi Terjual',
-                      value: '${summary.totalQuantitySold} Porsi',
-                      icon: Icons.restaurant_menu_rounded,
-                    ),
+                    cardPorsi,
                     const SizedBox(width: 10),
-                    _buildMetricCard(
-                      width: 195,
-                      label: 'Menu Terlaris #1',
-                      value: summary.topSellingProduct?.name ?? '-',
-                      subtext: summary.topSellingProduct != null
-                          ? '${summary.topSellingProduct!.quantitySold} porsi terjual'
-                          : 'Belum ada data',
-                      icon: Icons.emoji_events_rounded,
-                    ),
+                    cardTerlaris,
                     const SizedBox(width: 10),
-                    _buildMetricCard(
-                      width: 165,
-                      label: 'Varian Menu Aktif',
-                      value: '${summary.totalUniqueItemsSold} Menu',
-                      icon: Icons.fastfood_rounded,
-                    ),
+                    cardVarian,
                     const SizedBox(width: 10),
-                    _buildMetricCard(
-                      width: 190,
-                      label: 'Kategori Terfavorit',
-                      value: topCategory != null ? topCategory.categoryName : '-',
-                      subtext: topCategory != null
-                          ? '${topCategory.revenueSharePercentage}% kontribusi'
-                          : 'Belum ada data',
-                      icon: Icons.category_rounded,
-                    ),
+                    cardKategori,
                   ],
                 ),
               );
             }
 
-            return Row(
-              children: [
-                Expanded(
-                  child: _buildMetricCard(
-                    label: 'Total Porsi Terjual',
-                    value: '${summary.totalQuantitySold} Porsi',
-                    icon: Icons.restaurant_menu_rounded,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildMetricCard(
-                    label: 'Menu Terlaris #1',
-                    value: summary.topSellingProduct?.name ?? '-',
-                    subtext: summary.topSellingProduct != null
-                        ? '${summary.topSellingProduct!.quantitySold} porsi terjual'
-                        : 'Belum ada data',
-                    icon: Icons.emoji_events_rounded,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildMetricCard(
-                    label: 'Varian Menu Aktif',
-                    value: '${summary.totalUniqueItemsSold} Menu',
-                    icon: Icons.fastfood_rounded,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildMetricCard(
-                    label: 'Kategori Terfavorit',
-                    value: topCategory != null ? topCategory.categoryName : '-',
-                    subtext: topCategory != null
-                        ? '${topCategory.revenueSharePercentage}% kontribusi'
-                        : 'Belum ada data',
-                    icon: Icons.category_rounded,
-                  ),
-                ),
-              ],
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: cardPorsi),
+                  const SizedBox(width: 10),
+                  Expanded(child: cardTerlaris),
+                  const SizedBox(width: 10),
+                  Expanded(child: cardVarian),
+                  const SizedBox(width: 10),
+                  Expanded(child: cardKategori),
+                ],
+              ),
             );
           },
         ),
@@ -117,30 +110,32 @@ class MenuSalesMetricsStrip extends GetView<AdminController> {
     double? width,
     required String label,
     required String value,
-    String? subtext,
+    required String subtext,
     required IconData icon,
+    required Color iconColor,
+    required Color iconBg,
   }) {
     return Container(
       width: width,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppColors.secondarySoft,
+              color: iconBg,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(
-              Icons.trending_up_rounded,
-              color: AppColors.secondary,
-              size: 16,
+            child: Icon(
+              icon,
+              color: iconColor,
+              size: 18,
             ),
           ),
           const SizedBox(width: 10),
@@ -152,40 +147,37 @@ class MenuSalesMetricsStrip extends GetView<AdminController> {
                 Text(
                   label,
                   style: const TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
                     color: Color(0xFF64748B),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
                   child: Text(
                     value,
                     style: const TextStyle(
-                      fontSize: 13.5,
+                      fontSize: 14,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF0F172A),
                       letterSpacing: -0.2,
                     ),
                   ),
                 ),
-                if (subtext != null && subtext.isNotEmpty) ...[
-                  const SizedBox(height: 1),
-                  Text(
-                    subtext,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF64748B),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                const SizedBox(height: 2),
+                Text(
+                  subtext,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Color(0xFF94A3B8),
                   ),
-                ],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
           ),

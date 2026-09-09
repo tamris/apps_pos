@@ -56,9 +56,22 @@ class ApiConstants {
   static String adminVoidTransaction(int id) => '/admin/transactions/$id/void';
   static const String adminOpenBills = '/admin/open-bills';
 
+  // POS Cash Flow & Drawer Management
+  static const String posCashFlowCategories = '/pos/cash-flow/categories';
+  static const String posCashFlowCurrent = '/pos/cash-flow/current';
+  static const String posCashFlowStore = '/pos/cash-flow';
+  static String posCashFlowReceipt(int id) => '/pos/cash-flow/$id/receipt';
+
   // Admin Menu Sales Analytics
   static const String adminMenuSales = '/admin/menu-sales';
   static const String adminMenuSalesTop = '/admin/menu-sales/top';
   static const String adminMenuSalesCategories = '/admin/menu-sales/categories';
   static String adminMenuSalesDetail(int id) => '/admin/menu-sales/$id';
+
+  // Admin Cash Flow & Expense Management
+  static const String adminCashFlow = '/admin/cash-flow';
+  static const String adminCashFlowSummary = '/admin/cash-flow/summary';
+  static String adminCashFlowDetail(int id) => '/admin/cash-flow/$id';
+  static const String adminExpenseCategories = '/admin/expense-categories';
+  static String adminExpenseCategoryDetail(int id) => '/admin/expense-categories/$id';
 }

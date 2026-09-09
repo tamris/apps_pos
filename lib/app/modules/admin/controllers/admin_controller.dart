@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:dio/dio.dart' as dio;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -6,6 +8,9 @@ import '../../../data/models/admin_shift_model.dart';
 import '../../../data/models/admin_transaction_model.dart';
 import '../../../data/models/admin_open_bill_model.dart';
 import '../../../data/models/admin_menu_sales_model.dart';
+import '../../../data/models/cash_movement_model.dart';
+import '../../../data/models/expense_category_model.dart';
+import '../../../data/models/cash_flow_summary_model.dart';
 import '../../../data/providers/api_provider.dart';
 import '../../../data/services/storage_service.dart';
 import '../../../core/constants/api_constants.dart';
@@ -187,6 +192,54 @@ class AdminController extends GetxController {
     }).toList();
   }
 
+  // --- TAB 5: CASH FLOW & EXPENSE MANAGEMENT ---
+  final RxList<CashMovementModel> cashFlowMovements = <CashMovementModel>[].obs;
+  final Rx<CashFlowSummaryModel> cashFlowSummary = CashFlowSummaryModel.empty().obs;
+  final RxList<ExpenseCategoryModel> adminExpenseCategories = <ExpenseCategoryModel>[].obs;
+  final RxString selectedCashFlowPeriod = 'month'.obs; // 'month', 'today', 'custom'
+  final Rx<DateTime?> cashFlowCustomStartDate = Rx<DateTime?>(null);
+  final Rx<DateTime?> cashFlowCustomEndDate = Rx<DateTime?>(null);
+  final RxString selectedCashFlowType = 'all'.obs; // 'all', 'in', 'out'
+  final RxString selectedCashFlowSource = 'all'.obs; // 'all', 'cash', 'bank'
+  final Rx<int?> selectedCashFlowCategoryId = Rx<int?>(null);
+  final RxString cashFlowSearchQuery = ''.obs;
+  final TextEditingController cashFlowSearchController = TextEditingController();
+  final RxBool isLoadingCashFlow = false.obs;
+  final RxBool isLoadingCashFlowSummary = false.obs;
+  final RxBool isLoadingAdminCategories = false.obs;
+  final RxBool isSubmittingGeneralExpense = false.obs;
+
+  List<CashMovementModel> get filteredCashFlowMovements {
+    final query = cashFlowSearchQuery.value.trim().toLowerCase();
+    final type = selectedCashFlowType.value;
+    final source = selectedCashFlowSource.value;
+    final catId = selectedCashFlowCategoryId.value;
+
+    return cashFlowMovements.where((m) {
+      if (type != 'all' && m.type != type) return false;
+      if (source != 'all') {
+        if (source == 'cash') {
+          if (!m.isCash) return false;
+        } else if (source == 'bank') {
+          if (!m.isBank) return false;
+        } else if (m.source != source) {
+          return false;
+        }
+      }
+      if (catId != null && m.categoryId != catId) return false;
+      if (query.isNotEmpty) {
+        final matchesNumber = m.movementNumber.toLowerCase().contains(query);
+        final matchesNotes = m.notes.toLowerCase().contains(query);
+        final matchesCat = m.categoryName.toLowerCase().contains(query);
+        final matchesCashier = m.cashierName.toLowerCase().contains(query);
+        if (!matchesNumber && !matchesNotes && !matchesCat && !matchesCashier) {
+          return false;
+        }
+      }
+      return true;
+    }).toList();
+  }
+
   @override
   void onInit() {
     super.onInit();
@@ -201,6 +254,7 @@ class AdminController extends GetxController {
     trxSearchController.dispose();
     shiftSearchController.dispose();
     openBillSearchController.dispose();
+    cashFlowSearchController.dispose();
     super.onClose();
   }
 
@@ -222,6 +276,11 @@ class AdminController extends GetxController {
         break;
       case 4:
         fetchOpenBills();
+        break;
+      case 5:
+        fetchCashFlow();
+        fetchCashFlowSummary();
+        fetchAdminExpenseCategories();
         break;
     }
   }
@@ -294,7 +353,7 @@ class AdminController extends GetxController {
     isLoadingTransactions.value = true;
 
     try {
-      final Map<String, dynamic> params = {'per_page': 50};
+      final Map<String, dynamic> params = {'per_page': 100};
 
       if (selectedTrxStatus.value != 'all') {
         params['status'] = selectedTrxStatus.value;
@@ -317,10 +376,15 @@ class AdminController extends GetxController {
         } else {
           params['start_date'] = s;
           params['end_date'] = e;
-          params['date'] = s;
         }
       } else if (selectedTrxDate.value != null && selectedTrxDate.value!.isNotEmpty) {
-        params['date'] = selectedTrxDate.value;
+        if (selectedTrxDate.value!.contains('..')) {
+          final parts = selectedTrxDate.value!.split('..');
+          params['start_date'] = parts[0];
+          params['end_date'] = parts[1];
+        } else {
+          params['date'] = selectedTrxDate.value;
+        }
       }
       if (trxSearchQuery.value.trim().isNotEmpty) {
         params['search'] = trxSearchQuery.value.trim();
@@ -428,7 +492,7 @@ class AdminController extends GetxController {
     isLoadingShifts.value = true;
 
     try {
-      final Map<String, dynamic> params = {'limit': 50};
+      final Map<String, dynamic> params = {'limit': 100};
 
       if (selectedShiftStatus.value == 'open' || selectedShiftStatus.value == 'closed') {
         params['status'] = selectedShiftStatus.value;
@@ -442,10 +506,15 @@ class AdminController extends GetxController {
         } else {
           params['start_date'] = startStr;
           params['end_date'] = endStr;
-          params['date'] = startStr; // fallback for backend endpoints requiring single date
         }
       } else if (selectedShiftDate.value != null && selectedShiftDate.value!.isNotEmpty) {
-        params['date'] = selectedShiftDate.value;
+        if (selectedShiftDate.value!.contains('..')) {
+          final parts = selectedShiftDate.value!.split('..');
+          params['start_date'] = parts[0];
+          params['end_date'] = parts[1];
+        } else {
+          params['date'] = selectedShiftDate.value;
+        }
       }
 
       final response = await _apiProvider.get(
@@ -732,6 +801,277 @@ class AdminController extends GetxController {
       case 4:
         await fetchOpenBills();
         break;
+      case 5:
+        await Future.wait([
+          fetchCashFlow(),
+          fetchCashFlowSummary(),
+          fetchAdminExpenseCategories(),
+        ]);
+        break;
+    }
+  }
+
+  // ==========================================
+  // 6. CASH FLOW & EXPENSE MANAGEMENT LOGIC
+  // ==========================================
+
+  Future<void> fetchCashFlow({bool showLoader = true}) async {
+    if (showLoader) isLoadingCashFlow.value = true;
+    try {
+      final Map<String, dynamic> params = {'limit': 100};
+
+      if (selectedCashFlowType.value != 'all') {
+        params['type'] = selectedCashFlowType.value;
+      }
+      if (selectedCashFlowSource.value != 'all') {
+        params['source'] = selectedCashFlowSource.value;
+      }
+      if (selectedCashFlowCategoryId.value != null) {
+        params['category_id'] = selectedCashFlowCategoryId.value;
+      }
+      if (cashFlowSearchQuery.value.trim().isNotEmpty) {
+        params['search'] = cashFlowSearchQuery.value.trim();
+      }
+
+      // Period filter
+      if (selectedCashFlowPeriod.value == 'today') {
+        params['date'] = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      } else if (selectedCashFlowPeriod.value == 'month') {
+        final now = DateTime.now();
+        params['start_date'] = DateFormat('yyyy-MM-dd').format(DateTime(now.year, now.month, 1));
+        params['end_date'] = DateFormat('yyyy-MM-dd').format(DateTime(now.year, now.month + 1, 0));
+      } else if (selectedCashFlowPeriod.value == 'custom' &&
+          cashFlowCustomStartDate.value != null &&
+          cashFlowCustomEndDate.value != null) {
+        params['start_date'] = DateFormat('yyyy-MM-dd').format(cashFlowCustomStartDate.value!);
+        params['end_date'] = DateFormat('yyyy-MM-dd').format(cashFlowCustomEndDate.value!);
+      }
+
+      final response = await _apiProvider.get(
+        ApiConstants.adminCashFlow,
+        queryParameters: params,
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        final List list = response.data['data'] ?? [];
+        cashFlowMovements.assignAll(
+          list.map((e) => CashMovementModel.fromJson(e)).toList(),
+        );
+      } else {
+        AppSnackbar.warning('Info', response.data?['message'] ?? 'Gagal memuat riwayat arus kas.');
+      }
+    } catch (e) {
+      AppSnackbar.danger('Kendala Arus Kas', ApiProvider.getErrorMessage(e));
+    } finally {
+      isLoadingCashFlow.value = false;
+    }
+  }
+
+  Future<void> fetchCashFlowSummary() async {
+    isLoadingCashFlowSummary.value = true;
+    try {
+      final Map<String, dynamic> params = {
+        'period': selectedCashFlowPeriod.value,
+      };
+
+      if (selectedCashFlowPeriod.value == 'custom' &&
+          cashFlowCustomStartDate.value != null &&
+          cashFlowCustomEndDate.value != null) {
+        params['start_date'] = DateFormat('yyyy-MM-dd').format(cashFlowCustomStartDate.value!);
+        params['end_date'] = DateFormat('yyyy-MM-dd').format(cashFlowCustomEndDate.value!);
+      }
+
+      final response = await _apiProvider.get(
+        ApiConstants.adminCashFlowSummary,
+        queryParameters: params,
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        cashFlowSummary.value = CashFlowSummaryModel.fromJson(response.data['data']);
+      }
+    } catch (_) {
+      // Non-blocking fallback
+    } finally {
+      isLoadingCashFlowSummary.value = false;
+    }
+  }
+
+  Future<void> fetchAdminExpenseCategories() async {
+    isLoadingAdminCategories.value = true;
+    try {
+      final response = await _apiProvider.get(ApiConstants.adminExpenseCategories);
+      if (response.data != null && response.data['success'] == true) {
+        final List list = response.data['data'] ?? [];
+        adminExpenseCategories.assignAll(
+          list.map((e) => ExpenseCategoryModel.fromJson(e)).toList(),
+        );
+      }
+    } catch (_) {
+      // Non-blocking fallback
+    } finally {
+      isLoadingAdminCategories.value = false;
+    }
+  }
+
+  void changeCashFlowPeriod(String period, {DateTime? customStart, DateTime? customEnd}) {
+    selectedCashFlowPeriod.value = period;
+    if (period == 'custom') {
+      cashFlowCustomStartDate.value = customStart;
+      cashFlowCustomEndDate.value = customEnd;
+    }
+    fetchCashFlow();
+    fetchCashFlowSummary();
+  }
+
+  void setCashFlowCategory(int? categoryId) {
+    selectedCashFlowCategoryId.value = categoryId;
+    fetchCashFlow();
+  }
+
+  void resetCashFlowDateToDefault() {
+    selectedCashFlowPeriod.value = 'month';
+    cashFlowCustomStartDate.value = null;
+    cashFlowCustomEndDate.value = null;
+    fetchCashFlow();
+    fetchCashFlowSummary();
+  }
+
+  void clearCashFlowFilters() {
+    selectedCashFlowType.value = 'all';
+    selectedCashFlowSource.value = 'all';
+    selectedCashFlowCategoryId.value = null;
+    selectedCashFlowPeriod.value = 'month';
+    cashFlowCustomStartDate.value = null;
+    cashFlowCustomEndDate.value = null;
+    cashFlowSearchController.clear();
+    cashFlowSearchQuery.value = '';
+    fetchCashFlow();
+    fetchCashFlowSummary();
+  }
+
+  Future<bool> storeGeneralExpense({
+    required String type, // 'in' or 'out'
+    required String source, // 'bank', 'drawer', 'petty_cash'
+    required double amount,
+    int? categoryId,
+    String? categoryName,
+    required String notes,
+    DateTime? movementDate,
+    File? receiptImage,
+  }) async {
+    isSubmittingGeneralExpense.value = true;
+    try {
+      final mapData = <String, dynamic>{
+        'type': type,
+        'source': source,
+        'amount': amount,
+        'notes': notes,
+      };
+
+      if (categoryId != null) {
+        mapData['category_id'] = categoryId;
+      }
+      if (categoryName != null && categoryName.isNotEmpty) {
+        mapData['category_name'] = categoryName;
+      }
+      if (movementDate != null) {
+        mapData['movement_date'] = DateFormat('yyyy-MM-dd HH:mm:ss').format(movementDate);
+      }
+      if (receiptImage != null && receiptImage.existsSync()) {
+        mapData['receipt_image'] = await dio.MultipartFile.fromFile(
+          receiptImage.path,
+          filename: receiptImage.path.split(Platform.pathSeparator).last,
+        );
+      }
+
+      final formData = dio.FormData.fromMap(mapData);
+      final response = await _apiProvider.post(
+        ApiConstants.adminCashFlow,
+        data: formData,
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        AppSnackbar.success('Berhasil', response.data['message'] ?? 'Catatan arus kas berhasil disimpan.');
+        fetchCashFlow(showLoader: false);
+        fetchCashFlowSummary();
+        return true;
+      } else {
+        AppSnackbar.warning('Perhatian', response.data?['message'] ?? 'Gagal menyimpan catatan arus kas.');
+        return false;
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Menyimpan', ApiProvider.getErrorMessage(e));
+      return false;
+    } finally {
+      isSubmittingGeneralExpense.value = false;
+    }
+  }
+
+  Future<bool> deleteCashMovement(int id) async {
+    try {
+      final response = await _apiProvider.delete(ApiConstants.adminCashFlowDetail(id));
+      if (response.data != null && response.data['success'] == true) {
+        AppSnackbar.success('Berhasil', response.data['message'] ?? 'Catatan arus kas berhasil dihapus.');
+        cashFlowMovements.removeWhere((m) => m.id == id);
+        fetchCashFlowSummary();
+        return true;
+      } else {
+        AppSnackbar.warning('Perhatian', response.data?['message'] ?? 'Gagal menghapus catatan arus kas.');
+        return false;
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Menghapus', ApiProvider.getErrorMessage(e));
+      return false;
+    }
+  }
+
+  Future<bool> saveExpenseCategory({
+    int? id,
+    required String name,
+    required String type,
+    String? description,
+    bool isActive = true,
+  }) async {
+    try {
+      final payload = {
+        'name': name.trim(),
+        'type': type,
+        'description': description?.trim(),
+        'is_active': isActive ? 1 : 0,
+      };
+
+      final response = id != null
+          ? await _apiProvider.put(ApiConstants.adminExpenseCategoryDetail(id), data: payload)
+          : await _apiProvider.post(ApiConstants.adminExpenseCategories, data: payload);
+
+      if (response.data != null && response.data['success'] == true) {
+        AppSnackbar.success('Berhasil', response.data['message'] ?? 'Kategori berhasil disimpan.');
+        fetchAdminExpenseCategories();
+        return true;
+      } else {
+        AppSnackbar.warning('Perhatian', response.data?['message'] ?? 'Gagal menyimpan kategori.');
+        return false;
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Menyimpan Kategori', ApiProvider.getErrorMessage(e));
+      return false;
+    }
+  }
+
+  Future<bool> deleteExpenseCategory(int id) async {
+    try {
+      final response = await _apiProvider.delete(ApiConstants.adminExpenseCategoryDetail(id));
+      if (response.data != null && response.data['success'] == true) {
+        AppSnackbar.success('Berhasil', response.data['message'] ?? 'Kategori berhasil dihapus.');
+        adminExpenseCategories.removeWhere((c) => c.id == id);
+        return true;
+      } else {
+        AppSnackbar.warning('Perhatian', response.data?['message'] ?? 'Gagal menghapus kategori.');
+        return false;
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Menghapus Kategori', ApiProvider.getErrorMessage(e));
+      return false;
     }
   }
 

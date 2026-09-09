@@ -10,6 +10,7 @@ import 'tabs/admin_menu_sales_tab.dart';
 import 'tabs/admin_transactions_tab.dart';
 import 'tabs/admin_shifts_tab.dart';
 import 'tabs/admin_open_bills_tab.dart';
+import 'tabs/admin_cash_flow_tab.dart';
 import 'widgets/common/admin_date_range_dialog.dart';
 
 class AdminView extends GetView<AdminController> {
@@ -234,6 +235,14 @@ class AdminView extends GetView<AdminController> {
                         ),
                         label: 'Pesanan',
                       ),
+                      const NavigationDestination(
+                        icon: Icon(Icons.account_balance_wallet_outlined, size: 20),
+                        selectedIcon: Icon(
+                          Icons.account_balance_wallet_rounded,
+                          color: AppColors.secondary,
+                        ),
+                        label: 'Arus Kas',
+                      ),
                     ],
                   ),
                 ),
@@ -438,60 +447,69 @@ class AdminView extends GetView<AdminController> {
           const SizedBox(height: 12),
 
           // Menu Items
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.only(left: 6, bottom: 6),
-                  child: Text(
-                    'NAVIGASI',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
-                      color: Color(0xFF94A3B8),
+          Expanded(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(left: 6, bottom: 6),
+                      child: Text(
+                        'NAVIGASI',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8,
+                          color: Color(0xFF94A3B8),
+                        ),
+                      ),
                     ),
-                  ),
+                    _buildExpandedNavItem(
+                      index: 0,
+                      icon: Icons.dashboard_rounded,
+                      label: 'Dashboard Bisnis',
+                    ),
+                    const SizedBox(height: 3),
+                    _buildExpandedNavItem(
+                      index: 1,
+                      icon: Icons.receipt_long_rounded,
+                      label: 'Riwayat Transaksi',
+                    ),
+                    const SizedBox(height: 3),
+                    _buildExpandedNavItem(
+                      index: 2,
+                      icon: Icons.restaurant_menu_rounded,
+                      label: 'Penjualan Menu',
+                    ),
+                    const SizedBox(height: 3),
+                    _buildExpandedNavItem(
+                      index: 3,
+                      icon: Icons.assignment_rounded,
+                      label: 'Audit Shift Kasir',
+                    ),
+                    const SizedBox(height: 3),
+                    Obx(
+                      () => _buildExpandedNavItem(
+                        index: 4,
+                        icon: Icons.table_restaurant_rounded,
+                        label: 'Pesanan & Meja',
+                        badgeCount: controller.openBillsTotalActive.value,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    _buildExpandedNavItem(
+                      index: 5,
+                      icon: Icons.account_balance_wallet_rounded,
+                      label: 'Arus Kas & Beban',
+                    ),
+                  ],
                 ),
-                _buildExpandedNavItem(
-                  index: 0,
-                  icon: Icons.dashboard_rounded,
-                  label: 'Dashboard Bisnis',
-                ),
-                const SizedBox(height: 3),
-                _buildExpandedNavItem(
-                  index: 1,
-                  icon: Icons.receipt_long_rounded,
-                  label: 'Riwayat Transaksi',
-                ),
-                const SizedBox(height: 3),
-                _buildExpandedNavItem(
-                  index: 2,
-                  icon: Icons.restaurant_menu_rounded,
-                  label: 'Penjualan Menu',
-                ),
-                const SizedBox(height: 3),
-                _buildExpandedNavItem(
-                  index: 3,
-                  icon: Icons.assignment_rounded,
-                  label: 'Audit Shift Kasir',
-                ),
-                const SizedBox(height: 3),
-                Obx(
-                  () => _buildExpandedNavItem(
-                    index: 4,
-                    icon: Icons.table_restaurant_rounded,
-                    label: 'Pesanan & Meja',
-                    badgeCount: controller.openBillsTotalActive.value,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-
-          const Spacer(),
 
           // Minimalist User & Logout Footer
           _buildExpandedFooter(context, user),
@@ -549,50 +567,59 @@ class AdminView extends GetView<AdminController> {
             ),
           ),
           const Divider(height: 1, color: Color(0xFFE2E8F0)),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
 
-          // Menu Items (Centered)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Column(
-              children: [
-                _buildCollapsedNavItem(
-                  index: 0,
-                  icon: Icons.dashboard_rounded,
-                  label: 'Dashboard Bisnis',
+          // Menu Items (Centered) in Expanded SingleChildScrollView
+          Expanded(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Column(
+                  children: [
+                    _buildCollapsedNavItem(
+                      index: 0,
+                      icon: Icons.dashboard_rounded,
+                      label: 'Dashboard Bisnis',
+                    ),
+                    const SizedBox(height: 4),
+                    _buildCollapsedNavItem(
+                      index: 1,
+                      icon: Icons.receipt_long_rounded,
+                      label: 'Riwayat Transaksi',
+                    ),
+                    const SizedBox(height: 4),
+                    _buildCollapsedNavItem(
+                      index: 2,
+                      icon: Icons.restaurant_menu_rounded,
+                      label: 'Penjualan Menu',
+                    ),
+                    const SizedBox(height: 4),
+                    _buildCollapsedNavItem(
+                      index: 3,
+                      icon: Icons.assignment_rounded,
+                      label: 'Audit Shift Kasir',
+                    ),
+                    const SizedBox(height: 4),
+                    Obx(
+                      () => _buildCollapsedNavItem(
+                        index: 4,
+                        icon: Icons.table_restaurant_rounded,
+                        label: 'Pesanan & Meja',
+                        badgeCount: controller.openBillsTotalActive.value,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    _buildCollapsedNavItem(
+                      index: 5,
+                      icon: Icons.account_balance_wallet_rounded,
+                      label: 'Arus Kas & Beban',
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                _buildCollapsedNavItem(
-                  index: 1,
-                  icon: Icons.receipt_long_rounded,
-                  label: 'Riwayat Transaksi',
-                ),
-                const SizedBox(height: 4),
-                _buildCollapsedNavItem(
-                  index: 2,
-                  icon: Icons.restaurant_menu_rounded,
-                  label: 'Penjualan Menu',
-                ),
-                const SizedBox(height: 4),
-                _buildCollapsedNavItem(
-                  index: 3,
-                  icon: Icons.assignment_rounded,
-                  label: 'Audit Shift Kasir',
-                ),
-                const SizedBox(height: 4),
-                Obx(
-                  () => _buildCollapsedNavItem(
-                    index: 4,
-                    icon: Icons.table_restaurant_rounded,
-                    label: 'Pesanan & Meja',
-                    badgeCount: controller.openBillsTotalActive.value,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-
-          const Spacer(),
 
           // Minimalist Collapsed Footer
           _buildCollapsedFooter(context, user),
@@ -794,37 +821,39 @@ class AdminView extends GetView<AdminController> {
 
   Widget _buildCollapsedFooter(BuildContext context, dynamic user) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: const BoxDecoration(
         border: Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Tooltip(
             message:
                 '${user?.name ?? "Admin"} (${user?.role.toUpperCase() ?? "OWNER"})',
             child: CircleAvatar(
-              radius: 14,
+              radius: 13,
               backgroundColor: AppColors.secondarySoft,
               child: Text(
                 user?.name.isNotEmpty == true
                     ? user!.name[0].toUpperCase()
                     : 'A',
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: 10.5,
                   fontWeight: FontWeight.bold,
                   color: AppColors.secondary,
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           IconButton(
             tooltip: 'Keluar Akun',
+            visualDensity: VisualDensity.compact,
             icon: const Icon(
               Icons.logout_rounded,
               color: Color(0xFF94A3B8),
-              size: 17,
+              size: 16,
             ),
             onPressed: () => _confirmLogout(context),
             padding: EdgeInsets.zero,
@@ -890,6 +919,9 @@ class AdminView extends GetView<AdminController> {
                   break;
                 case 4:
                   title = 'Pesanan & Meja';
+                  break;
+                case 5:
+                  title = 'Arus Kas & Beban Toko';
                   break;
                 default:
                   title = 'Portal Manajemen';
@@ -1070,6 +1102,8 @@ class AdminView extends GetView<AdminController> {
         return const AdminShiftsTab();
       case 4:
         return const AdminOpenBillsTab();
+      case 5:
+        return const AdminCashFlowTab();
       default:
         return const AdminDashboardTab();
     }
