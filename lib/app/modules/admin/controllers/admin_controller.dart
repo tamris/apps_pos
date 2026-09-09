@@ -353,7 +353,7 @@ class AdminController extends GetxController {
     isLoadingTransactions.value = true;
 
     try {
-      final Map<String, dynamic> params = {'per_page': 50};
+      final Map<String, dynamic> params = {'per_page': 100};
 
       if (selectedTrxStatus.value != 'all') {
         params['status'] = selectedTrxStatus.value;
@@ -376,10 +376,15 @@ class AdminController extends GetxController {
         } else {
           params['start_date'] = s;
           params['end_date'] = e;
-          params['date'] = s;
         }
       } else if (selectedTrxDate.value != null && selectedTrxDate.value!.isNotEmpty) {
-        params['date'] = selectedTrxDate.value;
+        if (selectedTrxDate.value!.contains('..')) {
+          final parts = selectedTrxDate.value!.split('..');
+          params['start_date'] = parts[0];
+          params['end_date'] = parts[1];
+        } else {
+          params['date'] = selectedTrxDate.value;
+        }
       }
       if (trxSearchQuery.value.trim().isNotEmpty) {
         params['search'] = trxSearchQuery.value.trim();
@@ -487,7 +492,7 @@ class AdminController extends GetxController {
     isLoadingShifts.value = true;
 
     try {
-      final Map<String, dynamic> params = {'limit': 50};
+      final Map<String, dynamic> params = {'limit': 100};
 
       if (selectedShiftStatus.value == 'open' || selectedShiftStatus.value == 'closed') {
         params['status'] = selectedShiftStatus.value;
@@ -501,10 +506,15 @@ class AdminController extends GetxController {
         } else {
           params['start_date'] = startStr;
           params['end_date'] = endStr;
-          params['date'] = startStr; // fallback for backend endpoints requiring single date
         }
       } else if (selectedShiftDate.value != null && selectedShiftDate.value!.isNotEmpty) {
-        params['date'] = selectedShiftDate.value;
+        if (selectedShiftDate.value!.contains('..')) {
+          final parts = selectedShiftDate.value!.split('..');
+          params['start_date'] = parts[0];
+          params['end_date'] = parts[1];
+        } else {
+          params['date'] = selectedShiftDate.value;
+        }
       }
 
       final response = await _apiProvider.get(
