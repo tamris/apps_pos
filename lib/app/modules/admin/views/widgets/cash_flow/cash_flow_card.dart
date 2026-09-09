@@ -286,7 +286,7 @@ class CashFlowCard extends StatelessWidget {
   }
 
   Widget _buildSourceBadge(CashMovementModel movement) {
-    final isBank = movement.source == 'bank';
+    final isBank = movement.isBank;
     final Color bg = isBank ? const Color(0xFFEFF6FF) : const Color(0xFFF0FDF4);
     final Color color = isBank ? const Color(0xFF2563EB) : const Color(0xFF16A34A);
     final Color border = isBank ? const Color(0xFFBFDBFE) : const Color(0xFFBBF7D0);

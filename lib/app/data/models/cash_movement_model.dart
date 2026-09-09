@@ -44,6 +44,8 @@ class CashMovementModel {
   bool get isOut => type == 'out';
   bool get isIn => type == 'in';
   bool get hasReceiptImage => receiptImageUrl != null && receiptImageUrl!.isNotEmpty;
+  bool get isCash => source == 'drawer' || source == 'petty_cash' || source == 'cash';
+  bool get isBank => source == 'bank';
 
   factory CashMovementModel.fromJson(Map<String, dynamic> json) {
     final userMap = json['user'] is Map ? json['user'] as Map<String, dynamic> : null;
@@ -56,7 +58,7 @@ class CashMovementModel {
       type: json['type']?.toString() ?? 'out',
       typeLabel: json['type_label']?.toString() ?? (json['type'] == 'in' ? 'Kas Masuk' : 'Kas Keluar'),
       source: json['source']?.toString() ?? 'drawer',
-      sourceLabel: json['source_label']?.toString() ?? 'Laci Kasir',
+      sourceLabel: json['source_label']?.toString() ?? (json['source'] == 'bank' ? 'Non-Tunai (Bank)' : 'Tunai'),
       amount: (json['amount'] != null)
           ? double.tryParse(json['amount'].toString()) ?? 0.0
           : 0.0,

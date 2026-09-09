@@ -200,7 +200,7 @@ class AdminController extends GetxController {
   final Rx<DateTime?> cashFlowCustomStartDate = Rx<DateTime?>(null);
   final Rx<DateTime?> cashFlowCustomEndDate = Rx<DateTime?>(null);
   final RxString selectedCashFlowType = 'all'.obs; // 'all', 'in', 'out'
-  final RxString selectedCashFlowSource = 'all'.obs; // 'all', 'drawer', 'bank', 'petty_cash'
+  final RxString selectedCashFlowSource = 'all'.obs; // 'all', 'cash', 'bank'
   final Rx<int?> selectedCashFlowCategoryId = Rx<int?>(null);
   final RxString cashFlowSearchQuery = ''.obs;
   final TextEditingController cashFlowSearchController = TextEditingController();
@@ -217,7 +217,15 @@ class AdminController extends GetxController {
 
     return cashFlowMovements.where((m) {
       if (type != 'all' && m.type != type) return false;
-      if (source != 'all' && m.source != source) return false;
+      if (source != 'all') {
+        if (source == 'cash') {
+          if (!m.isCash) return false;
+        } else if (source == 'bank') {
+          if (!m.isBank) return false;
+        } else if (m.source != source) {
+          return false;
+        }
+      }
       if (catId != null && m.categoryId != catId) return false;
       if (query.isNotEmpty) {
         final matchesNumber = m.movementNumber.toLowerCase().contains(query);
