@@ -1,3 +1,4 @@
+import 'dart:convert';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
 import 'addon_model.dart';
@@ -25,11 +26,14 @@ class OpenBillDetailItem {
   });
 
   factory OpenBillDetailItem.fromJson(Map<String, dynamic> json) {
-    String itemName = json['name']?.toString() ?? json['product_name']?.toString() ?? '';
-    if (itemName.isEmpty && json['product'] != null && json['product'] is Map) {
-      itemName = json['product']['name']?.toString() ?? 'Menu';
+    String itemName = 'Menu Item';
+    if (json['product_name'] != null) {
+      itemName = json['product_name'].toString();
+    } else if (json['name'] != null) {
+      itemName = json['name'].toString();
+    } else if (json['product'] != null && json['product'] is Map) {
+      itemName = json['product']['name']?.toString() ?? 'Menu Item';
     }
-    if (itemName.isEmpty) itemName = 'Menu';
 
     int prodId = 0;
     if (json['product_id'] != null) {
@@ -45,10 +49,36 @@ class OpenBillDetailItem {
     final sub = double.tryParse((json['subtotal'] ?? json['total_price'] ?? (qty * prc)).toString()) ?? (qty * prc);
 
     var addonsList = <AddonModel>[];
-    if (json['addons'] != null && json['addons'] is List) {
-      addonsList = (json['addons'] as List)
-          .map((i) => AddonModel.fromJson(Map<String, dynamic>.from(i)))
-          .toList();
+    dynamic rawAddons = json['addons'] ??
+        json['order_item_addons'] ??
+        json['orderItemAddons'] ??
+        json['item_addons'] ??
+        json['selected_addons'] ??
+        json['order_addons'];
+
+    if (rawAddons is String && rawAddons.trim().isNotEmpty) {
+      try {
+        rawAddons = jsonDecode(rawAddons);
+      } catch (_) {}
+    }
+
+    if (rawAddons != null && rawAddons is List) {
+      for (final i in rawAddons) {
+        if (i is Map) {
+          addonsList.add(AddonModel.fromJson(Map<String, dynamic>.from(i)));
+        } else if (i is String && i.trim().isNotEmpty) {
+          try {
+            final decoded = jsonDecode(i);
+            if (decoded is Map) {
+              addonsList.add(AddonModel.fromJson(Map<String, dynamic>.from(decoded)));
+            } else {
+              addonsList.add(AddonModel(id: 0, name: i.trim(), price: 0.0));
+            }
+          } catch (_) {
+            addonsList.add(AddonModel(id: 0, name: i.trim(), price: 0.0));
+          }
+        }
+      }
     }
 
     return OpenBillDetailItem(

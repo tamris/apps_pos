@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../data/models/online_order_model.dart';
 import '../../controllers/online_orders_controller.dart';
 
@@ -102,7 +103,44 @@ class OnlineOrderDetailDialog {
                               _buildInfoRow('No. Telepon', order.customerPhone),
                             ],
                             const Divider(height: 10),
-                            _buildInfoRow('Waktu Pesan', order.createdAt),
+                            _buildInfoRow(
+                              'Waktu Pesan',
+                              order.formattedCreatedAt,
+                              customValue: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.access_time_rounded, size: 13, color: AppColors.textSecondary),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    order.formattedCreatedAt,
+                                    style: const TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  if (order.displayTimeAgo.isNotEmpty) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF1F5F9),
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                                      ),
+                                      child: Text(
+                                        order.displayTimeAgo,
+                                        style: const TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF64748B),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
                             const Divider(height: 10),
                             _buildInfoRow('Status Pesanan', order.statusLabel, valueColor: order.statusColor, isBold: true),
                             const Divider(height: 10),
@@ -127,9 +165,21 @@ class OnlineOrderDetailDialog {
                               const Icon(Icons.info_outline_rounded, size: 16, color: AppColors.danger),
                               const SizedBox(width: 8),
                               Expanded(
-                                child: Text(
-                                  'Alasan Dibatalkan: ${order.cancelledReason}',
-                                  style: const TextStyle(fontSize: 12, color: AppColors.danger, fontWeight: FontWeight.w600),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Alasan Dibatalkan: ${order.cancelledReason}',
+                                      style: const TextStyle(fontSize: 12, color: AppColors.danger, fontWeight: FontWeight.w600),
+                                    ),
+                                    if (order.cancelledAt != null && order.cancelledAt!.isNotEmpty) ...[
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        'Waktu Batal: ${DateFormatter.formatOrderDateTime(order.cancelledAt)}',
+                                        style: const TextStyle(fontSize: 11, color: AppColors.danger),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ),
                             ],
@@ -193,7 +243,35 @@ class OnlineOrderDetailDialog {
                                         color: AppColors.textSecondary,
                                       ),
                                     ),
-                                    if (item.notes.isNotEmpty) ...[
+                                    if (item.addons.isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      Wrap(
+                                        spacing: 4,
+                                        runSpacing: 4,
+                                        children: item.addons.map((addon) {
+                                          return Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.primarySoft,
+                                              borderRadius: BorderRadius.circular(4),
+                                              border: Border.all(
+                                                color: AppColors.primary.withAlpha(50),
+                                                width: 0.8,
+                                              ),
+                                            ),
+                                            child: Text(
+                                              '+ ${addon.name}${addon.price > 0 ? ' (+${addon.formattedPrice})' : ''}',
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.primaryDark,
+                                              ),
+                                            ),
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ],
+                                    if (item.cleanNotes.isNotEmpty) ...[
                                       const SizedBox(height: 4),
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -202,7 +280,7 @@ class OnlineOrderDetailDialog {
                                           borderRadius: BorderRadius.circular(4),
                                         ),
                                         child: Text(
-                                          'Catatan: ${item.notes}',
+                                          'Catatan: ${item.cleanNotes}',
                                           style: const TextStyle(
                                             fontSize: 11,
                                             color: AppColors.warning,
@@ -355,19 +433,33 @@ class OnlineOrderDetailDialog {
     );
   }
 
-  static Widget _buildInfoRow(String label, String value, {Color? valueColor, bool isBold = false}) {
+  static Widget _buildInfoRow(
+    String label,
+    String value, {
+    Color? valueColor,
+    bool isBold = false,
+    Widget? customValue,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(label, style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-            color: valueColor ?? AppColors.textPrimary,
+        const SizedBox(width: 8),
+        if (customValue != null)
+          Flexible(child: customValue)
+        else
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+                color: valueColor ?? AppColors.textPrimary,
+              ),
+            ),
           ),
-        ),
       ],
     );
   }

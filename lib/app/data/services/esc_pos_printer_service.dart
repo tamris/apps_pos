@@ -420,10 +420,13 @@ class EscPosPrinterService extends GetxService {
       buffer.write('${line32(qtyPrice, subStr)}\n');
 
       // Add-ons / Toppings (format persis receipt backend: '  + Extra Shot (4.000)')
-      if (item is Map && item['addons'] != null && item['addons'] is List) {
-        for (var addon in (item['addons'] as List)) {
-          final aName = (addon is Map ? addon['name']?.toString() : addon.toString()) ?? '';
-          final aPrice = (addon is Map && addon['price'] != null) ? double.tryParse(addon['price'].toString()) ?? 0 : 0;
+      final dynamic rawItemAddons = (item is Map) ? (item['addons'] ?? item['order_item_addons'] ?? item['item_addons']) : null;
+      if (rawItemAddons != null && rawItemAddons is List) {
+        for (var addon in rawItemAddons) {
+          final aName = (addon is Map ? (addon['name'] ?? addon['addon_name'] ?? (addon['addon'] is Map ? addon['addon']['name'] : null))?.toString() : addon.toString()) ?? '';
+          final aPrice = (addon is Map && (addon['price'] ?? addon['addon_price'] ?? addon['unit_price'] ?? (addon['addon'] is Map ? addon['addon']['price'] : null)) != null)
+              ? double.tryParse((addon['price'] ?? addon['addon_price'] ?? addon['unit_price'] ?? (addon['addon'] is Map ? addon['addon']['price'] : null)).toString()) ?? 0
+              : 0;
           if (aName.isNotEmpty) {
             final addonLine = (aPrice > 0) ? '  + $aName (${formatNumber(aPrice)})' : '  + $aName';
             buffer.write('$addonLine\n');
@@ -698,9 +701,10 @@ class EscPosPrinterService extends GetxService {
       buffer.write('${qty}x  $name\n');
 
       // Format addon di tiket dapur: '   [+] Extra Shot' persis standar F&B pos-inventory
-      if (item is Map && item['addons'] != null && item['addons'] is List) {
-        for (var addon in (item['addons'] as List)) {
-          final aName = (addon is Map ? (addon['name']?.toString() ?? '') : addon.toString()).trim();
+      final dynamic rawKitchenAddons = (item is Map) ? (item['addons'] ?? item['order_item_addons'] ?? item['item_addons']) : null;
+      if (rawKitchenAddons != null && rawKitchenAddons is List) {
+        for (var addon in rawKitchenAddons) {
+          final aName = (addon is Map ? (addon['name'] ?? addon['addon_name'] ?? (addon['addon'] is Map ? addon['addon']['name'] : null))?.toString() : addon.toString())?.trim() ?? '';
           if (aName.isNotEmpty) {
             buffer.write('   [+] $aName\n');
           }

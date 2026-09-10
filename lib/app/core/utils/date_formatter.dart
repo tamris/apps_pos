@@ -12,6 +12,31 @@ class DateFormatter {
     } else {
       return '-';
     }
+    dt = dt.toLocal();
+    try {
+      return DateFormat('dd MMM yyyy, HH:mm', 'id_ID').format(dt);
+    } catch (_) {
+      try {
+        return DateFormat('dd MMM yyyy, HH:mm').format(dt);
+      } catch (_) {
+        return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      }
+    }
+  }
+
+  /// Format tanggal & jam pesanan yang ramah kasir: `10 Sep 2026, 13:30 WIB`
+  static String formatOrderDateTime(dynamic dateTime) {
+    if (dateTime == null) return '-';
+    DateTime? dt;
+    if (dateTime is String) {
+      final trimmed = dateTime.trim();
+      if (trimmed.isEmpty) return '-';
+      dt = DateTime.tryParse(trimmed);
+    } else if (dateTime is DateTime) {
+      dt = dateTime;
+    }
+    if (dt == null) return dateTime.toString();
+    dt = dt.toLocal();
     try {
       return DateFormat('dd MMM yyyy, HH:mm', 'id_ID').format(dt);
     } catch (_) {
@@ -34,6 +59,7 @@ class DateFormatter {
     } else {
       return '-';
     }
+    dt = dt.toLocal();
     try {
       return DateFormat('dd MMMM yyyy', 'id_ID').format(dt);
     } catch (_) {

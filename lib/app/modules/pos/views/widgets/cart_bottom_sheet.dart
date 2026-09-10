@@ -53,16 +53,27 @@ class CartBottomSheet extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.shopping_bag_outlined, color: AppColors.primary),
+                        const Icon(
+                          Icons.shopping_bag_outlined,
+                          color: AppColors.primary,
+                        ),
                         const SizedBox(width: 8),
-                        Obx(() => Text(
-                              'Keranjang Pesanan (${cartController.totalItemsCount})',
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                            )),
+                        Obx(
+                          () => Text(
+                            'Keranjang Pesanan (${cartController.totalItemsCount})',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                     IconButton(
-                      icon: const Icon(Icons.delete_sweep_outlined, color: AppColors.danger),
+                      icon: const Icon(
+                        Icons.delete_sweep_outlined,
+                        color: AppColors.danger,
+                      ),
                       tooltip: 'Kosongkan Keranjang',
                       onPressed: () {
                         if (!cartController.isCartEmpty) {
@@ -80,7 +91,8 @@ class CartBottomSheet extends StatelessWidget {
 
           // Active Open Bill Banner (jika sedang mengedit bill terbuka)
           Obx(() {
-            if (cartController.activeOpenBillId.value == null) return const SizedBox.shrink();
+            if (cartController.activeOpenBillId.value == null)
+              return const SizedBox.shrink();
             return Container(
               margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -91,7 +103,11 @@ class CartBottomSheet extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.edit_note_rounded, color: AppColors.warning, size: 20),
+                  const Icon(
+                    Icons.edit_note_rounded,
+                    color: AppColors.warning,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -112,7 +128,10 @@ class CartBottomSheet extends StatelessWidget {
                       }
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(4),
@@ -120,7 +139,11 @@ class CartBottomSheet extends StatelessWidget {
                       ),
                       child: const Text(
                         'Tutup',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ),
                   ),
@@ -139,23 +162,32 @@ class CartBottomSheet extends StatelessWidget {
                 TableSelectorSheet.show(context);
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.primarySoft,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.primaryLight.withAlpha(76)),
+                  border: Border.all(
+                    color: AppColors.primaryLight.withAlpha(76),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.table_restaurant_rounded, size: 18, color: AppColors.primary),
+                    const Icon(
+                      Icons.table_restaurant_rounded,
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Obx(() {
                         final type = cartController.orderType.value == 'dine_in'
                             ? 'Dine In'
                             : cartController.orderType.value == 'take_away'
-                                ? 'Take Away'
-                                : 'Delivery';
+                            ? 'Take Away'
+                            : 'Delivery';
                         final table = cartController.tableNumber.value;
                         final customer = cartController.customerName.value;
 
@@ -173,7 +205,11 @@ class CartBottomSheet extends StatelessWidget {
                         );
                       }),
                     ),
-                    const Icon(Icons.chevron_right, size: 18, color: AppColors.primary),
+                    const Icon(
+                      Icons.chevron_right,
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
                   ],
                 ),
               ),
@@ -188,16 +224,26 @@ class CartBottomSheet extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.remove_shopping_cart_outlined, size: 50, color: AppColors.textMuted),
+                      Icon(
+                        Icons.remove_shopping_cart_outlined,
+                        size: 50,
+                        color: AppColors.textMuted,
+                      ),
                       SizedBox(height: 8),
-                      Text('Keranjang masih kosong', style: TextStyle(color: AppColors.textSecondary)),
+                      Text(
+                        'Keranjang masih kosong',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
                     ],
                   ),
                 );
               }
 
               return ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 itemCount: cartController.items.length,
                 separatorBuilder: (_, __) => const Divider(height: 16),
                 itemBuilder: (context, index) {
@@ -229,13 +275,22 @@ class CartBottomSheet extends StatelessWidget {
                                   children: [
                                     Text(
                                       item.product.name,
-                                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
-                                    if (item.customizationSummary.isNotEmpty) ...[
+                                    if (item
+                                        .customizationSummary
+                                        .isNotEmpty) ...[
                                       const SizedBox(height: 2),
                                       Text(
                                         item.customizationSummary,
-                                        style: const TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w500),
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.w500,
+                                        ),
                                       ),
                                     ],
                                   ],
@@ -246,7 +301,11 @@ class CartBottomSheet extends StatelessWidget {
                               visualDensity: VisualDensity.compact,
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),
-                              icon: const Icon(Icons.edit_note_rounded, color: AppColors.primary, size: 22),
+                              icon: const Icon(
+                                Icons.edit_note_rounded,
+                                color: AppColors.primary,
+                                size: 22,
+                              ),
                               tooltip: 'Edit Varian & Catatan',
                               onPressed: () => ProductCustomizationSheet.show(
                                 context,
@@ -260,12 +319,18 @@ class CartBottomSheet extends StatelessWidget {
                               visualDensity: VisualDensity.compact,
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),
-                              icon: const Icon(Icons.delete_outline_rounded, color: AppColors.danger, size: 20),
+                              icon: const Icon(
+                                Icons.delete_outline_rounded,
+                                color: AppColors.danger,
+                                size: 20,
+                              ),
                               tooltip: 'Hapus Item',
                               onPressed: () {
                                 HapticFeedback.mediumImpact();
                                 cartController.removeItem(index);
-                                if (cartController.isCartEmpty && context.mounted && Navigator.canPop(context)) {
+                                if (cartController.isCartEmpty &&
+                                    context.mounted &&
+                                    Navigator.canPop(context)) {
                                   Navigator.of(context).pop();
                                 }
                               },
@@ -280,7 +345,11 @@ class CartBottomSheet extends StatelessWidget {
                           children: [
                             Text(
                               CurrencyFormatter.format(item.price),
-                              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                             Row(
                               children: [
@@ -288,7 +357,11 @@ class CartBottomSheet extends StatelessWidget {
                                   visualDensity: VisualDensity.compact,
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(),
-                                  icon: const Icon(Icons.remove_circle_outline, color: AppColors.textSecondary, size: 22),
+                                  icon: const Icon(
+                                    Icons.remove_circle_outline,
+                                    color: AppColors.textSecondary,
+                                    size: 22,
+                                  ),
                                   onPressed: () {
                                     if (item.quantity == 1) {
                                       HapticFeedback.mediumImpact();
@@ -296,23 +369,34 @@ class CartBottomSheet extends StatelessWidget {
                                       HapticFeedback.lightImpact();
                                     }
                                     cartController.decreaseQuantity(index);
-                                    if (cartController.isCartEmpty && context.mounted && Navigator.canPop(context)) {
+                                    if (cartController.isCartEmpty &&
+                                        context.mounted &&
+                                        Navigator.canPop(context)) {
                                       Navigator.of(context).pop();
                                     }
                                   },
                                 ),
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8.0,
+                                  ),
                                   child: Text(
                                     '${item.quantity}',
-                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                                 IconButton(
                                   visualDensity: VisualDensity.compact,
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(),
-                                  icon: const Icon(Icons.add_circle, color: AppColors.primary, size: 22),
+                                  icon: const Icon(
+                                    Icons.add_circle,
+                                    color: AppColors.primary,
+                                    size: 22,
+                                  ),
                                   onPressed: () {
                                     HapticFeedback.lightImpact();
                                     cartController.increaseQuantity(index);
@@ -322,7 +406,11 @@ class CartBottomSheet extends StatelessWidget {
                             ),
                             Text(
                               CurrencyFormatter.format(item.subtotal),
-                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryDark,
+                              ),
                             ),
                           ],
                         ),
@@ -350,18 +438,21 @@ class CartBottomSheet extends StatelessWidget {
             child: Obx(() {
               return Column(
                 children: [
-                  // Diskon & Pajak controls
+                  // Diskon & Pajak controls (Rapi 50% - 50%)
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildDiscountButton(context),
-                      _buildTaxButton(context),
+                      Expanded(child: _buildDiscountButton(context)),
+                      const SizedBox(width: 10),
+                      Expanded(child: _buildTaxButton(context)),
                     ],
                   ),
                   const SizedBox(height: 8),
 
                   // Pricing rows
-                  _buildSummaryRow('Subtotal', CurrencyFormatter.format(cartController.subtotal)),
+                  _buildSummaryRow(
+                    'Subtotal',
+                    CurrencyFormatter.format(cartController.subtotal),
+                  ),
                   if (cartController.discountAmount > 0)
                     _buildSummaryRow(
                       'Diskon (${cartController.discountPercent.value.toInt()}%)',
@@ -396,12 +487,20 @@ class CartBottomSheet extends StatelessWidget {
                               : () async {
                                   HapticFeedback.lightImpact();
                                   Navigator.of(context).pop();
-                                  await cartController.saveOpenBill(context: context);
+                                  await cartController.saveOpenBill(
+                                    context: context,
+                                  );
                                 },
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
-                          child: const Text('Simpan Bill', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                          child: const Text(
+                            'Simpan Bill',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -414,7 +513,9 @@ class CartBottomSheet extends StatelessWidget {
                               : () {
                                   HapticFeedback.lightImpact();
                                   Navigator.of(context).pop();
-                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  WidgetsBinding.instance.addPostFrameCallback((
+                                    _,
+                                  ) {
                                     if (Get.context != null) {
                                       PaymentModalView.show(Get.context!);
                                     }
@@ -430,7 +531,10 @@ class CartBottomSheet extends StatelessWidget {
                               const SizedBox(width: 6),
                               Text(
                                 'Bayar ${CurrencyFormatter.format(cartController.grandTotal)}',
-                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ],
                           ),
@@ -447,7 +551,13 @@ class CartBottomSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildSummaryRow(String label, String value, {bool isBold = false, double fontSize = 13, Color? color}) {
+  Widget _buildSummaryRow(
+    String label,
+    String value, {
+    bool isBold = false,
+    double fontSize = 13,
+    Color? color,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2.0),
       child: Row(
@@ -466,7 +576,9 @@ class CartBottomSheet extends StatelessWidget {
             style: TextStyle(
               fontSize: fontSize,
               fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-              color: color ?? (isBold ? AppColors.textPrimary : AppColors.textSecondary),
+              color:
+                  color ??
+                  (isBold ? AppColors.textPrimary : AppColors.textSecondary),
             ),
           ),
         ],
@@ -478,12 +590,42 @@ class CartBottomSheet extends StatelessWidget {
     final cartController = Get.find<CartController>();
     return Obx(() {
       final currentDisc = cartController.discountPercent.value.toInt();
-      return ActionChip(
-        avatar: const Icon(Icons.discount_outlined, size: 16, color: AppColors.primary),
-        label: Text(currentDisc > 0 ? 'Diskon $currentDisc%' : 'Tambah Diskon'),
-        backgroundColor: currentDisc > 0 ? AppColors.primarySoft : AppColors.lightBackground,
-        side: BorderSide(color: currentDisc > 0 ? AppColors.primary : AppColors.lightBorder),
-        onPressed: () => _showDiscountDialog(context),
+      final hasDisc = currentDisc > 0;
+
+      return InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () => _showDiscountDialog(context),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: hasDisc ? AppColors.primarySoft : AppColors.lightBackground,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: hasDisc ? AppColors.primary : AppColors.lightBorder,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.discount_outlined,
+                size: 15,
+                color: hasDisc ? AppColors.primary : AppColors.textSecondary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                hasDisc ? 'Diskon $currentDisc%' : 'Diskon',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: hasDisc
+                      ? AppColors.primaryDark
+                      : AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
       );
     });
   }
@@ -492,12 +634,40 @@ class CartBottomSheet extends StatelessWidget {
     final cartController = Get.find<CartController>();
     return Obx(() {
       final currentTax = cartController.taxPercent.value.toInt();
-      return ActionChip(
-        avatar: const Icon(Icons.receipt_long_outlined, size: 16, color: AppColors.info),
-        label: Text(currentTax > 0 ? 'Pajak $currentTax%' : 'Tambah Pajak'),
-        backgroundColor: currentTax > 0 ? AppColors.infoSoft : AppColors.lightBackground,
-        side: BorderSide(color: currentTax > 0 ? AppColors.info : AppColors.lightBorder),
-        onPressed: () => _showTaxDialog(context),
+      final hasTax = currentTax > 0;
+
+      return InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () => _showTaxDialog(context),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: hasTax ? AppColors.infoSoft : AppColors.lightBackground,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: hasTax ? AppColors.info : AppColors.lightBorder,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.receipt_long_outlined,
+                size: 15,
+                color: hasTax ? AppColors.info : AppColors.textSecondary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                hasTax ? 'PB1 $currentTax%' : 'Pajak PB1',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: hasTax ? AppColors.info : AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
       );
     });
   }
@@ -507,16 +677,46 @@ class CartBottomSheet extends StatelessWidget {
     Get.dialog(
       SimpleDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Pilih Persentase Diskon', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        children: [0, 5, 10, 15, 20, 25, 50].map((d) {
+        title: const Text(
+          'Pilih Diskon Pesanan',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+        ),
+        children: [0, 5, 10, 15, 20, 25, 50, 100].map((d) {
+          final isSelected = cartController.discountPercent.value.toInt() == d;
           return SimpleDialogOption(
             onPressed: () {
               cartController.discountPercent.value = d.toDouble();
               Get.back();
             },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4.0),
-              child: Text(d == 0 ? 'Tanpa Diskon (0%)' : 'Diskon $d%', style: const TextStyle(fontSize: 14)),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.primarySoft : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    d == 0 ? 'Tanpa Diskon (0%)' : 'Diskon $d%',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      color: isSelected
+                          ? AppColors.primaryDark
+                          : AppColors.textPrimary,
+                    ),
+                  ),
+                  if (isSelected)
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      color: AppColors.primary,
+                      size: 18,
+                    ),
+                ],
+              ),
             ),
           );
         }).toList(),
@@ -529,16 +729,46 @@ class CartBottomSheet extends StatelessWidget {
     Get.dialog(
       SimpleDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Pilih Persentase Pajak', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Pilih Pajak Resto (PB1)',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+        ),
         children: [0, 10, 11, 12].map((t) {
+          final isSelected = cartController.taxPercent.value.toInt() == t;
           return SimpleDialogOption(
             onPressed: () {
               cartController.taxPercent.value = t.toDouble();
               Get.back();
             },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4.0),
-              child: Text(t == 0 ? 'Tanpa Pajak (0%)' : 'Pajak PB1 ($t%)', style: const TextStyle(fontSize: 14)),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.infoSoft : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    t == 0 ? 'Tanpa Pajak (0%)' : 'Pajak Resto PB1 ($t%)',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      color: isSelected
+                          ? AppColors.info
+                          : AppColors.textPrimary,
+                    ),
+                  ),
+                  if (isSelected)
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      color: AppColors.info,
+                      size: 18,
+                    ),
+                ],
+              ),
             ),
           );
         }).toList(),
@@ -551,21 +781,30 @@ class CartBottomSheet extends StatelessWidget {
     Get.dialog(
       AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Kosongkan Keranjang?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        content: const Text('Seluruh item yang telah dipilih akan dihapus dari keranjang pesanan.'),
+        title: const Text(
+          'Kosongkan Keranjang?',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Seluruh item yang telah dipilih akan dihapus dari keranjang pesanan.',
+        ),
         actions: [
           TextButton(onPressed: () => Get.back(), child: const Text('Batal')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.danger,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             onPressed: () {
               cartController.clearCart();
               Get.back(); // Tutup dialog konfirmasi
               if (context.mounted && Navigator.canPop(context)) {
-                Navigator.of(context).pop(); // Tutup bottom sheet keranjang agar meluncur turun ke bawah
+                Navigator.of(
+                  context,
+                ).pop(); // Tutup bottom sheet keranjang agar meluncur turun ke bawah
               }
             },
             child: const Text('Kosongkan'),

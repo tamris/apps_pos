@@ -408,14 +408,14 @@ class _MovementFormContent extends StatelessWidget {
 
                 const SizedBox(height: 18),
 
-                // B. Pilihan Kategori Sama Rata (2-Column Grid Symmetrical)
+                // B. Pilihan Kategori Dropdown (Lebih Simpel & Ringkas)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Obx(() {
                       final isOut = controller.selectedType.value == 'out';
                       return Text(
-                        isOut ? 'Kategori Pengeluaran Laci' : 'Kategori Kas Masuk',
+                        isOut ? 'Kategori Pengeluaran Laci *' : 'Kategori Kas Masuk *',
                         style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                       );
                     }),
@@ -431,106 +431,174 @@ class _MovementFormContent extends StatelessWidget {
                     }),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 Obx(() {
                   final cats = controller.categories;
-                  if (cats.isEmpty && !controller.isLoadingCategories.value) {
+                  final isOut = controller.selectedType.value == 'out';
+                  final selectedId = controller.selectedCategory.value?.id;
+
+                  if (controller.isLoadingCategories.value) {
                     return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      height: 48,
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
+                        color: const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.lightBorder),
                       ),
-                      child: const Text(
-                        'Kategori default: Operasional Toko',
-                        style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      child: const Row(
+                        children: [
+                          SizedBox(
+                            width: 15,
+                            height: 15,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          SizedBox(width: 10),
+                          Text(
+                            'Memuat kategori...',
+                            style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                          ),
+                        ],
                       ),
                     );
                   }
 
-                  return GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 8,
-                      mainAxisSpacing: 8,
-                      mainAxisExtent: 46, // Sama rata persis
-                    ),
-                    itemCount: cats.length,
-                    itemBuilder: (context, i) {
-                      final cat = cats[i];
-                      final iconData = _getCategoryIcon(cat.name, cat.slug);
-
-                      return Obx(() {
-                        final isSelected = controller.selectedCategory.value?.id == cat.id;
-                        final isOut = controller.selectedType.value == 'out';
-                        final activeBorderColor = isOut ? AppColors.danger : AppColors.primary;
-                        final activeBgColor = isOut ? AppColors.dangerSoft.withAlpha(90) : AppColors.primarySoft;
-                        final activeTextColor = isOut ? AppColors.danger : AppColors.primaryDark;
-
-                        return Material(
-                          color: isSelected ? activeBgColor : const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(10),
-                          child: InkWell(
-                            onTap: () {
-                              controller.selectCategory(cat);
-                            },
-                            borderRadius: BorderRadius.circular(10),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: isSelected ? activeBorderColor : AppColors.lightBorder,
-                                  width: isSelected ? 1.5 : 1.0,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 28,
-                                    height: 28,
-                                    decoration: BoxDecoration(
-                                      color: isSelected
-                                          ? (isOut ? AppColors.danger.withAlpha(30) : AppColors.primary.withAlpha(30))
-                                          : Colors.grey.shade200,
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Icon(
-                                      iconData,
-                                      size: 15,
-                                      color: isSelected ? activeTextColor : AppColors.textSecondary,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      cat.name,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 11.5,
-                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                        color: isSelected ? activeTextColor : AppColors.textPrimary,
-                                        height: 1.2,
-                                      ),
-                                    ),
-                                  ),
-                                  if (isSelected)
-                                    Icon(
-                                      Icons.check_circle_rounded,
-                                      size: 15,
-                                      color: activeTextColor,
-                                    ),
-                                ],
-                              ),
-                            ),
+                  if (cats.isEmpty) {
+                    return Container(
+                      height: 48,
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.lightBorder),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.info_outline_rounded, size: 16, color: AppColors.textSecondary),
+                          SizedBox(width: 8),
+                          Text(
+                            'Kategori default: Operasional Toko',
+                            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                           ),
-                        );
-                      });
-                    },
+                        ],
+                      ),
+                    );
+                  }
+
+                  final currentVal = cats.any((c) => c.id == selectedId) ? selectedId : null;
+                  final activeColor = isOut ? AppColors.danger : AppColors.primary;
+
+                  return Container(
+                    height: 48,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.lightBorder),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        value: currentVal,
+                        hint: Text(
+                          isOut ? 'Pilih Kategori Pengeluaran...' : 'Pilih Kategori Kas Masuk...',
+                          style: TextStyle(fontSize: 12.5, color: Colors.grey.shade400),
+                        ),
+                        icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.textSecondary),
+                        isExpanded: true,
+                        dropdownColor: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        selectedItemBuilder: (context) {
+                          return cats.map((cat) {
+                            final iconData = _getCategoryIcon(cat.name, cat.slug);
+                            return Row(
+                              children: [
+                                Container(
+                                  width: 28,
+                                  height: 28,
+                                  decoration: BoxDecoration(
+                                    color: isOut ? AppColors.dangerSoft : AppColors.primarySoft,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Icon(
+                                    iconData,
+                                    size: 15,
+                                    color: activeColor,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    cat.name,
+                                    style: const TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            );
+                          }).toList();
+                        },
+                        items: cats.map((cat) {
+                          final isItemChosen = cat.id == currentVal;
+                          final iconData = _getCategoryIcon(cat.name, cat.slug);
+
+                          return DropdownMenuItem<int>(
+                            value: cat.id,
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 28,
+                                  height: 28,
+                                  decoration: BoxDecoration(
+                                    color: isItemChosen
+                                        ? (isOut ? AppColors.dangerSoft : AppColors.primarySoft)
+                                        : Colors.grey.shade100,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Icon(
+                                    iconData,
+                                    size: 15,
+                                    color: isItemChosen ? activeColor : AppColors.textSecondary,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    cat.name,
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: isItemChosen ? FontWeight.bold : FontWeight.w500,
+                                      color: isItemChosen ? activeColor : AppColors.textPrimary,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (isItemChosen)
+                                  Icon(
+                                    Icons.check_circle_rounded,
+                                    size: 16,
+                                    color: activeColor,
+                                  ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (newId) {
+                          if (newId != null) {
+                            for (final c in cats) {
+                              if (c.id == newId) {
+                                controller.selectedCategory.value = c;
+                                break;
+                              }
+                            }
+                          }
+                        },
+                      ),
+                    ),
                   );
                 }),
 

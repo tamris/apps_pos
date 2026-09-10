@@ -72,13 +72,15 @@ class TabletCartPanel extends StatelessWidget {
                                 color: AppColors.textPrimary,
                               ),
                             ),
-                            Obx(() => Text(
-                                  '${cartController.totalItemsCount} item dalam keranjang',
-                                  style: const TextStyle(
-                                    fontSize: 11.5,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                )),
+                            Obx(
+                              () => Text(
+                                '${cartController.totalItemsCount} item dalam keranjang',
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -86,7 +88,8 @@ class TabletCartPanel extends StatelessWidget {
                   ),
                 ),
                 Obx(() {
-                  if (cartController.isCartEmpty) return const SizedBox.shrink();
+                  if (cartController.isCartEmpty)
+                    return const SizedBox.shrink();
                   return InkWell(
                     borderRadius: BorderRadius.circular(8),
                     onTap: () {
@@ -94,14 +97,21 @@ class TabletCartPanel extends StatelessWidget {
                       _confirmClearCart(context);
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.danger.withAlpha(20),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Row(
                         children: [
-                          Icon(Icons.delete_outline_rounded, size: 16, color: AppColors.danger),
+                          Icon(
+                            Icons.delete_outline_rounded,
+                            size: 16,
+                            color: AppColors.danger,
+                          ),
                           SizedBox(width: 4),
                           Text(
                             'Reset',
@@ -122,7 +132,8 @@ class TabletCartPanel extends StatelessWidget {
 
           // Active Open Bill Alert Banner (jika sedang mengedit bill terbuka)
           Obx(() {
-            if (cartController.activeOpenBillId.value == null) return const SizedBox.shrink();
+            if (cartController.activeOpenBillId.value == null)
+              return const SizedBox.shrink();
             return Container(
               margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -133,7 +144,11 @@ class TabletCartPanel extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.edit_note_rounded, color: AppColors.warning, size: 20),
+                  const Icon(
+                    Icons.edit_note_rounded,
+                    color: AppColors.warning,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -151,7 +166,10 @@ class TabletCartPanel extends StatelessWidget {
                       cartController.clearCart();
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(4),
@@ -159,7 +177,11 @@ class TabletCartPanel extends StatelessWidget {
                       ),
                       child: const Text(
                         'Tutup',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ),
                   ),
@@ -178,7 +200,10 @@ class TabletCartPanel extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
                 onTap: () => TableSelectorSheet.show(context),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: AppColors.lightBorder),
@@ -200,11 +225,12 @@ class TabletCartPanel extends StatelessWidget {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Obx(() {
-                          final type = cartController.orderType.value == 'dine_in'
+                          final type =
+                              cartController.orderType.value == 'dine_in'
                               ? 'Dine In (Makan di Tempat)'
                               : cartController.orderType.value == 'take_away'
-                                  ? 'Take Away (Bungkus)'
-                                  : 'Delivery';
+                              ? 'Take Away (Bungkus)'
+                              : 'Delivery';
                           final table = cartController.tableNumber.value;
                           final customer = cartController.customerName.value;
 
@@ -232,7 +258,10 @@ class TabletCartPanel extends StatelessWidget {
                         }),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(6),
@@ -271,7 +300,10 @@ class TabletCartPanel extends StatelessWidget {
                 return Center(
                   child: SingleChildScrollView(
                     physics: const ClampingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -314,7 +346,10 @@ class TabletCartPanel extends StatelessWidget {
               }
 
               return ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
                 itemCount: cartController.items.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 10),
                 itemBuilder: (context, index) {
@@ -326,7 +361,10 @@ class TabletCartPanel extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.lightBorder, width: 1.2),
+                      border: Border.all(
+                        color: AppColors.lightBorder,
+                        width: 1.2,
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withAlpha(4),
@@ -376,7 +414,10 @@ class TabletCartPanel extends StatelessWidget {
                               itemIndex: index,
                             ),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppColors.primarySoft,
                                 borderRadius: BorderRadius.circular(6),
@@ -440,7 +481,10 @@ class TabletCartPanel extends StatelessWidget {
                                       itemIndex: index,
                                     ),
                                     child: const Padding(
-                                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                        vertical: 2,
+                                      ),
                                       child: Row(
                                         children: [
                                           Icon(
@@ -470,14 +514,18 @@ class TabletCartPanel extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: AppColors.lightBackground,
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: AppColors.lightBorder),
+                                border: Border.all(
+                                  color: AppColors.lightBorder,
+                                ),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   // Minus / Delete button
                                   InkWell(
-                                    borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
+                                    borderRadius: const BorderRadius.horizontal(
+                                      left: Radius.circular(8),
+                                    ),
                                     onTap: () {
                                       if (item.quantity == 1) {
                                         HapticFeedback.mediumImpact();
@@ -487,7 +535,10 @@ class TabletCartPanel extends StatelessWidget {
                                       cartController.decreaseQuantity(index);
                                     },
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 5,
+                                      ),
                                       child: Icon(
                                         item.quantity == 1
                                             ? Icons.delete_outline_rounded
@@ -501,7 +552,9 @@ class TabletCartPanel extends StatelessWidget {
                                   ),
                                   // Quantity display
                                   Container(
-                                    constraints: const BoxConstraints(minWidth: 26),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 26,
+                                    ),
                                     alignment: Alignment.center,
                                     child: Text(
                                       '${item.quantity}',
@@ -514,13 +567,18 @@ class TabletCartPanel extends StatelessWidget {
                                   ),
                                   // Plus button
                                   InkWell(
-                                    borderRadius: const BorderRadius.horizontal(right: Radius.circular(8)),
+                                    borderRadius: const BorderRadius.horizontal(
+                                      right: Radius.circular(8),
+                                    ),
                                     onTap: () {
                                       HapticFeedback.lightImpact();
                                       cartController.increaseQuantity(index);
                                     },
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 5,
+                                      ),
                                       child: const Icon(
                                         Icons.add_rounded,
                                         size: 16,
@@ -631,10 +689,16 @@ class TabletCartPanel extends StatelessWidget {
                                   HapticFeedback.lightImpact();
                                   cartController.saveOpenBill(context: context);
                                 },
-                          icon: const Icon(Icons.bookmark_border_rounded, size: 16),
+                          icon: const Icon(
+                            Icons.bookmark_border_rounded,
+                            size: 16,
+                          ),
                           label: const Text(
                             'Simpan Bill',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 13),
@@ -658,7 +722,10 @@ class TabletCartPanel extends StatelessWidget {
                           icon: const Icon(Icons.payments_outlined, size: 18),
                           label: Text(
                             'Bayar ${CurrencyFormatter.format(cartController.grandTotal)}',
-                            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
@@ -682,11 +749,7 @@ class TabletCartPanel extends StatelessWidget {
     );
   }
 
-  Widget _buildSummaryRow(
-    String label,
-    String value, {
-    Color? color,
-  }) {
+  Widget _buildSummaryRow(String label, String value, {Color? color}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2.5),
       child: Row(
@@ -744,7 +807,9 @@ class TabletCartPanel extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: hasDisc ? AppColors.primaryDark : AppColors.textPrimary,
+                  color: hasDisc
+                      ? AppColors.primaryDark
+                      : AppColors.textPrimary,
                 ),
               ),
             ],
@@ -805,7 +870,7 @@ class TabletCartPanel extends StatelessWidget {
           'Pilih Diskon Pesanan',
           style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
         ),
-        children: [0, 5, 10, 15, 20, 25, 50].map((d) {
+        children: [0, 5, 10, 15, 20, 25, 50, 100].map((d) {
           final isSelected = cartController.discountPercent.value.toInt() == d;
           return SimpleDialogOption(
             onPressed: () {
@@ -825,12 +890,20 @@ class TabletCartPanel extends StatelessWidget {
                     d == 0 ? 'Tanpa Diskon (0%)' : 'Diskon $d%',
                     style: TextStyle(
                       fontSize: 13.5,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected ? AppColors.primaryDark : AppColors.textPrimary,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      color: isSelected
+                          ? AppColors.primaryDark
+                          : AppColors.textPrimary,
                     ),
                   ),
                   if (isSelected)
-                    const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 18),
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      color: AppColors.primary,
+                      size: 18,
+                    ),
                 ],
               ),
             ),
@@ -869,12 +942,20 @@ class TabletCartPanel extends StatelessWidget {
                     t == 0 ? 'Tanpa Pajak (0%)' : 'Pajak Resto PB1 ($t%)',
                     style: TextStyle(
                       fontSize: 13.5,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected ? AppColors.info : AppColors.textPrimary,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      color: isSelected
+                          ? AppColors.info
+                          : AppColors.textPrimary,
                     ),
                   ),
                   if (isSelected)
-                    const Icon(Icons.check_circle_rounded, color: AppColors.info, size: 18),
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      color: AppColors.info,
+                      size: 18,
+                    ),
                 ],
               ),
             ),
@@ -898,15 +979,14 @@ class TabletCartPanel extends StatelessWidget {
           style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Batal'),
-          ),
+          TextButton(onPressed: () => Get.back(), child: const Text('Batal')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.danger,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             onPressed: () {
               cartController.clearCart();

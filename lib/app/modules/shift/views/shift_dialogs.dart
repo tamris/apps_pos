@@ -63,195 +63,391 @@ class ShiftDialogs {
           child: Container(
             width: 440,
             padding: const EdgeInsets.all(24),
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppColors.primarySoft,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.lock_open_rounded, color: AppColors.primary, size: 24),
-                      ),
-                      const SizedBox(width: 14),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Buka Shift Kasir',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                            ),
-                            SizedBox(height: 2),
-                            Text(
-                              'Mulai sesi operasional kasir baru',
-                              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (controller.isConnectionOffline) ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: StatefulBuilder(
+              builder: (dialogContext, setDialogState) {
+                double getCurrentAmount() {
+                  final raw = amountController.text.replaceAll(RegExp(r'[^0-9]'), '');
+                  return double.tryParse(raw) ?? 0.0;
+                }
+
+                void setAmount(double value) {
+                  HapticFeedback.selectionClick();
+                  amountController.text = value <= 0 ? '' : CurrencyFormatter.formatWithoutSymbol(value);
+                  amountController.selection = TextSelection.fromPosition(
+                    TextPosition(offset: amountController.text.length),
+                  );
+                  setDialogState(() {});
+                }
+
+                void addAmount(double delta) {
+                  final current = getCurrentAmount();
+                  setAmount(current + delta);
+                }
+
+                void resetAmount() {
+                  HapticFeedback.lightImpact();
+                  amountController.clear();
+                  setDialogState(() {});
+                }
+
+                final currentVal = getCurrentAmount();
+
+                Widget buildDenomBtn({
+                  required String label,
+                  required VoidCallback onTap,
+                  IconData? icon,
+                  Color? bgColor,
+                  Color? borderColor,
+                  Color? textColor,
+                }) {
+                  return Expanded(
+                    child: Material(
+                      color: bgColor ?? const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          onTap();
+                        },
+                        child: Container(
+                          height: 33,
+                          alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: AppColors.warningSoft,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.warning.withAlpha(80)),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: borderColor ?? const Color(0xFFE2E8F0),
+                              width: 1,
+                            ),
                           ),
-                          child: const Row(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.wifi_off_rounded, size: 10, color: AppColors.warningDark),
-                              SizedBox(width: 4),
+                              if (icon != null) ...[
+                                Icon(icon, size: 13, color: textColor ?? const Color(0xFF475569)),
+                                const SizedBox(width: 3),
+                              ],
                               Text(
-                                'Mode Offline',
+                                label,
                                 style: TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.warningDark,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: textColor ?? const Color(0xFF334155),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(width: 6),
-                      ],
-                      if (dismissible)
-                        IconButton(
-                          icon: const Icon(Icons.close, size: 20, color: AppColors.textSecondary),
-                          onPressed: () => Navigator.of(dialogContext).pop(false),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  if (controller.isConnectionOffline) ...[
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 14),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppColors.warningSoft,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.warning.withAlpha(80)),
                       ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 16),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Server offline. Shift akan dibuka secara lokal di perangkat dan disinkronkan saat online.',
-                              style: TextStyle(fontSize: 11.5, color: AppColors.warningDark),
+                    ),
+                  );
+                }
+
+                return SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Form(
+                    key: formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: AppColors.primarySoft,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(Icons.lock_open_rounded, color: AppColors.primary, size: 24),
+                            ),
+                            const SizedBox(width: 14),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Buka Shift Kasir',
+                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    'Mulai sesi operasional kasir baru',
+                                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (controller.isConnectionOffline) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.warningSoft,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: AppColors.warning.withAlpha(80)),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.wifi_off_rounded, size: 10, color: AppColors.warningDark),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'Mode Offline',
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.warningDark,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                            if (dismissible)
+                              IconButton(
+                                icon: const Icon(Icons.close, size: 20, color: AppColors.textSecondary),
+                                onPressed: () => Navigator.of(dialogContext).pop(false),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+
+                        if (controller.isConnectionOffline) ...[
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 14),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: AppColors.warningSoft,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppColors.warning.withAlpha(80)),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 16),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Server offline. Shift akan dibuka secara lokal di perangkat dan disinkronkan saat online.',
+                                    style: TextStyle(fontSize: 11.5, color: AppColors.warningDark),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
-                      ),
-                    ),
-                  ],
 
-                  const Text(
-                    'Masukkan jumlah uang modal awal (uang kembalian) di laci kasir saat ini:',
-                    style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                  ),
-                  const SizedBox(height: 14),
+                        const Text(
+                          'Masukkan jumlah uang modal awal (uang kembalian) di laci kasir saat ini:',
+                          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                        ),
+                        const SizedBox(height: 14),
 
-                  // Input Nominal Berformat Rupiah
-                  TextFormField(
-                    controller: amountController,
-                    keyboardType: TextInputType.number,
-                    autofocus: false,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      CurrencyInputFormatter(),
-                    ],
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                    decoration: InputDecoration(
-                      labelText: 'Modal Awal Kasir',
-                      prefixIcon: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 14),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                        // Input Nominal Berformat Rupiah
+                        TextFormField(
+                          controller: amountController,
+                          keyboardType: TextInputType.number,
+                          autofocus: false,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            CurrencyInputFormatter(),
+                          ],
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                          onChanged: (_) => setDialogState(() {}),
+                          decoration: InputDecoration(
+                            labelText: 'Modal Awal Kasir',
+                            prefixIcon: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 14),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.payments_rounded, color: AppColors.primary, size: 22),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Rp',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.primaryDark,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                            suffixIcon: IconButton(
+                              icon: const Icon(Icons.clear_rounded, size: 18),
+                              onPressed: resetAmount,
+                            ),
+                          ),
+                          validator: (val) {
+                            if (val == null || val.trim().isEmpty) return 'Wajib diisi';
+                            final num = double.tryParse(val.replaceAll(RegExp(r'[^0-9]'), ''));
+                            if (num == null || num < 0) return 'Nominal tidak valid';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 14),
+
+                        // 1. Pilihan Cepat Modal Awal Populer
+                        const Row(
                           children: [
-                            Icon(Icons.payments_rounded, color: AppColors.primary, size: 22),
-                            SizedBox(width: 8),
+                            Icon(Icons.bolt_rounded, size: 14, color: AppColors.primary),
+                            SizedBox(width: 4),
                             Text(
-                              'Rp',
+                              'Pilihan Cepat Modal Awal',
                               style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primaryDark,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.3,
+                                color: Color(0xFF64748B),
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.clear_rounded, size: 18),
-                        onPressed: () => amountController.clear(),
-                      ),
-                    ),
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) return 'Wajib diisi';
-                      final num = double.tryParse(val.replaceAll(RegExp(r'[^0-9]'), ''));
-                      if (num == null || num < 0) return 'Nominal tidak valid';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      if (dismissible)
-                        TextButton(
-                          onPressed: () => Navigator.of(dialogContext).pop(false),
-                          child: const Text('Batal'),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [50000.0, 100000.0, 200000.0, 500000.0].map((preset) {
+                            final isSelected = currentVal == preset;
+                            return Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 2.5),
+                                child: Material(
+                                  color: isSelected ? AppColors.primarySoft : const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(8),
+                                    onTap: () => setAmount(preset),
+                                    child: Container(
+                                      height: 34,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: isSelected ? AppColors.primary : const Color(0xFFE2E8F0),
+                                          width: isSelected ? 1.5 : 1.0,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        CurrencyFormatter.formatWithoutSymbol(preset),
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                                          color: isSelected ? AppColors.primaryDark : const Color(0xFF334155),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
                         ),
-                      const SizedBox(width: 8),
-                      Obx(() => ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        const SizedBox(height: 12),
+
+                        // 2. Tambah Pecahan Uang Rupiah (+100k, +50k, +20k, +10k, +5k, +2k, +1k, Reset)
+                        const Row(
+                          children: [
+                            Icon(Icons.payments_outlined, size: 14, color: Color(0xFF64748B)),
+                            SizedBox(width: 4),
+                            Text(
+                              'Tambah Pecahan Uang Tunai',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.3,
+                                color: Color(0xFF64748B),
+                              ),
                             ),
-                            icon: controller.isLoading.value
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                  )
-                                : const Icon(Icons.check_circle_outline_rounded, size: 18),
-                            label: Text(
-                              controller.isLoading.value ? 'Membuka...' : 'Buka Shift',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+
+                        // Baris 1: Pecahan Uang Kertas Besar
+                        Row(
+                          children: [
+                            buildDenomBtn(label: '+100.000', onTap: () => addAmount(100000)),
+                            const SizedBox(width: 5),
+                            buildDenomBtn(label: '+50.000', onTap: () => addAmount(50000)),
+                            const SizedBox(width: 5),
+                            buildDenomBtn(label: '+20.000', onTap: () => addAmount(20000)),
+                            const SizedBox(width: 5),
+                            buildDenomBtn(label: '+10.000', onTap: () => addAmount(10000)),
+                          ],
+                        ),
+                        const SizedBox(height: 5),
+
+                        // Baris 2: Pecahan Uang Kecil & Tombol Reset
+                        Row(
+                          children: [
+                            buildDenomBtn(label: '+5.000', onTap: () => addAmount(5000)),
+                            const SizedBox(width: 5),
+                            buildDenomBtn(label: '+2.000', onTap: () => addAmount(2000)),
+                            const SizedBox(width: 5),
+                            buildDenomBtn(label: '+1.000', onTap: () => addAmount(1000)),
+                            const SizedBox(width: 5),
+                            buildDenomBtn(
+                              label: 'Reset 0',
+                              icon: Icons.restart_alt_rounded,
+                              bgColor: const Color(0xFFFFF1F2),
+                              borderColor: const Color(0xFFFECDD3),
+                              textColor: const Color(0xFFE11D48),
+                              onTap: resetAmount,
                             ),
-                            onPressed: controller.isLoading.value
-                                ? null
-                                : () async {
-                                    if (formKey.currentState!.validate()) {
-                                      final raw = amountController.text.replaceAll(RegExp(r'[^0-9]'), '');
-                                      final amount = double.tryParse(raw) ?? 0;
-                                      final success = await controller.startShift(amount);
-                                      if (success && dialogContext.mounted) {
-                                        Navigator.of(dialogContext).pop(true);
-                                      }
-                                    }
-                                  },
-                          )),
-                    ],
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Buttons
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            if (dismissible)
+                              TextButton(
+                                onPressed: () => Navigator.of(dialogContext).pop(false),
+                                child: const Text('Batal'),
+                              ),
+                            const SizedBox(width: 8),
+                            Obx(() => ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                  icon: controller.isLoading.value
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                        )
+                                      : const Icon(Icons.check_circle_outline_rounded, size: 18),
+                                  label: Text(
+                                    controller.isLoading.value ? 'Membuka...' : 'Buka Shift',
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  onPressed: controller.isLoading.value
+                                      ? null
+                                      : () async {
+                                          if (formKey.currentState!.validate()) {
+                                            final raw = amountController.text.replaceAll(RegExp(r'[^0-9]'), '');
+                                            final amount = double.tryParse(raw) ?? 0;
+                                            final success = await controller.startShift(amount);
+                                            if (success && dialogContext.mounted) {
+                                              Navigator.of(dialogContext).pop(true);
+                                            }
+                                          }
+                                        },
+                                )),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ),
