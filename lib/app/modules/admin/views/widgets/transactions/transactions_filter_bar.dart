@@ -80,8 +80,8 @@ class TransactionsFilterBar extends GetView<AdminController> {
     return TextField(
       controller: controller.trxSearchController,
       textInputAction: TextInputAction.search,
-      onChanged: (val) => controller.trxSearchQuery.value = val,
-      onSubmitted: (_) => controller.fetchTransactions(),
+      onChanged: controller.onTrxSearchChanged,
+      onSubmitted: (_) => controller.submitTrxSearch(),
       style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
       decoration: InputDecoration(
         hintText: 'Cari no. invoice, kasir, meja, pelanggan...',
@@ -92,18 +92,14 @@ class TransactionsFilterBar extends GetView<AdminController> {
           color: Color(0xFF94A3B8),
         ),
         suffixIcon: Obx(() {
-          if (controller.trxSearchQuery.value.isNotEmpty) {
+          if (controller.hasTrxSearch.value) {
             return IconButton(
               icon: const Icon(
                 Icons.clear_rounded,
                 size: 16,
                 color: Color(0xFF94A3B8),
               ),
-              onPressed: () {
-                controller.trxSearchController.clear();
-                controller.trxSearchQuery.value = '';
-                controller.fetchTransactions();
-              },
+              onPressed: controller.clearTrxSearch,
             );
           }
           return const SizedBox.shrink();
@@ -140,7 +136,7 @@ class TransactionsFilterBar extends GetView<AdminController> {
           ),
           padding: const EdgeInsets.symmetric(horizontal: 16),
         ),
-        onPressed: () => controller.fetchTransactions(),
+        onPressed: controller.submitTrxSearch,
         icon: const Icon(Icons.search_rounded, size: 16),
         label: const Text(
           'Cari',

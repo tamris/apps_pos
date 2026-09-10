@@ -39,12 +39,6 @@ class AdminCashFlowTab extends GetView<AdminController> {
 
               final movements = controller.filteredCashFlowMovements;
 
-              if (movements.isEmpty) {
-                return CashFlowEmptyState(
-                  onReset: () => controller.clearCashFlowFilters(),
-                );
-              }
-
               return RefreshIndicator(
                 color: AppColors.secondary,
                 onRefresh: () async {
@@ -54,47 +48,53 @@ class AdminCashFlowTab extends GetView<AdminController> {
                     controller.fetchAdminExpenseCategories(),
                   ]);
                 },
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final width = constraints.maxWidth;
-                    final isDesktop = width >= 1150;
-                    final isTablet = width >= 750;
+                child: movements.isEmpty
+                    ? CashFlowEmptyState(
+                        onReset: () => controller.clearCashFlowFilters(),
+                      )
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          final width = constraints.maxWidth;
+                          final isDesktop = width >= 1150;
+                          final isTablet = width >= 750;
 
-                    if (isTablet) {
-                      final crossAxisCount = isDesktop ? 3 : 2;
-                      return GridView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: crossAxisCount,
-                          crossAxisSpacing: 14,
-                          mainAxisSpacing: 14,
-                          mainAxisExtent: 148,
-                        ),
-                        itemCount: movements.length,
-                        itemBuilder: (context, i) {
-                          final m = movements[i];
-                          return CashFlowCard(
-                            movement: m,
-                            onTap: () => AdminCashFlowDetailDialog.show(context, movement: m),
+                          if (isTablet) {
+                            final crossAxisCount = isDesktop ? 3 : 2;
+                            return GridView.builder(
+                              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: crossAxisCount,
+                                crossAxisSpacing: 14,
+                                mainAxisSpacing: 14,
+                                mainAxisExtent: 148,
+                              ),
+                              itemCount: movements.length,
+                              itemBuilder: (context, i) {
+                                final m = movements[i];
+                                return CashFlowCard(
+                                  movement: m,
+                                  onTap: () => AdminCashFlowDetailDialog.show(context, movement: m),
+                                );
+                              },
+                            );
+                          }
+
+                          return ListView.separated(
+                            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            itemCount: movements.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 12),
+                            itemBuilder: (context, i) {
+                              final m = movements[i];
+                              return CashFlowCard(
+                                movement: m,
+                                onTap: () => AdminCashFlowDetailDialog.show(context, movement: m),
+                              );
+                            },
                           );
                         },
-                      );
-                    }
-
-                    return ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      itemCount: movements.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, i) {
-                        final m = movements[i];
-                        return CashFlowCard(
-                          movement: m,
-                          onTap: () => AdminCashFlowDetailDialog.show(context, movement: m),
-                        );
-                      },
-                    );
-                  },
-                ),
+                      ),
               );
             }),
           ),

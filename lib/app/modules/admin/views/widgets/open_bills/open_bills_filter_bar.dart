@@ -183,21 +183,18 @@ class OpenBillsFilterBar extends StatelessWidget {
     return TextField(
       controller: controller.openBillSearchController,
       textInputAction: TextInputAction.search,
-      onChanged: (val) => controller.openBillSearchQuery.value = val,
-      onSubmitted: (_) => controller.fetchOpenBills(),
+      onChanged: controller.onOpenBillSearchChanged,
+      onSubmitted: (_) => controller.submitOpenBillSearch(),
       style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
       decoration: InputDecoration(
         hintText: 'Cari nomor meja, nama tamu, invoice, atau kasir...',
         hintStyle: const TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8)),
         prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF94A3B8)),
         suffixIcon: Obx(() {
-          if (controller.openBillSearchQuery.value.isNotEmpty) {
+          if (controller.hasOpenBillSearch.value) {
             return IconButton(
               icon: const Icon(Icons.clear_rounded, size: 16, color: Color(0xFF94A3B8)),
-              onPressed: () {
-                controller.openBillSearchController.clear();
-                controller.openBillSearchQuery.value = '';
-              },
+              onPressed: controller.clearOpenBillSearch,
             );
           }
           return const SizedBox.shrink();

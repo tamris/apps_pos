@@ -34,22 +34,21 @@ class AdminOpenBillsTab extends GetView<AdminController> {
 
               final displayBills = controller.filteredOpenBills;
 
-              if (displayBills.isEmpty) {
-                return OpenBillsEmptyState(controller: controller);
-              }
-
               return RefreshIndicator(
                 color: AppColors.secondary,
                 onRefresh: () => controller.fetchOpenBills(),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final width = constraints.maxWidth;
-                    final isDesktop = width >= 1150;
-                    final isTablet = width >= 650;
+                child: displayBills.isEmpty
+                    ? OpenBillsEmptyState(controller: controller)
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          final width = constraints.maxWidth;
+                          final isDesktop = width >= 1150;
+                          final isTablet = width >= 650;
 
-                    if (isTablet) {
+                          if (isTablet) {
                       final crossAxisCount = isDesktop ? 3 : 2;
                       return GridView.builder(
+                        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: crossAxisCount,
@@ -74,6 +73,7 @@ class AdminOpenBillsTab extends GetView<AdminController> {
                     }
 
                     return ListView.separated(
+                      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       itemCount: displayBills.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 12),

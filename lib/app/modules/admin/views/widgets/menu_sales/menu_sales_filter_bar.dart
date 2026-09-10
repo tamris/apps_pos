@@ -78,8 +78,8 @@ class MenuSalesFilterBar extends GetView<AdminController> {
     return TextField(
       controller: controller.menuSearchController,
       textInputAction: TextInputAction.search,
-      onChanged: (val) => controller.menuSearchQuery.value = val,
-      onSubmitted: (_) => controller.fetchMenuSales(),
+      onChanged: controller.onMenuSearchChanged,
+      onSubmitted: (_) => controller.submitMenuSearch(),
       style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
       decoration: InputDecoration(
         hintText: 'Cari nama menu, SKU, atau kategori...',
@@ -90,18 +90,14 @@ class MenuSalesFilterBar extends GetView<AdminController> {
           color: Color(0xFF94A3B8),
         ),
         suffixIcon: Obx(() {
-          if (controller.menuSearchQuery.value.isNotEmpty) {
+          if (controller.hasMenuSearch.value) {
             return IconButton(
               icon: const Icon(
                 Icons.clear_rounded,
                 size: 16,
                 color: Color(0xFF94A3B8),
               ),
-              onPressed: () {
-                controller.menuSearchController.clear();
-                controller.menuSearchQuery.value = '';
-                controller.fetchMenuSales();
-              },
+              onPressed: controller.clearMenuSearch,
             );
           }
           return const SizedBox.shrink();
@@ -138,7 +134,7 @@ class MenuSalesFilterBar extends GetView<AdminController> {
           ),
           padding: const EdgeInsets.symmetric(horizontal: 16),
         ),
-        onPressed: () => controller.fetchMenuSales(),
+        onPressed: controller.submitMenuSearch,
         icon: const Icon(Icons.search_rounded, size: 16),
         label: const Text(
           'Cari',

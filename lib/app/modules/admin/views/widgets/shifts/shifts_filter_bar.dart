@@ -83,21 +83,18 @@ class ShiftsFilterBar extends StatelessWidget {
     return TextField(
       controller: controller.shiftSearchController,
       textInputAction: TextInputAction.search,
-      onChanged: (val) => controller.shiftSearchQuery.value = val,
-      onSubmitted: (_) => controller.fetchShifts(),
+      onChanged: controller.onShiftSearchChanged,
+      onSubmitted: (_) => controller.submitShiftSearch(),
       style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
       decoration: InputDecoration(
         hintText: 'Cari nama kasir, email, atau ID shift...',
         hintStyle: const TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8)),
         prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF94A3B8)),
         suffixIcon: Obx(() {
-          if (controller.shiftSearchQuery.value.isNotEmpty) {
+          if (controller.hasShiftSearch.value) {
             return IconButton(
               icon: const Icon(Icons.clear_rounded, size: 16, color: Color(0xFF94A3B8)),
-              onPressed: () {
-                controller.shiftSearchController.clear();
-                controller.shiftSearchQuery.value = '';
-              },
+              onPressed: controller.clearShiftSearch,
             );
           }
           return const SizedBox.shrink();
@@ -132,7 +129,7 @@ class ShiftsFilterBar extends StatelessWidget {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           padding: const EdgeInsets.symmetric(horizontal: 16),
         ),
-        onPressed: () => controller.fetchShifts(),
+        onPressed: controller.submitShiftSearch,
         icon: const Icon(Icons.search_rounded, size: 16),
         label: const Text('Cari', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
       ),

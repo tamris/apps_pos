@@ -33,8 +33,10 @@ class PosController extends GetxController {
 
   final RxInt selectedCategoryId = 0.obs; // 0 = Semua Kategori
   final RxString searchQuery = ''.obs;
+  final RxBool hasSearchQuery = false.obs;
   final RxBool isLoading = false.obs;
   final TextEditingController searchController = TextEditingController();
+  Timer? _searchDebounce;
 
   @override
   void onInit() {
@@ -48,6 +50,7 @@ class PosController extends GetxController {
 
   @override
   void onClose() {
+    _searchDebounce?.cancel();
     searchController.dispose();
     super.onClose();
   }
@@ -289,11 +292,17 @@ class PosController extends GetxController {
   }
 
   void onSearchChanged(String query) {
-    searchQuery.value = query;
+    hasSearchQuery.value = query.isNotEmpty;
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 250), () {
+      searchQuery.value = query;
+    });
   }
 
   void clearSearch() {
+    _searchDebounce?.cancel();
     searchController.clear();
+    hasSearchQuery.value = false;
     searchQuery.value = '';
   }
 

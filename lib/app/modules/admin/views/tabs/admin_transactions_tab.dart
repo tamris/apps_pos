@@ -42,24 +42,23 @@ class AdminTransactionsTab extends GetView<AdminController> {
                           .toList()
                       : controller.transactions;
 
-              if (displayList.isEmpty) {
-                return TransactionsEmptyState(
-                  onResetFilter: () => controller.clearTrxFilters(),
-                );
-              }
-
               return RefreshIndicator(
                 color: AppColors.secondary,
                 onRefresh: () => controller.fetchTransactions(),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final width = constraints.maxWidth;
-                    final isDesktop = width >= 1100;
-                    final isTablet = width >= 650;
+                child: displayList.isEmpty
+                    ? TransactionsEmptyState(
+                        onResetFilter: () => controller.clearTrxFilters(),
+                      )
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          final width = constraints.maxWidth;
+                          final isDesktop = width >= 1100;
+                          final isTablet = width >= 650;
 
-                    if (isTablet) {
+                          if (isTablet) {
                       final crossAxisCount = isDesktop ? 3 : 2;
                       return GridView.builder(
+                        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 20,
                           vertical: 16,
@@ -83,6 +82,7 @@ class AdminTransactionsTab extends GetView<AdminController> {
                     }
 
                     return ListView.separated(
+                      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 14,

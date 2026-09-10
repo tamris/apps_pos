@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:dio/dio.dart' as dio;
 import 'package:flutter/material.dart';
@@ -240,6 +241,127 @@ class AdminController extends GetxController {
     }).toList();
   }
 
+  // --- SEARCH DEBOUNCERS & INSTANT INDICATORS ---
+  Timer? _cashFlowSearchDebounce;
+  Timer? _trxSearchDebounce;
+  Timer? _shiftSearchDebounce;
+  Timer? _menuSearchDebounce;
+  Timer? _openBillSearchDebounce;
+
+  final RxBool hasCashFlowSearch = false.obs;
+  final RxBool hasTrxSearch = false.obs;
+  final RxBool hasShiftSearch = false.obs;
+  final RxBool hasMenuSearch = false.obs;
+  final RxBool hasOpenBillSearch = false.obs;
+
+  void onCashFlowSearchChanged(String val) {
+    hasCashFlowSearch.value = val.isNotEmpty;
+    _cashFlowSearchDebounce?.cancel();
+    _cashFlowSearchDebounce = Timer(const Duration(milliseconds: 250), () {
+      cashFlowSearchQuery.value = val;
+    });
+  }
+
+  void clearCashFlowSearch() {
+    _cashFlowSearchDebounce?.cancel();
+    cashFlowSearchController.clear();
+    hasCashFlowSearch.value = false;
+    cashFlowSearchQuery.value = '';
+    fetchCashFlow();
+    fetchCashFlowSummary();
+  }
+
+  void submitCashFlowSearch() {
+    _cashFlowSearchDebounce?.cancel();
+    cashFlowSearchQuery.value = cashFlowSearchController.text;
+    fetchCashFlow();
+    fetchCashFlowSummary();
+  }
+
+  void onTrxSearchChanged(String val) {
+    hasTrxSearch.value = val.isNotEmpty;
+    _trxSearchDebounce?.cancel();
+    _trxSearchDebounce = Timer(const Duration(milliseconds: 250), () {
+      trxSearchQuery.value = val;
+    });
+  }
+
+  void clearTrxSearch() {
+    _trxSearchDebounce?.cancel();
+    trxSearchController.clear();
+    hasTrxSearch.value = false;
+    trxSearchQuery.value = '';
+    fetchTransactions();
+  }
+
+  void submitTrxSearch() {
+    _trxSearchDebounce?.cancel();
+    trxSearchQuery.value = trxSearchController.text;
+    fetchTransactions();
+  }
+
+  void onShiftSearchChanged(String val) {
+    hasShiftSearch.value = val.isNotEmpty;
+    _shiftSearchDebounce?.cancel();
+    _shiftSearchDebounce = Timer(const Duration(milliseconds: 250), () {
+      shiftSearchQuery.value = val;
+    });
+  }
+
+  void clearShiftSearch() {
+    _shiftSearchDebounce?.cancel();
+    shiftSearchController.clear();
+    hasShiftSearch.value = false;
+    shiftSearchQuery.value = '';
+    fetchShifts();
+  }
+
+  void submitShiftSearch() {
+    _shiftSearchDebounce?.cancel();
+    shiftSearchQuery.value = shiftSearchController.text;
+    fetchShifts();
+  }
+
+  void onMenuSearchChanged(String val) {
+    hasMenuSearch.value = val.isNotEmpty;
+    _menuSearchDebounce?.cancel();
+    _menuSearchDebounce = Timer(const Duration(milliseconds: 250), () {
+      menuSearchQuery.value = val;
+    });
+  }
+
+  void clearMenuSearch() {
+    _menuSearchDebounce?.cancel();
+    menuSearchController.clear();
+    hasMenuSearch.value = false;
+    menuSearchQuery.value = '';
+  }
+
+  void submitMenuSearch() {
+    _menuSearchDebounce?.cancel();
+    menuSearchQuery.value = menuSearchController.text;
+  }
+
+  void onOpenBillSearchChanged(String val) {
+    hasOpenBillSearch.value = val.isNotEmpty;
+    _openBillSearchDebounce?.cancel();
+    _openBillSearchDebounce = Timer(const Duration(milliseconds: 250), () {
+      openBillSearchQuery.value = val;
+    });
+  }
+
+  void clearOpenBillSearch() {
+    _openBillSearchDebounce?.cancel();
+    openBillSearchController.clear();
+    hasOpenBillSearch.value = false;
+    openBillSearchQuery.value = '';
+  }
+
+  void submitOpenBillSearch() {
+    _openBillSearchDebounce?.cancel();
+    openBillSearchQuery.value = openBillSearchController.text;
+  }
+
   @override
   void onInit() {
     super.onInit();
@@ -250,6 +372,11 @@ class AdminController extends GetxController {
 
   @override
   void onClose() {
+    _cashFlowSearchDebounce?.cancel();
+    _trxSearchDebounce?.cancel();
+    _shiftSearchDebounce?.cancel();
+    _menuSearchDebounce?.cancel();
+    _openBillSearchDebounce?.cancel();
     menuSearchController.dispose();
     trxSearchController.dispose();
     shiftSearchController.dispose();
@@ -472,6 +599,7 @@ class AdminController extends GetxController {
     selectedTrxDate.value = DateFormat('yyyy-MM-dd').format(now);
     selectedTrxStartDate.value = now;
     selectedTrxEndDate.value = now;
+    hasTrxSearch.value = false;
     trxSearchQuery.value = '';
     trxSearchController.clear();
     fetchTransactions();
@@ -773,6 +901,7 @@ class AdminController extends GetxController {
     menuCustomStartDate.value = null;
     menuCustomEndDate.value = null;
     selectedMenuCategoryId.value = null;
+    hasMenuSearch.value = false;
     menuSearchQuery.value = '';
     menuSearchController.clear();
     selectedMenuSource.value = 'all';
@@ -943,6 +1072,7 @@ class AdminController extends GetxController {
     selectedCashFlowPeriod.value = 'month';
     cashFlowCustomStartDate.value = null;
     cashFlowCustomEndDate.value = null;
+    hasCashFlowSearch.value = false;
     cashFlowSearchController.clear();
     cashFlowSearchQuery.value = '';
     fetchCashFlow();

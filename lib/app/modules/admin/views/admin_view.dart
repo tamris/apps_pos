@@ -29,44 +29,49 @@ class AdminView extends GetView<AdminController> {
         systemNavigationBarColor: Colors.white,
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC), // Modern Slate-50 Canvas
-        body: LayoutBuilder(
-          builder: (context, constraints) {
-            final isTablet = constraints.maxWidth >= 768;
+      child: GestureDetector(
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        behavior: HitTestBehavior.translucent,
+        child: Scaffold(
+          resizeToAvoidBottomInset: false,
+          backgroundColor: const Color(0xFFF8FAFC), // Modern Slate-50 Canvas
+          body: LayoutBuilder(
+            builder: (context, constraints) {
+              final isTablet = constraints.maxWidth >= 768;
 
-            if (isTablet) {
-              return SafeArea(
-                top: true,
-                bottom: false,
-                child: Row(
-                  children: [
-                    // 1. Sleek Full-Height Modern Sidebar
-                    _buildSidebar(context, user),
+              if (isTablet) {
+                return SafeArea(
+                  top: true,
+                  bottom: false,
+                  child: Row(
+                    children: [
+                      // 1. Sleek Full-Height Modern Sidebar
+                      _buildSidebar(context, user),
 
-                    // 2. Right Content Area with Executive Header Bar
-                    Expanded(
-                      child: Column(
-                        children: [
-                          _buildTopHeaderBar(context, user),
-                          Expanded(
-                            child: Obx(
-                              () => _buildActiveTab(
-                                controller.selectedTabIndex.value,
+                      // 2. Right Content Area with Executive Header Bar
+                      Expanded(
+                        child: Column(
+                          children: [
+                            _buildTopHeaderBar(context, user),
+                            Expanded(
+                              child: Obx(
+                                () => _buildActiveTab(
+                                  controller.selectedTabIndex.value,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              );
-            }
+                    ],
+                  ),
+                );
+              }
 
-            // Mobile View (< 768px): Clean Top AppBar (Sleek 52px matching POS) + Active Tab Body + Bottom Nav Bar
-            return Scaffold(
-              backgroundColor: const Color(0xFFF8FAFC),
+              // Mobile View (< 768px): Clean Top AppBar (Sleek 52px matching POS) + Active Tab Body + Bottom Nav Bar
+              return Scaffold(
+                resizeToAvoidBottomInset: false,
+                backgroundColor: const Color(0xFFF8FAFC),
               appBar: AppBar(
                 backgroundColor: Colors.white,
                 elevation: 0,
@@ -251,8 +256,9 @@ class AdminView extends GetView<AdminController> {
           },
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   // ---------------------------------------------------------------------------
   // Tablet / Desktop Sleek Sidebar (Collapsible: 200px expanded <-> 68px rail)

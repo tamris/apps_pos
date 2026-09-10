@@ -182,12 +182,15 @@ class DashboardPaymentDistributionCard extends StatelessWidget {
 
     return Row(
       children: [
+        // 1. Dot Indikator Warna
         Container(
           width: 7,
           height: 7,
           decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
         ),
         const SizedBox(width: 8),
+
+        // 2. Nama Metode Pembayaran
         Expanded(
           child: Text(
             label,
@@ -200,23 +203,46 @@ class DashboardPaymentDistributionCard extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 6),
-        Flexible(
-          child: Text(
-            '$count trx • $percentInt%',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+        const SizedBox(width: 8),
+
+        // 3. Kolom Transaksi & Persentase (Rata Kanan Presisi, Sejajar Vertikal)
+        SizedBox(
+          width: 86,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                '$count trx • $percentInt%',
+                maxLines: 1,
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
           ),
         ),
-        const SizedBox(width: 8),
-        Text(
-          CurrencyFormatter.format(total),
-          maxLines: 1,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF0F172A),
+        const SizedBox(width: 14),
+
+        // 4. Kolom Nominal Rupiah (Rata Kanan Presisi di Ujung Kanan)
+        SizedBox(
+          width: 96,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                CurrencyFormatter.format(total),
+                maxLines: 1,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+            ),
           ),
         ),
       ],

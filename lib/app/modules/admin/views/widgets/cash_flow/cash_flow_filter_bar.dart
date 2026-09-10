@@ -111,26 +111,18 @@ class CashFlowFilterBar extends StatelessWidget {
     return TextField(
       controller: controller.cashFlowSearchController,
       textInputAction: TextInputAction.search,
-      onChanged: (val) => controller.cashFlowSearchQuery.value = val,
-      onSubmitted: (_) {
-        controller.fetchCashFlow();
-        controller.fetchCashFlowSummary();
-      },
+      onChanged: controller.onCashFlowSearchChanged,
+      onSubmitted: (_) => controller.submitCashFlowSearch(),
       style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
       decoration: InputDecoration(
         hintText: 'Cari no. arus kas, catatan pengeluaran, kategori...',
         hintStyle: const TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8)),
         prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF94A3B8)),
         suffixIcon: Obx(() {
-          if (controller.cashFlowSearchQuery.value.isNotEmpty) {
+          if (controller.hasCashFlowSearch.value) {
             return IconButton(
               icon: const Icon(Icons.clear_rounded, size: 16, color: Color(0xFF94A3B8)),
-              onPressed: () {
-                controller.cashFlowSearchController.clear();
-                controller.cashFlowSearchQuery.value = '';
-                controller.fetchCashFlow();
-                controller.fetchCashFlowSummary();
-              },
+              onPressed: controller.clearCashFlowSearch,
             );
           }
           return const SizedBox.shrink();
@@ -170,10 +162,7 @@ class CashFlowFilterBar extends StatelessWidget {
           ),
           padding: const EdgeInsets.symmetric(horizontal: 16),
         ),
-        onPressed: () {
-          controller.fetchCashFlow();
-          controller.fetchCashFlowSummary();
-        },
+        onPressed: controller.submitCashFlowSearch,
         icon: const Icon(Icons.search_rounded, size: 16),
         label: const Text(
           'Cari',

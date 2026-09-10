@@ -25,10 +25,8 @@ class PosView extends GetView<PosController> {
     final shiftController = Get.find<ShiftController>();
     final onlineOrderPollingService = Get.find<OnlineOrderPollingService>();
 
-    final isTablet = MediaQuery.of(context).size.width >= 768;
-
     return Scaffold(
-      resizeToAvoidBottomInset: !isTablet,
+      resizeToAvoidBottomInset: false,
       backgroundColor: AppColors.lightBackground,
       appBar: AppBar(
         titleSpacing: 16,
@@ -362,7 +360,7 @@ class PosView extends GetView<PosController> {
                 color: AppColors.textSecondary,
               ),
               suffixIcon: Obx(() {
-                if (controller.searchQuery.value.isEmpty) {
+                if (!controller.hasSearchQuery.value) {
                   return const SizedBox.shrink();
                 }
                 return IconButton(
@@ -424,6 +422,7 @@ class PosView extends GetView<PosController> {
               color: AppColors.primary,
               onRefresh: () => controller.fetchBootstrap(),
               child: GridView.builder(
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.fromLTRB(16, 4, 16, bottomPadding),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: crossAxisCount,

@@ -33,29 +33,28 @@ class AdminShiftsTab extends GetView<AdminController> {
 
               final displayShifts = controller.filteredShifts;
 
-              if (displayShifts.isEmpty) {
-                return ShiftsEmptyState(
-                  onReset: () {
-                    controller.selectedShiftStatus.value = 'all';
-                    controller.clearShiftDateFilter();
-                    controller.shiftSearchController.clear();
-                    controller.shiftSearchQuery.value = '';
-                  },
-                );
-              }
-
               return RefreshIndicator(
                 color: AppColors.secondary,
                 onRefresh: () => controller.fetchShifts(),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final width = constraints.maxWidth;
-                    final isDesktop = width >= 1150;
-                    final isTablet = width >= 650;
+                child: displayShifts.isEmpty
+                    ? ShiftsEmptyState(
+                        onReset: () {
+                          controller.selectedShiftStatus.value = 'all';
+                          controller.clearShiftDateFilter();
+                          controller.shiftSearchController.clear();
+                          controller.shiftSearchQuery.value = '';
+                        },
+                      )
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          final width = constraints.maxWidth;
+                          final isDesktop = width >= 1150;
+                          final isTablet = width >= 650;
 
-                    if (isTablet) {
+                          if (isTablet) {
                       final crossAxisCount = isDesktop ? 3 : 2;
                       return GridView.builder(
+                        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: crossAxisCount,
@@ -75,6 +74,7 @@ class AdminShiftsTab extends GetView<AdminController> {
                     }
 
                     return ListView.separated(
+                      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       itemCount: displayShifts.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 12),

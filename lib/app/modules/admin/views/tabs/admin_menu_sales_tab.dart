@@ -33,27 +33,26 @@ class AdminMenuSalesTab extends GetView<AdminController> {
 
               final displayItems = controller.filteredMenuSalesItems;
 
-              if (displayItems.isEmpty) {
-                return MenuSalesEmptyState(
-                  onResetFilter: () => controller.clearMenuFilters(),
-                );
-              }
-
               return RefreshIndicator(
                 color: AppColors.secondary,
                 onRefresh: () async {
                   await controller.fetchMenuSales(refresh: true);
                   await controller.fetchMenuCategories();
                 },
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final width = constraints.maxWidth;
-                    final isDesktop = width >= 1100;
-                    final isTablet = width >= 650;
+                child: displayItems.isEmpty
+                    ? MenuSalesEmptyState(
+                        onResetFilter: () => controller.clearMenuFilters(),
+                      )
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          final width = constraints.maxWidth;
+                          final isDesktop = width >= 1100;
+                          final isTablet = width >= 650;
 
-                    if (isTablet) {
+                          if (isTablet) {
                       final crossAxisCount = isDesktop ? 3 : 2;
                       return GridView.builder(
+                        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 20,
                           vertical: 16,
@@ -73,6 +72,7 @@ class AdminMenuSalesTab extends GetView<AdminController> {
                     }
 
                     return ListView.separated(
+                      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 14,
