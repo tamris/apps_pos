@@ -110,7 +110,7 @@ class AdminView extends GetView<AdminController> {
                     ),
                     const SizedBox(width: 8),
                     const Text(
-                      'Noli POS',
+                      'Noli Coffee',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
@@ -181,7 +181,7 @@ class AdminView extends GetView<AdminController> {
                 ),
                 child: Obx(
                   () => NavigationBar(
-                    selectedIndex: controller.selectedTabIndex.value,
+                    selectedIndex: controller.selectedTabIndex.value.clamp(0, 5),
                     onDestinationSelected: controller.switchTab,
                     backgroundColor: Colors.white,
                     indicatorColor: AppColors.secondarySoft,
@@ -385,7 +385,7 @@ class AdminView extends GetView<AdminController> {
                         children: [
                           const Flexible(
                             child: Text(
-                              'Noli POS',
+                              'Noli Coffee',
                               style: TextStyle(
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.w700,
@@ -484,19 +484,7 @@ class AdminView extends GetView<AdminController> {
                       icon: Icons.receipt_long_rounded,
                       label: 'Riwayat Transaksi',
                     ),
-                    const SizedBox(height: 3),
-                    _buildExpandedNavItem(
-                      index: 2,
-                      icon: Icons.restaurant_menu_rounded,
-                      label: 'Penjualan Menu',
-                    ),
-                    const SizedBox(height: 3),
-                    _buildExpandedNavItem(
-                      index: 3,
-                      icon: Icons.assignment_rounded,
-                      label: 'Audit Shift Kasir',
-                    ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 8),
                     Obx(
                       () => _buildExpandedNavItem(
                         index: 4,
@@ -504,6 +492,21 @@ class AdminView extends GetView<AdminController> {
                         label: 'Pesanan & Meja',
                         badgeCount: controller.openBillsTotalActive.value,
                       ),
+                    ),
+                    const SizedBox(height: 3),
+                    _buildExpandedNavItem(
+                      index: 3,
+                      icon: Icons.assignment_rounded,
+                      label: 'Shift Kasir',
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                      child: Divider(height: 1, color: Color(0xFFE2E8F0)),
+                    ),
+                    _buildExpandedNavItem(
+                      index: 2,
+                      icon: Icons.restaurant_menu_rounded,
+                      label: 'Penjualan Menu',
                     ),
                     const SizedBox(height: 3),
                     _buildExpandedNavItem(
@@ -516,6 +519,17 @@ class AdminView extends GetView<AdminController> {
               ),
             ),
           ),
+
+          // Pushed to bottom: Pengaturan
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            child: _buildExpandedNavItem(
+              index: 6,
+              icon: Icons.settings_rounded,
+              label: 'Pengaturan',
+            ),
+          ),
+          const SizedBox(height: 4),
 
           // Minimalist User & Logout Footer
           _buildExpandedFooter(context, user),
@@ -594,19 +608,7 @@ class AdminView extends GetView<AdminController> {
                       icon: Icons.receipt_long_rounded,
                       label: 'Riwayat Transaksi',
                     ),
-                    const SizedBox(height: 4),
-                    _buildCollapsedNavItem(
-                      index: 2,
-                      icon: Icons.restaurant_menu_rounded,
-                      label: 'Penjualan Menu',
-                    ),
-                    const SizedBox(height: 4),
-                    _buildCollapsedNavItem(
-                      index: 3,
-                      icon: Icons.assignment_rounded,
-                      label: 'Audit Shift Kasir',
-                    ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 8),
                     Obx(
                       () => _buildCollapsedNavItem(
                         index: 4,
@@ -617,6 +619,21 @@ class AdminView extends GetView<AdminController> {
                     ),
                     const SizedBox(height: 4),
                     _buildCollapsedNavItem(
+                      index: 3,
+                      icon: Icons.assignment_rounded,
+                      label: 'Shift Kasir',
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                      child: Divider(height: 1, color: Color(0xFFE2E8F0)),
+                    ),
+                    _buildCollapsedNavItem(
+                      index: 2,
+                      icon: Icons.restaurant_menu_rounded,
+                      label: 'Penjualan Menu',
+                    ),
+                    const SizedBox(height: 4),
+                    _buildCollapsedNavItem(
                       index: 5,
                       icon: Icons.account_balance_wallet_rounded,
                       label: 'Arus Kas & Beban',
@@ -624,6 +641,16 @@ class AdminView extends GetView<AdminController> {
                   ],
                 ),
               ),
+            ),
+          ),
+
+          // Pushed to bottom: Pengaturan
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: _buildCollapsedNavItem(
+              index: 6,
+              icon: Icons.settings_rounded,
+              label: 'Pengaturan',
             ),
           ),
 
@@ -921,13 +948,16 @@ class AdminView extends GetView<AdminController> {
                   title = 'Laporan Penjualan Menu';
                   break;
                 case 3:
-                  title = 'Audit Shift Kasir';
+                  title = 'Shift Kasir';
                   break;
                 case 4:
                   title = 'Pesanan & Meja';
                   break;
                 case 5:
                   title = 'Arus Kas & Beban Toko';
+                  break;
+                case 6:
+                  title = 'Pengaturan Sistem';
                   break;
                 default:
                   title = 'Portal Manajemen';
@@ -1110,9 +1140,217 @@ class AdminView extends GetView<AdminController> {
         return const AdminOpenBillsTab();
       case 5:
         return const AdminCashFlowTab();
+      case 6:
+        return _buildSettingsPlaceholder();
       default:
         return const AdminDashboardTab();
     }
+  }
+
+  Widget _buildSettingsPlaceholder() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header Card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.02),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: AppColors.secondarySoft,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(
+                        Icons.settings_suggest_rounded,
+                        color: AppColors.secondary,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Text(
+                                'Pengaturan Toko & Sistem',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFEF3C7),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  'Segera Hadir',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFFB45309),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Pusat konfigurasi operasional POS, profil outlet, integrasi printer, dan preferensi akun.',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Placeholder Sections Preview
+              const Text(
+                'MODUL PENGATURAN',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                  color: Color(0xFF94A3B8),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              _buildSettingPreviewTile(
+                icon: Icons.storefront_rounded,
+                title: 'Profil & Informasi Outlet',
+                subtitle:
+                    'Nama toko, alamat cabang, kontak WhatsApp, dan logo bisnis untuk struk.',
+              ),
+              const SizedBox(height: 10),
+              _buildSettingPreviewTile(
+                icon: Icons.print_rounded,
+                title: 'Konfigurasi Printer & Hardware',
+                subtitle:
+                    'Koneksi printer thermal Bluetooth/USB, ukuran kertas struk (58mm/80mm), dan laci kasir.',
+              ),
+              const SizedBox(height: 10),
+              _buildSettingPreviewTile(
+                icon: Icons.receipt_rounded,
+                title: 'Pajak (PB1), Service Charge & Diskon',
+                subtitle:
+                    'Pengaturan persentase pajak restoran otomatis, biaya layanan meja, dan promo voucher.',
+              ),
+              const SizedBox(height: 10),
+              _buildSettingPreviewTile(
+                icon: Icons.badge_rounded,
+                title: 'Manajemen Staf & Hak Akses',
+                subtitle:
+                    'Kelola akun kasir, PIN otorisasi diskon/void kasir, dan audit aktivitas operator.',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSettingPreviewTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: const Color(0xFF64748B), size: 20),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Text(
+              'Akan Datang',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF94A3B8),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _confirmLogout(BuildContext context) {

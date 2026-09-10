@@ -409,6 +409,9 @@ class AdminController extends GetxController {
         fetchCashFlowSummary();
         fetchAdminExpenseCategories();
         break;
+      case 6:
+        // Tab Pengaturan (Segera Hadir / Setting Placeholder)
+        break;
     }
   }
 
@@ -936,6 +939,9 @@ class AdminController extends GetxController {
           fetchCashFlowSummary(),
           fetchAdminExpenseCategories(),
         ]);
+        break;
+      case 6:
+        // Tab Pengaturan
         break;
     }
   }
