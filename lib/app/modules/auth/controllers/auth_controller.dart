@@ -120,12 +120,23 @@ class AuthController extends GetxController {
         // Simpan ke storage (termasuk hash PIN dan activePin untuk login offline / auto re-auth)
         await _storageService.saveToken(token);
         await _storageService.saveUser(userData);
-        await _storageService.saveActiveShift(activeShift);
+        if (activeShift != null) {
+          await _storageService.saveActiveShift(activeShift);
+        } else {
+          final localShift = _storageService.activeShift;
+          if (localShift == null || localShift.id > 0) {
+            await _storageService.saveActiveShift(null);
+          }
+        }
         await _storageService.saveCashierPinHash(userData.id, enteredPin);
         await _storageService.saveActivePin(enteredPin);
 
         pin.value = '';
-        Get.offAllNamed(AppRoutes.pos);
+        if (userData.isAdmin) {
+          Get.offAllNamed(AppRoutes.admin);
+        } else {
+          Get.offAllNamed(AppRoutes.pos);
+        }
       } else {
         errorMessage.value = response.data['message'] ?? 'PIN tidak valid.';
         pin.value = '';
@@ -150,7 +161,11 @@ class AuthController extends GetxController {
           await _storageService.saveActivePin(enteredPin);
 
           pin.value = '';
-          Get.offAllNamed(AppRoutes.pos);
+          if (matchedUser.isAdmin) {
+            Get.offAllNamed(AppRoutes.admin);
+          } else {
+            Get.offAllNamed(AppRoutes.pos);
+          }
           AppSnackbar.warning(
             'Mode Offline',
             'Masuk sebagai ${matchedUser.name} dalam mode offline lokal.',

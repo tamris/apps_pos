@@ -412,6 +412,10 @@ class CartController extends GetxController {
           Get.find<TransactionsController>().fetchTodayTransactions(silent: true);
         }
 
+        if (Get.isRegistered<ShiftController>()) {
+          Get.find<ShiftController>().fetchCurrentShift();
+        }
+
         final kitchenItems = items.map((e) => {
           'name': e.product.name,
           'quantity': e.quantity,
@@ -459,6 +463,10 @@ class CartController extends GetxController {
       }
     } catch (e) {
       // Offline fallback: jika error koneksi, simpan ke queue offline
+      final activeShiftId = Get.isRegistered<ShiftController>()
+          ? Get.find<ShiftController>().currentShift.value?.id
+          : _storageService.activeShift?.id;
+
       final offlineId = await _offlineSyncService.enqueueTransaction(
         orderType: currentOrderType,
         tableNumber: savedTable.isNotEmpty ? savedTable : null,
@@ -466,9 +474,11 @@ class CartController extends GetxController {
         paymentMethod: currentPaymentMethod,
         discountPercent: discountPercent.value,
         taxPercent: taxPercent.value,
+        total: grandTotal,
         paid: currentPaid,
         items: itemsPayload,
         openBillId: activeOpenBillId.value,
+        shiftId: activeShiftId,
       );
 
       AppSnackbar.warning(
@@ -558,6 +568,13 @@ class CartController extends GetxController {
 
       if (Get.isRegistered<TransactionsController>()) {
         Get.find<TransactionsController>().fetchTodayTransactions(silent: true);
+      }
+
+      if (Get.isRegistered<ShiftController>()) {
+        Get.find<ShiftController>().recordOfflineSale(
+          amount: grandTotal,
+          paymentMethod: cleanPaymentMethod,
+        );
       }
 
       PaymentSuccessDialog.show(

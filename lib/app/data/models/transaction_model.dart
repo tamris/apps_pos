@@ -1,3 +1,4 @@
+import 'dart:convert';
 import '../../core/utils/date_formatter.dart';
 import 'addon_model.dart';
 
@@ -20,10 +21,36 @@ class TransactionDetailModel {
 
   factory TransactionDetailModel.fromJson(Map<String, dynamic> json) {
     var addonsList = <AddonModel>[];
-    if (json['addons'] != null && json['addons'] is List) {
-      addonsList = (json['addons'] as List)
-          .map((i) => AddonModel.fromJson(Map<String, dynamic>.from(i)))
-          .toList();
+    dynamic rawAddons = json['addons'] ??
+        json['order_item_addons'] ??
+        json['orderItemAddons'] ??
+        json['item_addons'] ??
+        json['selected_addons'] ??
+        json['order_addons'];
+
+    if (rawAddons is String && rawAddons.trim().isNotEmpty) {
+      try {
+        rawAddons = jsonDecode(rawAddons);
+      } catch (_) {}
+    }
+
+    if (rawAddons != null && rawAddons is List) {
+      for (final i in rawAddons) {
+        if (i is Map) {
+          addonsList.add(AddonModel.fromJson(Map<String, dynamic>.from(i)));
+        } else if (i is String && i.trim().isNotEmpty) {
+          try {
+            final decoded = jsonDecode(i);
+            if (decoded is Map) {
+              addonsList.add(AddonModel.fromJson(Map<String, dynamic>.from(decoded)));
+            } else {
+              addonsList.add(AddonModel(id: 0, name: i.trim(), price: 0.0));
+            }
+          } catch (_) {
+            addonsList.add(AddonModel(id: 0, name: i.trim(), price: 0.0));
+          }
+        }
+      }
     }
 
     return TransactionDetailModel(

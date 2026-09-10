@@ -7,7 +7,6 @@ import '../../shift/controllers/shift_controller.dart';
 import '../../shift/views/shift_dialogs.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
-import '../../../data/services/offline_sync_service.dart';
 import '../../../data/services/online_order_polling_service.dart';
 import '../../../routes/app_routes.dart';
 import 'widgets/category_selector.dart';
@@ -24,10 +23,10 @@ class PosView extends GetView<PosController> {
   Widget build(BuildContext context) {
     final cartController = Get.find<CartController>();
     final shiftController = Get.find<ShiftController>();
-    final offlineSyncService = Get.find<OfflineSyncService>();
     final onlineOrderPollingService = Get.find<OnlineOrderPollingService>();
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: AppColors.lightBackground,
       appBar: AppBar(
         titleSpacing: 16,
@@ -84,12 +83,72 @@ class PosView extends GetView<PosController> {
           // 1. Shift Status Compact Icon Button
           Obx(() {
             final isOpen = shiftController.hasActiveShift.value;
-            final bgColor = isOpen ? AppColors.primarySoft : AppColors.warningSoft;
-            final borderColor = isOpen ? AppColors.primary : AppColors.warning;
-            final iconColor = isOpen ? AppColors.primary : AppColors.warning;
+            final isOffline = shiftController.isShiftOffline;
+            final offlineCount = shiftController.offlineTransactionsCount;
+
+            final Color bgColor;
+            final Color borderColor;
+            final Color iconColor;
+            final IconData iconData;
+            final String tooltipMessage;
+
+            if (!isOpen) {
+              bgColor = AppColors.warningSoft;
+              borderColor = AppColors.warning;
+              iconColor = AppColors.warning;
+              iconData = Icons.lock_clock_rounded;
+              tooltipMessage = 'Shift Tutup (Ketuk untuk Buka)';
+            } else if (isOffline) {
+              bgColor = AppColors.warningSoft;
+              borderColor = AppColors.warning;
+              iconColor = AppColors.warningDark;
+              iconData = Icons.cloud_off_rounded;
+              tooltipMessage = offlineCount > 0
+                  ? 'Shift Offline ($offlineCount trx belum sinkron)'
+                  : 'Shift Aktif (Mode Offline)';
+            } else if (offlineCount > 0) {
+              bgColor = AppColors.infoSoft;
+              borderColor = AppColors.info;
+              iconColor = AppColors.info;
+              iconData = Icons.sync_rounded;
+              tooltipMessage = 'Shift Aktif ($offlineCount trx antrean sinkronisasi)';
+            } else {
+              bgColor = AppColors.primarySoft;
+              borderColor = AppColors.primary;
+              iconColor = AppColors.primary;
+              iconData = Icons.lock_open_rounded;
+              tooltipMessage = 'Shift Aktif (Ketuk untuk Ringkasan)';
+            }
+
+            Widget buttonContent = Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: borderColor.withAlpha(120), width: 1.2),
+              ),
+              child: Icon(
+                iconData,
+                size: 18,
+                color: iconColor,
+              ),
+            );
+
+            if (isOpen && offlineCount > 0) {
+              buttonContent = Badge(
+                label: Text(
+                  '$offlineCount',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 9.5),
+                ),
+                backgroundColor: isOffline ? AppColors.warning : AppColors.info,
+                textColor: Colors.white,
+                offset: const Offset(-2, 2),
+                child: buttonContent,
+              );
+            }
 
             return Tooltip(
-              message: isOpen ? 'Shift Aktif (Ketuk untuk Ringkasan)' : 'Shift Tutup (Ketuk untuk Buka)',
+              message: tooltipMessage,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 2.0),
                 child: Material(
@@ -104,19 +163,7 @@ class PosView extends GetView<PosController> {
                         await ShiftDialogs.showStartShiftDialog(context);
                       }
                     },
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: borderColor.withAlpha(120), width: 1.2),
-                      ),
-                      child: Icon(
-                        isOpen ? Icons.lock_open_rounded : Icons.lock_clock_rounded,
-                        size: 18,
-                        color: iconColor,
-                      ),
-                    ),
+                    child: buttonContent,
                   ),
                 ),
               ),
@@ -192,19 +239,9 @@ class PosView extends GetView<PosController> {
             );
           }),
 
-          // 4. Menu Lainnya (⋮ Dropdown: Riwayat Transaksi, Ketersediaan Menu, Sync Offline, Pengaturan)
+          // 4. Menu Lainnya (⋮ Dropdown: Riwayat Transaksi, Ketersediaan Menu, Pengaturan)
           PopupMenuButton<String>(
-            icon: Obx(() {
-              final offlineCount = offlineSyncService.pendingCount.value;
-              if (offlineCount > 0) {
-                return Badge(
-                  label: Text('$offlineCount'),
-                  backgroundColor: AppColors.warning,
-                  child: const Icon(Icons.more_vert_rounded),
-                );
-              }
-              return const Icon(Icons.more_vert_rounded);
-            }),
+            icon: const Icon(Icons.more_vert_rounded),
             tooltip: 'Menu Lainnya',
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             onSelected: (val) async {
@@ -215,16 +252,12 @@ class PosView extends GetView<PosController> {
                 case 'availability':
                   MenuAvailabilityDialog.show(context);
                   break;
-                case 'sync':
-                  offlineSyncService.showSyncDialog(context);
-                  break;
                 case 'settings':
                   Get.toNamed(AppRoutes.settings);
                   break;
               }
             },
             itemBuilder: (context) {
-              final offlineCount = offlineSyncService.pendingCount.value;
               return [
                 const PopupMenuItem(
                   value: 'transactions',
@@ -246,25 +279,6 @@ class PosView extends GetView<PosController> {
                     ],
                   ),
                 ),
-                PopupMenuItem(
-                  value: 'sync',
-                  child: Row(
-                    children: [
-                      Icon(
-                        offlineCount > 0 ? Icons.cloud_off_rounded : Icons.cloud_done_rounded,
-                        color: offlineCount > 0 ? AppColors.warning : AppColors.info,
-                        size: 20,
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          offlineCount > 0 ? 'Sinkronisasi ($offlineCount antrean)' : 'Sinkronisasi Offline',
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
                 const PopupMenuDivider(height: 1),
                 const PopupMenuItem(
                   value: 'settings',
@@ -272,7 +286,7 @@ class PosView extends GetView<PosController> {
                     children: [
                       Icon(Icons.settings_outlined, color: AppColors.textSecondary, size: 20),
                       SizedBox(width: 12),
-                      Text('Pengaturan & Printer', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      Text('Pengaturan', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ),
@@ -346,7 +360,7 @@ class PosView extends GetView<PosController> {
                 color: AppColors.textSecondary,
               ),
               suffixIcon: Obx(() {
-                if (controller.searchQuery.value.isEmpty) {
+                if (!controller.hasSearchQuery.value) {
                   return const SizedBox.shrink();
                 }
                 return IconButton(
@@ -408,6 +422,7 @@ class PosView extends GetView<PosController> {
               color: AppColors.primary,
               onRefresh: () => controller.fetchBootstrap(),
               child: GridView.builder(
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.fromLTRB(16, 4, 16, bottomPadding),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: crossAxisCount,

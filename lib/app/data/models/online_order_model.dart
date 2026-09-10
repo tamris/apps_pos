@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'addon_model.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
+import '../../core/utils/date_formatter.dart';
 
 class OnlineOrderStatsModel {
   final int active;
@@ -84,27 +86,80 @@ class OnlineOrderItemModel {
 
   factory OnlineOrderItemModel.fromJson(Map<String, dynamic> json) {
     var addonsList = <AddonModel>[];
-    if (json['addons'] != null && json['addons'] is List) {
-      addonsList = (json['addons'] as List)
-          .map((i) => AddonModel.fromJson(Map<String, dynamic>.from(i)))
-          .toList();
+
+    // Cek berbagai variasi nama field add-ons dari backend / pivot / relasi
+    dynamic rawAddons = json['addons'] ??
+        json['order_item_addons'] ??
+        json['orderItemAddons'] ??
+        json['item_addons'] ??
+        json['selected_addons'] ??
+        json['order_addons'];
+
+    // Antisipasi jika field add-ons berupa JSON string dari database
+    if (rawAddons is String && rawAddons.trim().isNotEmpty) {
+      try {
+        rawAddons = jsonDecode(rawAddons);
+      } catch (_) {}
     }
 
+    if (rawAddons != null && rawAddons is List) {
+      for (final i in rawAddons) {
+        if (i is Map) {
+          addonsList.add(AddonModel.fromJson(Map<String, dynamic>.from(i)));
+        } else if (i is String && i.trim().isNotEmpty) {
+          try {
+            final decoded = jsonDecode(i);
+            if (decoded is Map) {
+              addonsList.add(AddonModel.fromJson(Map<String, dynamic>.from(decoded)));
+            } else {
+              addonsList.add(AddonModel(id: 0, name: i.trim(), price: 0.0));
+            }
+          } catch (_) {
+            addonsList.add(AddonModel(id: 0, name: i.trim(), price: 0.0));
+          }
+        }
+      }
+    }
+
+    final parsedQty = (json['quantity'] as num?)?.toInt() ?? int.tryParse(json['quantity']?.toString() ?? '1') ?? 1;
+    final parsedPrice = (json['price'] as num?)?.toDouble() ?? double.tryParse(json['price']?.toString() ?? '0') ?? 0.0;
+    final parsedSubtotal = (json['subtotal'] as num?)?.toDouble() ?? double.tryParse(json['subtotal']?.toString() ?? '0') ?? (parsedPrice * parsedQty);
+
     return OnlineOrderItemModel(
-      id: json['id'] ?? 0,
-      productId: json['product_id'] ?? 0,
-      productName: json['product_name'] ?? json['name'] ?? 'Menu',
-      productImage: json['product_image'] ?? json['image_url'],
-      quantity: (json['quantity'] as num?)?.toInt() ?? 1,
-      price: (json['price'] as num?)?.toDouble() ?? 0.0,
-      subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0.0,
-      notes: json['notes'] ?? '',
+      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
+      productId: json['product_id'] is int ? json['product_id'] : int.tryParse(json['product_id']?.toString() ?? '0') ?? 0,
+      productName: json['product_name']?.toString() ?? json['name']?.toString() ?? 'Menu',
+      productImage: json['product_image']?.toString() ?? json['image_url']?.toString(),
+      quantity: parsedQty,
+      price: parsedPrice,
+      subtotal: parsedSubtotal,
+      notes: json['notes']?.toString() ?? json['note']?.toString() ?? '',
       addons: addonsList,
     );
   }
 
   String get formattedPrice => CurrencyFormatter.format(price);
   String get formattedSubtotal => CurrencyFormatter.format(subtotal);
+
+  /// Catatan yang sudah dibersihkan dari nama add-ons agar tidak duplikat dengan badge
+  String get cleanNotes {
+    String clean = notes.trim();
+    if (addons.isNotEmpty && clean.isNotEmpty) {
+      for (final a in addons) {
+        if (a.name.trim().isNotEmpty && a.name.trim().toLowerCase() != 'add-on') {
+          final pattern = RegExp(r'(\+\s*)?' + RegExp.escape(a.name.trim()), caseSensitive: false);
+          clean = clean.replaceAll(pattern, '');
+        }
+      }
+      final parts = clean
+          .split(RegExp(r'[•,;\n]'))
+          .map((p) => p.trim())
+          .where((p) => p.isNotEmpty && p != '+')
+          .toList();
+      clean = parts.join(' • ');
+    }
+    return clean;
+  }
 }
 
 class OnlineOrderModel {
@@ -233,6 +288,24 @@ class OnlineOrderModel {
   String get formattedSubtotal => CurrencyFormatter.format(subtotal);
   String get formattedDiscount => CurrencyFormatter.format(discountAmount);
   String get formattedTax => CurrencyFormatter.format(taxAmount);
+
+  /// Format tanggal & jam pesanan rapi: `10 Sep 2026, 13:14`
+  String get formattedCreatedAt {
+    if (createdAt.isEmpty) return '-';
+    return DateFormatter.formatOrderDateTime(createdAt);
+  }
+
+  /// Format jam & menit: `13:14`
+  String get formattedTime {
+    if (createdAt.isEmpty) return '-';
+    return DateFormatter.formatHourMinute(createdAt);
+  }
+
+  /// Waktu relatif cerdas: `Baru saja`, `5 mnt lalu`, dll.
+  String get displayTimeAgo {
+    if (timeAgo != null && timeAgo!.trim().isNotEmpty) return timeAgo!;
+    return DateFormatter.timeAgo(createdAt);
+  }
 
   Color get statusColor {
     switch (status) {

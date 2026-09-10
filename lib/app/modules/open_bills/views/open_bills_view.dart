@@ -97,7 +97,10 @@ class OpenBillsView extends GetView<OpenBillsController> {
             return Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 9,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.primarySoft.withAlpha(120),
                   borderRadius: BorderRadius.circular(10),
@@ -149,7 +152,9 @@ class OpenBillsView extends GetView<OpenBillsController> {
 
               // State jika tidak ada data
               if (controller.openBills.isEmpty) {
-                final isSearching = controller.searchQuery.value.trim().isNotEmpty;
+                final isSearching = controller.searchQuery.value
+                    .trim()
+                    .isNotEmpty;
                 return Center(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 32.0),
@@ -219,22 +224,24 @@ class OpenBillsView extends GetView<OpenBillsController> {
                 onRefresh: () => controller.fetchOpenBills(),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final isTablet = constraints.maxWidth >= 768;
+                    final width = constraints.maxWidth;
 
-                    if (isTablet) {
-                      final crossAxisCount = constraints.maxWidth >= 1200 ? 3 : 2;
+                    if (width >= 600) {
+                      final int crossAxisCount = width >= 1050 ? 3 : 2;
+                      final double mainAxisExtent = width >= 1050 ? 228 : 232;
+
                       return GridView.builder(
                         padding: const EdgeInsets.all(16),
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: crossAxisCount,
                           crossAxisSpacing: 14,
                           mainAxisSpacing: 14,
-                          mainAxisExtent: 195,
+                          mainAxisExtent: mainAxisExtent,
                         ),
                         itemCount: displayedList.length,
                         itemBuilder: (context, index) {
                           final bill = displayedList[index];
-                          return _buildBillCard(context, bill);
+                          return _buildBillCard(context, bill, isGrid: true);
                         },
                       );
                     }
@@ -242,10 +249,10 @@ class OpenBillsView extends GetView<OpenBillsController> {
                     return ListView.separated(
                       padding: const EdgeInsets.all(16),
                       itemCount: displayedList.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
                       itemBuilder: (context, index) {
                         final bill = displayedList[index];
-                        return _buildBillCard(context, bill);
+                        return _buildBillCard(context, bill, isGrid: false);
                       },
                     );
                   },
@@ -258,7 +265,11 @@ class OpenBillsView extends GetView<OpenBillsController> {
     );
   }
 
-  Widget _buildBillCard(BuildContext context, OpenBillModel bill) {
+  Widget _buildBillCard(
+    BuildContext context,
+    OpenBillModel bill, {
+    bool isGrid = false,
+  }) {
     final itemsCount = bill.details.fold<int>(
       0,
       (sum, item) => sum + item.quantity,
@@ -269,6 +280,70 @@ class OpenBillsView extends GetView<OpenBillsController> {
     final displayedItems = bill.details.take(maxItemsToShow).toList();
     final int remainingItems = totalDetails - maxItemsToShow;
 
+    final Widget detailsSummaryWidget = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (bill.details.isNotEmpty) ...[
+          ...displayedItems.map((item) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 1.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${item.quantity}x ${item.name}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    CurrencyFormatter.format(item.subtotal),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+          if (remainingItems > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 1.5),
+              child: Text(
+                '+$remainingItems menu lainnya...',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontStyle: FontStyle.italic,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+        ] else ...[
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 2.0),
+            child: Text(
+              'Belum ada rincian menu tersimpan',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontStyle: FontStyle.italic,
+                color: AppColors.textMuted,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
@@ -276,7 +351,7 @@ class OpenBillsView extends GetView<OpenBillsController> {
         borderRadius: BorderRadius.circular(16),
         onTap: () => controller.resumeBill(bill),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
+          padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.lightBorder, width: 1.2),
@@ -290,11 +365,15 @@ class OpenBillsView extends GetView<OpenBillsController> {
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: isGrid
+                ? MainAxisAlignment.spaceBetween
+                : MainAxisAlignment.start,
+            mainAxisSize: isGrid ? MainAxisSize.max : MainAxisSize.min,
             children: [
               // 1. Header (Meja / Pelanggan + Invoice + Jam)
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -328,9 +407,9 @@ class OpenBillsView extends GetView<OpenBillsController> {
                                     bill.isTakeAway
                                         ? Icons.takeout_dining_rounded
                                         : (bill.tableNumber != null &&
-                                                bill.tableNumber!.isNotEmpty
-                                            ? Icons.table_restaurant_rounded
-                                            : Icons.person_rounded),
+                                                  bill.tableNumber!.isNotEmpty
+                                              ? Icons.table_restaurant_rounded
+                                              : Icons.person_rounded),
                                     size: 13,
                                     color: bill.isTakeAway
                                         ? AppColors.warning
@@ -441,71 +520,27 @@ class OpenBillsView extends GetView<OpenBillsController> {
                   ),
                   const SizedBox(height: 6),
 
-                  // 2. Daftar Preview Item Pesanan
-                  if (bill.details.isNotEmpty) ...[
-                    ...displayedItems.map((item) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 1.5),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                '${item.quantity}x ${item.name}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              CurrencyFormatter.format(item.subtotal),
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
-                    if (remainingItems > 0)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2.0),
-                        child: Text(
-                          '+$remainingItems menu lainnya...',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontStyle: FontStyle.italic,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ),
-                  ] else ...[
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 4.0),
-                      child: Text(
-                        'Belum ada rincian menu tersimpan',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontStyle: FontStyle.italic,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                    ),
-                  ],
+                  // Details summary for List mode
+                  if (!isGrid) detailsSummaryWidget,
                 ],
               ),
+              // 2. Daftar Preview Item Pesanan (Grid mode: Expanded to prevent overflow)
+              if (isGrid)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 2.0, bottom: 4.0),
+                    child: SingleChildScrollView(
+                      physics: const ClampingScrollPhysics(),
+                      child: detailsSummaryWidget,
+                    ),
+                  ),
+                ),
 
               // 3. Footer (Total Tagihan & Tombol Cetak Struk)
               Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Divider(height: 10),
+                  const Divider(height: 12, thickness: 0.8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -515,14 +550,14 @@ class OpenBillsView extends GetView<OpenBillsController> {
                           Text(
                             'Total Tagihan ($itemsCount item)',
                             style: const TextStyle(
-                              fontSize: 10.5,
+                              fontSize: 10,
                               color: AppColors.textSecondary,
                             ),
                           ),
                           Text(
                             CurrencyFormatter.format(bill.total),
                             style: const TextStyle(
-                              fontSize: 16,
+                              fontSize: 15,
                               fontWeight: FontWeight.bold,
                               color: AppColors.primaryDark,
                             ),
@@ -535,21 +570,18 @@ class OpenBillsView extends GetView<OpenBillsController> {
                           foregroundColor: Colors.white,
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 7,
+                            horizontal: 10,
+                            vertical: 5,
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                        icon: const Icon(
-                          Icons.print_rounded,
-                          size: 16,
-                        ),
+                        icon: const Icon(Icons.print_rounded, size: 15),
                         label: const Text(
                           'Cetak Struk',
                           style: TextStyle(
-                            fontSize: 12.5,
+                            fontSize: 11.5,
                             fontWeight: FontWeight.bold,
                           ),
                         ),

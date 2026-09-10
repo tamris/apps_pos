@@ -20,48 +20,57 @@ class AddonModel {
   });
 
   factory AddonModel.fromJson(Map<String, dynamic> json) {
+    // Periksa jika data bersarang di dalam relasi 'addon' (misal pivot / eager load Laravel)
+    final Map<String, dynamic> source = (json['addon'] != null && json['addon'] is Map)
+        ? Map<String, dynamic>.from(json['addon'])
+        : json;
+
     List<int> catIds = [];
-    if (json['category_ids'] != null && json['category_ids'] is List) {
-      catIds = (json['category_ids'] as List)
+    final rawCatIds = source['category_ids'] ?? json['category_ids'];
+    if (rawCatIds != null && rawCatIds is List) {
+      catIds = rawCatIds
           .map((e) => int.tryParse(e.toString()) ?? 0)
           .where((e) => e > 0)
           .toList();
     }
 
     List<String> catNames = [];
-    if (json['category_names'] != null && json['category_names'] is List) {
-      catNames = (json['category_names'] as List)
+    final rawCatNames = source['category_names'] ?? json['category_names'];
+    final rawCategories = source['categories'] ?? json['categories'];
+    if (rawCatNames != null && rawCatNames is List) {
+      catNames = rawCatNames
           .map((e) => e.toString())
           .toList();
-    } else if (json['categories'] != null && json['categories'] is List) {
-      catNames = (json['categories'] as List)
+    } else if (rawCategories != null && rawCategories is List) {
+      catNames = rawCategories
           .map((e) => e is Map ? (e['name']?.toString() ?? '') : e.toString())
           .where((e) => e.isNotEmpty)
           .toList();
       if (catIds.isEmpty) {
-        catIds = (json['categories'] as List)
+        catIds = rawCategories
             .map((e) => e is Map ? (int.tryParse(e['id']?.toString() ?? '0') ?? 0) : 0)
             .where((e) => e > 0)
             .toList();
       }
     }
 
+    final idVal = source['id'] ?? json['addon_id'] ?? json['id'];
+    final nameVal = source['name'] ?? json['addon_name'] ?? json['name'] ?? 'Add-on';
+    final priceVal = source['price'] ?? json['addon_price'] ?? json['unit_price'] ?? json['subtotal'] ?? json['price'] ?? 0.0;
+    final hgBeliVal = source['harga_beli'] ?? json['harga_beli'] ?? 0.0;
+    final isActiveVal = source['is_active'] ?? json['is_active'];
+
     return AddonModel(
-      id: json['id'] is int
-          ? json['id']
-          : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
-      name: json['name']?.toString() ?? 'Add-on',
-      price: (json['price'] != null)
-          ? double.tryParse(json['price'].toString()) ?? 0.0
-          : 0.0,
-      hargaBeli: (json['harga_beli'] != null)
-          ? double.tryParse(json['harga_beli'].toString()) ?? 0.0
-          : 0.0,
+      id: idVal is int ? idVal : int.tryParse(idVal?.toString() ?? '0') ?? 0,
+      name: nameVal.toString(),
+      price: double.tryParse(priceVal.toString()) ?? 0.0,
+      hargaBeli: double.tryParse(hgBeliVal.toString()) ?? 0.0,
       categoryIds: catIds,
       categoryNames: catNames,
-      isActive: json['is_active'] == 1 ||
-          json['is_active'] == true ||
-          json['is_active'] == null,
+      isActive: isActiveVal == 1 ||
+          isActiveVal == true ||
+          isActiveVal == null ||
+          isActiveVal == '1',
     );
   }
 

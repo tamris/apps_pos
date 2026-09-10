@@ -20,6 +20,7 @@ class OnlineOrdersController extends GetxController {
   final RxString selectedTab = 'active'.obs; // active, pending, processing, ready, completed, cancelled
   final RxString searchQuery = ''.obs;
   final RxBool isStoreOnlineActive = true.obs;
+  final RxBool isTogglingStore = false.obs;
 
   final TextEditingController searchController = TextEditingController();
 
@@ -146,6 +147,8 @@ class OnlineOrdersController extends GetxController {
 
   /// Toggle penerimaan pesanan online (Buka / Tutup toko online)
   Future<void> toggleOnlineOrderStoreActive() async {
+    if (isTogglingStore.value) return;
+    isTogglingStore.value = true;
     final nextState = !isStoreOnlineActive.value;
     try {
       final response = await _apiProvider.post(
@@ -179,6 +182,8 @@ class OnlineOrdersController extends GetxController {
       }
     } catch (e) {
       AppSnackbar.danger('Gagal', ApiProvider.getErrorMessage(e));
+    } finally {
+      isTogglingStore.value = false;
     }
   }
 

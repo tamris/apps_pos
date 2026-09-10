@@ -32,47 +32,94 @@ class OnlineOrdersView extends GetView<OnlineOrdersController> {
           );
         }),
         actions: [
-          // Toggle Toko Online Buka / Jeda
+          // Modern Interactive Toggle: Toko Online Buka / Dijeda
           Obx(() {
             final isActive = controller.isStoreOnlineActive.value;
+            final isToggling = controller.isTogglingStore.value;
+
             return Tooltip(
-              message: isActive ? 'Pesanan Online Buka (Ketuk untuk Jeda)' : 'Pesanan Online Dijeda (Ketuk untuk Buka)',
+              message: isActive
+                  ? 'Penerimaan Pesanan Aktif (Geser/Ketuk untuk Jeda)'
+                  : 'Penerimaan Pesanan Dijeda (Geser/Ketuk untuk Buka)',
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(20),
-                  onTap: () => controller.toggleOnlineOrderStoreActive(),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isActive ? AppColors.primarySoft : AppColors.dangerSoft,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isActive ? AppColors.primary : AppColors.danger,
-                        width: 1.2,
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(24),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(24),
+                    onTap: isToggling ? null : () => controller.toggleOnlineOrderStoreActive(),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeInOut,
+                      padding: const EdgeInsets.only(left: 10, right: 4, top: 2, bottom: 2),
+                      decoration: BoxDecoration(
+                        color: isActive ? AppColors.primarySoft : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: isActive ? AppColors.primary.withAlpha(120) : const Color(0xFFCBD5E1),
+                          width: 1.2,
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isActive ? AppColors.primary : AppColors.danger,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 250),
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isActive ? AppColors.primary : const Color(0xFF94A3B8),
+                              boxShadow: isActive
+                                  ? [
+                                      BoxShadow(
+                                        color: AppColors.primary.withAlpha(120),
+                                        blurRadius: 4,
+                                        spreadRadius: 1,
+                                      ),
+                                    ]
+                                  : null,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          isActive ? 'Toko Buka' : 'Dijeda',
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.bold,
-                            color: isActive ? AppColors.primaryDark : AppColors.danger,
+                          const SizedBox(width: 7),
+                          Text(
+                            isActive ? 'Pesanan Buka' : 'Dijeda',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: isActive ? AppColors.primaryDark : const Color(0xFF475569),
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 4),
+                          if (isToggling)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 8),
+                              child: SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            )
+                          else
+                            IgnorePointer(
+                              child: SizedBox(
+                                height: 26,
+                                child: FittedBox(
+                                  fit: BoxFit.contain,
+                                  child: Switch.adaptive(
+                                    value: isActive,
+                                    activeThumbColor: AppColors.primary,
+                                    activeTrackColor: AppColors.primary.withAlpha(80),
+                                    inactiveThumbColor: const Color(0xFF94A3B8),
+                                    inactiveTrackColor: const Color(0xFFE2E8F0),
+                                    onChanged: (_) {},
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -333,39 +380,70 @@ class OnlineOrdersView extends GetView<OnlineOrdersController> {
   Widget _buildPausedBanner() {
     return Obx(() {
       if (controller.isStoreOnlineActive.value) return const SizedBox.shrink();
+      final isToggling = controller.isTogglingStore.value;
+
       return Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        color: AppColors.dangerSoft,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: const BoxDecoration(
+          color: Color(0xFFFEF2F2),
+          border: Border(bottom: BorderSide(color: Color(0xFFFECDD3))),
+        ),
         child: Row(
           children: [
-            const Icon(Icons.pause_circle_filled_rounded, color: AppColors.danger, size: 18),
-            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEE2E2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.pause_circle_filled_rounded, color: AppColors.danger, size: 20),
+            ),
+            const SizedBox(width: 12),
             const Expanded(
-              child: Text(
-                'Penerimaan Pesanan Online sedang DIJEDA. Pelanggan tidak dapat membuat pesanan baru.',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.danger,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Penerimaan Pesanan Online Sedang Dijeda',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF991B1B),
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Pelanggan saat ini tidak dapat membuat pesanan baru dari menu online.',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: Color(0xFFB91C1C),
+                    ),
+                  ),
+                ],
               ),
             ),
-            TextButton(
-              onPressed: () => controller.toggleOnlineOrderStoreActive(),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            const SizedBox(width: 10),
+            ElevatedButton.icon(
+              onPressed: isToggling ? null : () => controller.toggleOnlineOrderStoreActive(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                elevation: 0,
               ),
-              child: const Text(
-                'Buka Toko',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.danger,
-                  decoration: TextDecoration.underline,
-                ),
+              icon: isToggling
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                  : const Icon(Icons.play_arrow_rounded, size: 18),
+              label: Text(
+                isToggling ? 'Mengaktifkan...' : 'Buka Pesanan',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
               ),
             ),
           ],

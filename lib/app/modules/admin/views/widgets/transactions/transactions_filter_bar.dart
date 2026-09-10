@@ -1,0 +1,668 @@
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:intl/intl.dart';
+import 'package:noli_apps/app/core/theme/app_colors.dart';
+import 'package:noli_apps/app/modules/admin/controllers/admin_controller.dart';
+import '../common/admin_date_range_dialog.dart';
+
+class TransactionsFilterBar extends GetView<AdminController> {
+  const TransactionsFilterBar({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 650;
+
+          if (isNarrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  height: 40,
+                  child: _buildSearchTextField(),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(child: _buildDateSelectorBtn(context)),
+                    const SizedBox(width: 8),
+                    _buildSearchActionBtn(),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: _buildFilterChipsRow(),
+                ),
+              ],
+            );
+          }
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Row 1: Search Field + Date Filter Button + Search Action Button
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 40,
+                      child: _buildSearchTextField(),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  _buildDateSelectorBtn(context),
+                  const SizedBox(width: 8),
+                  _buildSearchActionBtn(),
+                ],
+              ),
+              const SizedBox(height: 10),
+              // Row 2: Status, Channel & Payment Filter Chips
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: _buildFilterChipsRow(),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSearchTextField() {
+    return TextField(
+      controller: controller.trxSearchController,
+      textInputAction: TextInputAction.search,
+      onChanged: controller.onTrxSearchChanged,
+      onSubmitted: (_) => controller.submitTrxSearch(),
+      style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+      decoration: InputDecoration(
+        hintText: 'Cari no. invoice, kasir, meja, pelanggan...',
+        hintStyle: const TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8)),
+        prefixIcon: const Icon(
+          Icons.search_rounded,
+          size: 18,
+          color: Color(0xFF94A3B8),
+        ),
+        suffixIcon: Obx(() {
+          if (controller.hasTrxSearch.value) {
+            return IconButton(
+              icon: const Icon(
+                Icons.clear_rounded,
+                size: 16,
+                color: Color(0xFF94A3B8),
+              ),
+              onPressed: controller.clearTrxSearch,
+            );
+          }
+          return const SizedBox.shrink();
+        }),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        fillColor: const Color(0xFFF8FAFC),
+        filled: true,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.2),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchActionBtn() {
+    return SizedBox(
+      height: 40,
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF0F172A),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+        ),
+        onPressed: controller.submitTrxSearch,
+        icon: const Icon(Icons.search_rounded, size: 16),
+        label: const Text(
+          'Cari',
+          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateSelectorBtn(BuildContext context) {
+    return Obx(() {
+      final now = DateTime.now();
+      final todayStr = DateFormat('yyyy-MM-dd').format(now);
+      final dateStr = controller.selectedTrxDate.value;
+      final start = controller.selectedTrxStartDate.value;
+      final end = controller.selectedTrxEndDate.value;
+
+      final isDateChanged = dateStr != todayStr ||
+          (start != null &&
+              DateFormat('yyyy-MM-dd').format(start) != todayStr) ||
+          (end != null && DateFormat('yyyy-MM-dd').format(end) != todayStr);
+
+      String displayLabel = 'Filter Tanggal';
+      if (start != null) {
+        final isToday = start.year == now.year &&
+            start.month == now.month &&
+            start.day == now.day;
+        final yesterday = now.subtract(const Duration(days: 1));
+        final isYesterday = start.year == yesterday.year &&
+            start.month == yesterday.month &&
+            start.day == yesterday.day;
+
+        if (end == null ||
+            (start.year == end.year &&
+                start.month == end.month &&
+                start.day == end.day)) {
+          if (isToday) {
+            displayLabel = 'Hari Ini';
+          } else if (isYesterday) {
+            displayLabel = 'Kemarin';
+          } else {
+            displayLabel = DateFormat('dd MMM yyyy').format(start);
+          }
+        } else {
+          displayLabel =
+              '${DateFormat('d MMM').format(start)} - ${DateFormat('d MMM yyyy').format(end)}';
+        }
+      } else if (dateStr != null && dateStr.isNotEmpty) {
+        try {
+          final dt = DateTime.parse(dateStr);
+          if (DateFormat('yyyy-MM-dd').format(dt) == todayStr) {
+            displayLabel = 'Hari Ini';
+          } else {
+            displayLabel = DateFormat('dd MMM yyyy').format(dt);
+          }
+        } catch (_) {
+          displayLabel = dateStr;
+        }
+      }
+
+      return SizedBox(
+        height: 40,
+        child: OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            backgroundColor: isDateChanged
+                ? const Color(0xFFEEF2FF)
+                : const Color(0xFFF8FAFC),
+            side: BorderSide(
+              color: isDateChanged
+                  ? const Color(0xFF818CF8)
+                  : const Color(0xFFE2E8F0),
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            foregroundColor:
+                isDateChanged ? AppColors.secondary : const Color(0xFF475569),
+          ),
+          onPressed: () => _pickDate(context),
+          icon: Icon(
+            Icons.calendar_today_rounded,
+            size: 15,
+            color: isDateChanged ? AppColors.secondary : const Color(0xFF64748B),
+          ),
+          label: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                displayLabel,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isDateChanged ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+              if (isDateChanged) ...[
+                const SizedBox(width: 6),
+                InkWell(
+                  onTap: () {
+                    controller.resetTrxDateToDefault();
+                  },
+                  borderRadius: BorderRadius.circular(10),
+                  child: const Icon(
+                    Icons.close_rounded,
+                    size: 14,
+                    color: AppColors.secondary,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _buildFilterChipsRow() {
+    return Obx(() {
+      final now = DateTime.now();
+      final todayStr = DateFormat('yyyy-MM-dd').format(now);
+      final dateStr = controller.selectedTrxDate.value;
+      final start = controller.selectedTrxStartDate.value;
+      final end = controller.selectedTrxEndDate.value;
+
+      final isDateChanged = dateStr != todayStr ||
+          (start != null &&
+              DateFormat('yyyy-MM-dd').format(start) != todayStr) ||
+          (end != null && DateFormat('yyyy-MM-dd').format(end) != todayStr);
+
+      final isFilterActive = controller.selectedTrxStatus.value != 'all' ||
+          controller.selectedTrxOrderSource.value != 'all' ||
+          controller.selectedTrxPaymentMethod.value != 'all' ||
+          isDateChanged ||
+          controller.trxSearchQuery.value.isNotEmpty;
+
+      // Calculate totals for Open Bill (Khusus meja kasir POS) and Batal (Void)
+      int openBillsCount =
+          controller.openBills.where((b) => !b.isSelfOrder).length;
+      if (openBillsCount == 0 &&
+          controller.dashboardData.value.openBillsSummary.count > 0) {
+        openBillsCount = controller.dashboardData.value.openBillsSummary.count;
+      }
+      final int trxOpenCount = controller.transactions
+          .where((t) => t.isPending && !t.isSelfOrder)
+          .length;
+      if (trxOpenCount > openBillsCount) {
+        openBillsCount = trxOpenCount;
+      }
+
+      int voidCount = controller.dashboardData.value.cancellationsSummary.count;
+      final int trxVoidCount =
+          controller.transactions.where((t) => t.isCancelled).length;
+      if (trxVoidCount > voidCount) {
+        voidCount = trxVoidCount;
+      }
+
+      final isPendingSelected = controller.selectedTrxStatus.value == 'pending';
+      final isCancelledSelected =
+          controller.selectedTrxStatus.value == 'cancelled';
+
+      return Row(
+        children: [
+          // 1. Status Filter Pills
+          _buildFilterChip(
+            label: 'Semua Status',
+            isSelected: controller.selectedTrxStatus.value == 'all',
+            onTap: () {
+              controller.selectedTrxStatus.value = 'all';
+              controller.fetchTransactions();
+            },
+          ),
+          _buildFilterChip(
+            label: 'Selesai',
+            dotColor: const Color(0xFF10B981),
+            isSelected: controller.selectedTrxStatus.value == 'completed',
+            activeBgColor: const Color(0xFFECFDF5),
+            activeBorderColor: const Color(0xFF10B981),
+            activeTextColor: const Color(0xFF047857),
+            onTap: () {
+              controller.selectedTrxStatus.value = 'completed';
+              controller.fetchTransactions();
+            },
+          ),
+
+          // Open Bill (Vibrant Glowing Amber with Total)
+          _buildFilterChip(
+            label: 'Open Bill',
+            dotColor: const Color(0xFFF59E0B),
+            badgeCount: openBillsCount,
+            badgeColor: const Color(0xFFD97706),
+            isSelected: isPendingSelected,
+            activeBgColor: const Color(0xFFFEF3C7),
+            activeBorderColor: const Color(0xFFF59E0B),
+            activeTextColor: const Color(0xFFB45309),
+            idleBgColor: openBillsCount > 0 ? const Color(0xFFFFFBEB) : null,
+            idleBorderColor:
+                openBillsCount > 0 ? const Color(0xFFFDE68A) : null,
+            idleTextColor: openBillsCount > 0 ? const Color(0xFF92400E) : null,
+            glow: openBillsCount > 0 || isPendingSelected,
+            onTap: () {
+              controller.selectedTrxStatus.value = 'pending';
+              if (controller.selectedTrxOrderSource.value == 'self_order') {
+                controller.selectedTrxOrderSource.value = 'all';
+              }
+              controller.fetchTransactions();
+            },
+          ),
+
+          // Batal (Void) (Vibrant Glowing Rose/Red with Total)
+          _buildFilterChip(
+            label: 'Batal (Void)',
+            dotColor: const Color(0xFFEF4444),
+            badgeCount: voidCount,
+            badgeColor: const Color(0xFFE11D48),
+            isSelected: isCancelledSelected,
+            activeBgColor: const Color(0xFFFFE4E6),
+            activeBorderColor: const Color(0xFFF43F5E),
+            activeTextColor: const Color(0xFF9F1239),
+            idleBgColor: voidCount > 0 ? const Color(0xFFFFF1F2) : null,
+            idleBorderColor: voidCount > 0 ? const Color(0xFFFECDD3) : null,
+            idleTextColor: voidCount > 0 ? const Color(0xFFBE123C) : null,
+            glow: voidCount > 0 || isCancelledSelected,
+            onTap: () {
+              controller.selectedTrxStatus.value = 'cancelled';
+              controller.fetchTransactions();
+            },
+          ),
+
+          const SizedBox(width: 8),
+          Container(height: 18, width: 1, color: const Color(0xFFCBD5E1)),
+          const SizedBox(width: 8),
+
+          // 2. Payment Method Filter
+          _buildPaymentDropdown(),
+
+          // 4. Reset Filter Action
+          if (isFilterActive) ...[
+            const SizedBox(width: 10),
+            InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () => controller.clearTrxFilters(),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF1F2),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFFECDD3)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.restart_alt_rounded,
+                      size: 13,
+                      color: Color(0xFFE11D48),
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      'Reset Filter',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFE11D48),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      );
+    });
+  }
+
+  Widget _buildFilterChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    Color? dotColor,
+    IconData? icon,
+    int? badgeCount,
+    Color? badgeColor,
+    Color? activeBgColor,
+    Color? activeBorderColor,
+    Color? activeTextColor,
+    Color? idleBgColor,
+    Color? idleBorderColor,
+    Color? idleTextColor,
+    bool glow = false,
+  }) {
+    Color bg = const Color(0xFFF1F5F9);
+    Color border = const Color(0xFFE2E8F0);
+    Color text = const Color(0xFF475569);
+    List<BoxShadow>? shadow;
+
+    if (isSelected) {
+      bg = activeBgColor ?? AppColors.secondarySoft;
+      border =
+          activeBorderColor ?? AppColors.secondaryLight.withValues(alpha: 0.5);
+      text = activeTextColor ?? AppColors.secondary;
+      if (glow) {
+        final shadowColor = activeBorderColor ?? AppColors.secondary;
+        shadow = [
+          BoxShadow(
+            color: shadowColor.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ];
+      }
+    } else if (idleBgColor != null) {
+      bg = idleBgColor;
+      border = idleBorderColor ?? border;
+      text = idleTextColor ?? text;
+      if (glow && idleBorderColor != null) {
+        shadow = [
+          BoxShadow(
+            color: idleBorderColor.withValues(alpha: 0.2),
+            blurRadius: 5,
+            offset: const Offset(0, 1),
+          ),
+        ];
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 6.0),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: border, width: isSelected ? 1.2 : 1.0),
+              boxShadow: shadow,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (dotColor != null) ...[
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: dotColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                ],
+                if (icon != null) ...[
+                  Icon(icon, size: 13, color: text),
+                  const SizedBox(width: 4),
+                ],
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: text,
+                  ),
+                ),
+                if (badgeCount != null && badgeCount > 0) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: badgeColor ?? AppColors.secondary,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '$badgeCount',
+                      style: const TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaymentDropdown() {
+    return Obx(() {
+      final method = controller.selectedTrxPaymentMethod.value;
+      final isSelected = method != 'all';
+
+      String getLabel() {
+        switch (method) {
+          case 'cash':
+            return 'Metode: Tunai';
+          case 'qris':
+            return 'Metode: QRIS';
+          case 'transfer':
+            return 'Metode: Transfer';
+          default:
+            return 'Metode: Semua';
+        }
+      }
+
+      return PopupMenuButton<String>(
+        tooltip: 'Pilih Metode Pembayaran',
+        offset: const Offset(0, 36),
+        elevation: 3,
+        shadowColor: Colors.black.withValues(alpha: 0.08),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+        color: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        onSelected: (val) {
+          controller.selectedTrxPaymentMethod.value = val;
+          controller.fetchTransactions();
+        },
+        itemBuilder: (context) => [
+          _buildPaymentMenuItem('all', 'Semua Metode', isSelected: method == 'all'),
+          _buildPaymentMenuItem('cash', 'Tunai', isSelected: method == 'cash'),
+          _buildPaymentMenuItem('qris', 'QRIS', isSelected: method == 'qris'),
+          _buildPaymentMenuItem('transfer', 'Transfer', isSelected: method == 'transfer'),
+        ],
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.secondarySoft : const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected
+                  ? AppColors.secondaryLight.withValues(alpha: 0.5)
+                  : const Color(0xFFE2E8F0),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                getLabel(),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  color: isSelected ? AppColors.secondary : const Color(0xFF475569),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 16,
+                color: isSelected ? AppColors.secondary : const Color(0xFF64748B),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  PopupMenuItem<String> _buildPaymentMenuItem(
+    String value,
+    String label, {
+    required bool isSelected,
+  }) {
+    return PopupMenuItem<String>(
+      value: value,
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+              color: isSelected ? AppColors.secondary : const Color(0xFF1E293B),
+            ),
+          ),
+          if (isSelected)
+            const Icon(
+              Icons.check_rounded,
+              size: 15,
+              color: AppColors.secondary,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickDate(BuildContext context) async {
+    final now = DateTime.now();
+    DateTime initialStart = now;
+    DateTime initialEnd = now;
+
+    if (controller.selectedTrxStartDate.value != null) {
+      initialStart = controller.selectedTrxStartDate.value!;
+      initialEnd = controller.selectedTrxEndDate.value ?? initialStart;
+    } else if (controller.selectedTrxDate.value != null) {
+      try {
+        final parsed = DateTime.parse(controller.selectedTrxDate.value!);
+        initialStart = parsed;
+        initialEnd = parsed;
+      } catch (_) {}
+    }
+
+    final picked = await AdminDateRangeDialog.show(
+      context,
+      initialStartDate: initialStart,
+      initialEndDate: initialEnd,
+    );
+
+    if (picked != null) {
+      controller.setTrxDateRange(picked.start, picked.end);
+    }
+  }
+}

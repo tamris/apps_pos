@@ -7,6 +7,7 @@ import '../../../data/models/product_model.dart';
 import '../../../data/models/cafe_settings_model.dart';
 import '../../../data/models/shift_model.dart';
 import '../../../data/providers/api_provider.dart';
+import '../../../data/services/offline_sync_service.dart';
 import '../../../data/services/storage_service.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/app_snackbar.dart';
@@ -32,8 +33,10 @@ class PosController extends GetxController {
 
   final RxInt selectedCategoryId = 0.obs; // 0 = Semua Kategori
   final RxString searchQuery = ''.obs;
+  final RxBool hasSearchQuery = false.obs;
   final RxBool isLoading = false.obs;
   final TextEditingController searchController = TextEditingController();
+  Timer? _searchDebounce;
 
   @override
   void onInit() {
@@ -47,6 +50,7 @@ class PosController extends GetxController {
 
   @override
   void onClose() {
+    _searchDebounce?.cancel();
     searchController.dispose();
     super.onClose();
   }
@@ -167,18 +171,83 @@ class PosController extends GetxController {
         // 6. Active Shift check
         if (Get.isRegistered<ShiftController>()) {
           final shiftCtrl = Get.find<ShiftController>();
-          shiftCtrl.hasActiveShift.value = data['has_active_shift'] == true;
-          if (data['active_shift'] != null) {
-            final shift = ShiftModel.fromJson(data['active_shift']);
+          final closedShifts = _storageService.getOfflineClosedShifts();
+
+          // GUARD KUNCI: Jika di perangkat kasir terdapat antrean shift yang sudah ditutup secara offline!
+          if (closedShifts.isNotEmpty) {
+            // Shift lokal sudah ditutup oleh kasir! Jangan pernah menghidupkan kembali shift server
+            shiftCtrl.currentShift.value = null;
+            shiftCtrl.hasActiveShift.value = false;
+            await _storageService.saveActiveShift(null);
+
+            // Karena sekarang kita sedang online (terbukti fetchBootstrap berhasil),
+            // LANGSUNG sinkronkan penutupan shift dan transaksi offline ke server di background!
+            if (Get.isRegistered<OfflineSyncService>()) {
+              final syncService = Get.find<OfflineSyncService>();
+              if (!syncService.isSyncing.value) {
+                syncService.syncPendingTransactions(isSilent: true);
+              }
+            }
+          } else if (data['active_shift'] != null) {
+            var shift = ShiftModel.fromJson(data['active_shift']);
+            final queue = _storageService.getOfflineQueue();
+            if (queue.isNotEmpty) {
+              // Jika server online dan ada antrean transaksi offline, picu sinkronisasi di background
+              if (Get.isRegistered<OfflineSyncService>()) {
+                final syncService = Get.find<OfflineSyncService>();
+                if (!syncService.isSyncing.value) {
+                  syncService.syncPendingTransactions(isSilent: true);
+                }
+              }
+
+              double offCash = 0;
+              double offQris = 0;
+              double offTransfer = 0;
+              double offTotal = 0;
+              for (final q in queue) {
+                final paid = (q['paid'] as num?)?.toDouble() ?? 0.0;
+                final method = q['payment_method']?.toString().toLowerCase() ?? '';
+                offTotal += paid;
+                if (method.contains('cash') || method.contains('tunai')) {
+                  offCash += paid;
+                } else if (method.contains('qris')) {
+                  offQris += paid;
+                } else {
+                  offTransfer += paid;
+                }
+              }
+              shift = shift.copyWith(
+                cashSales: shift.cashSales + offCash,
+                qrisSales: shift.qrisSales + offQris,
+                transferSales: shift.transferSales + offTransfer,
+                totalSales: shift.totalSales + offTotal,
+                totalTransactions: shift.totalTransactions + queue.length,
+                expectedCash: shift.expectedCash + offCash,
+                offlineTransactionsCount: queue.length,
+                isOffline: false, // Server online terhubung
+              );
+            }
             shiftCtrl.currentShift.value = shift;
+            shiftCtrl.hasActiveShift.value = true;
             await _storageService.saveActiveShift(shift);
           } else {
-            shiftCtrl.currentShift.value = null;
-            await _storageService.saveActiveShift(null);
+            // Cek jika kasir memiliki shift offline lokal yang belum disinkronkan
+            final cached = _storageService.activeShift;
+            if (cached != null && cached.id <= 0) {
+              shiftCtrl.currentShift.value = cached;
+              shiftCtrl.hasActiveShift.value = cached.isOpen;
+            } else {
+              shiftCtrl.currentShift.value = null;
+              shiftCtrl.hasActiveShift.value = false;
+              await _storageService.saveActiveShift(null);
+            }
           }
         }
       }
     } catch (e) {
+      if (ApiProvider.isNetworkError(e)) {
+        _apiProvider.isOnline.value = false;
+      }
       if (products.isEmpty) {
         AppSnackbar.danger('Koneksi POS', ApiProvider.getErrorMessage(e));
       }
@@ -223,11 +292,17 @@ class PosController extends GetxController {
   }
 
   void onSearchChanged(String query) {
-    searchQuery.value = query;
+    hasSearchQuery.value = query.isNotEmpty;
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 250), () {
+      searchQuery.value = query;
+    });
   }
 
   void clearSearch() {
+    _searchDebounce?.cancel();
     searchController.clear();
+    hasSearchQuery.value = false;
     searchQuery.value = '';
   }
 

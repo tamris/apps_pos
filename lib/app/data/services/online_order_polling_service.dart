@@ -8,6 +8,7 @@ import '../../modules/pos/controllers/pos_controller.dart';
 import '../../routes/app_routes.dart';
 import '../models/online_order_model.dart';
 import '../providers/api_provider.dart';
+import 'offline_sync_service.dart';
 import 'storage_service.dart';
 
 class OnlineOrderPollingService extends GetxService {
@@ -59,7 +60,7 @@ class OnlineOrderPollingService extends GetxService {
     _pollingTimer?.cancel();
     // 12 detik saat toko online buka, 20 detik saat toko online jeda (sangat hemat kuota)
     final interval = isOnlineOrderActive.value
-        ? const Duration(seconds: 12)
+        ? const Duration(seconds: 5)
         : const Duration(seconds: 20);
 
     _pollingTimer = Timer(interval, () async {
@@ -106,6 +107,14 @@ class OnlineOrderPollingService extends GetxService {
           }
         }
 
+        // Otomatis sinkronkan transaksi & shift offline jika ada pending data dan koneksi server aktif
+        if (Get.isRegistered<OfflineSyncService>()) {
+          final syncService = Get.find<OfflineSyncService>();
+          if (syncService.pendingCount.value > 0 && !syncService.isSyncing.value) {
+            syncService.syncPendingTransactions(isSilent: true);
+          }
+        }
+
         // Jika ada pesanan baru dan bukan saat inisialisasi pertama kali
         if (hasNew && _lastOrderId > 0) {
           final newOrders = (data['new_orders'] as List? ?? []);
@@ -138,7 +147,10 @@ class OnlineOrderPollingService extends GetxService {
           _lastOrderId = latestId;
         }
       }
-    } catch (_) {
+    } catch (e) {
+      if (ApiProvider.isNetworkError(e)) {
+        _apiProvider.isOnline.value = false;
+      }
       // Polling network fail-safe, silent continue
     } finally {
       _isChecking = false;

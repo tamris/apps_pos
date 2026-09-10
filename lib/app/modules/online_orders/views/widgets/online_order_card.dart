@@ -139,14 +139,31 @@ class OnlineOrderCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (order.timeAgo != null)
-                      Text(
-                        order.timeAgo!,
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          color: AppColors.textSecondary,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.access_time_rounded, size: 12, color: AppColors.textSecondary),
+                        const SizedBox(width: 4),
+                        Text(
+                          order.formattedTime,
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
-                      ),
+                        if (order.displayTimeAgo.isNotEmpty) ...[
+                          const SizedBox(width: 4),
+                          Text(
+                            '• ${order.displayTimeAgo}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ],
                 ),
                 const Divider(height: 16),
@@ -192,13 +209,45 @@ class OnlineOrderCard extends StatelessWidget {
                                           color: AppColors.textPrimary,
                                         ),
                                       ),
-                                      if (item.notes.isNotEmpty)
-                                        Text(
-                                          'Catatan: ${item.notes}',
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            color: AppColors.warning,
-                                            fontStyle: FontStyle.italic,
+                                      if (item.addons.isNotEmpty)
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 3.0),
+                                          child: Wrap(
+                                            spacing: 4,
+                                            runSpacing: 2,
+                                            children: item.addons.map((addon) {
+                                              return Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.primarySoft,
+                                                  borderRadius: BorderRadius.circular(4),
+                                                  border: Border.all(
+                                                    color: AppColors.primary.withAlpha(50),
+                                                    width: 0.8,
+                                                  ),
+                                                ),
+                                                child: Text(
+                                                  '+ ${addon.name}${addon.price > 0 ? ' (+${addon.formattedPrice})' : ''}',
+                                                  style: const TextStyle(
+                                                    fontSize: 10.5,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: AppColors.primaryDark,
+                                                  ),
+                                                ),
+                                              );
+                                            }).toList(),
+                                          ),
+                                        ),
+                                      if (item.cleanNotes.isNotEmpty)
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 2.0),
+                                          child: Text(
+                                            'Catatan: ${item.cleanNotes}',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: AppColors.warning,
+                                              fontStyle: FontStyle.italic,
+                                            ),
                                           ),
                                         ),
                                     ],
