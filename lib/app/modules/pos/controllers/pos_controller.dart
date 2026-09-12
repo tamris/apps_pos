@@ -413,10 +413,19 @@ class PosController extends GetxController {
         final serverMaps = list.map((e) => Map<String, dynamic>.from(e)).toList();
         await _storageService.saveCachedServerOpenBills(serverMaps);
 
+        // Ambil ID bill yang benar-benar sedang menunggu sync checkout di antrean offline
+        final offlineQueue = _storageService.getOfflineQueue();
+        final pendingOfflineBillIds = offlineQueue
+            .map((q) => int.tryParse(q['open_bill_id']?.toString() ?? '0') ?? 0)
+            .where((id) => id > 0)
+            .toSet();
+
         // Filter out ID yang sudah diselesaikan offline atau sedang aktif di offline bills
         final activeServerList = serverMaps.where((e) {
           final id = int.tryParse(e['id']?.toString() ?? '0') ?? 0;
-          return !completedIds.contains(id) && !offlineIds.contains(id);
+          final isPendingOfflineSync = pendingOfflineBillIds.contains(id);
+          final isOfflineActive = offlineIds.contains(id);
+          return !isPendingOfflineSync && !isOfflineActive;
         }).toList();
 
         final totalCount = activeServerList.length + offlineBills.length;

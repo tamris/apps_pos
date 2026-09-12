@@ -260,7 +260,11 @@ class StorageService extends GetxService {
   }
 
   /// Hapus open bill secara menyeluruh saat checkout selesai (baik offline maupun server snapshot)
-  Future<void> removeOpenBillOnCheckout({int? billId, String? tableNumber}) async {
+  Future<void> removeOpenBillOnCheckout({
+    int? billId,
+    String? tableNumber,
+    bool isOfflineCheckout = false,
+  }) async {
     final cleanTable = tableNumber?.trim().toLowerCase();
 
     // 1. Hapus dari Offline Open Bills (berdasarkan ID atau nomor meja)
@@ -289,9 +293,13 @@ class StorageService extends GetxService {
     });
     await saveCachedServerOpenBills(cachedBills);
 
-    // 3. Jika billId > 0 (ID dari server), tambahkan ke completed list agar tidak muncul kembali
-    if (billId != null && billId > 0) {
+    // 3. Hanya jika checkout diselesaikan saat offline, tambahkan ID ke completed list
+    // agar snapshot server cache lokal tidak memunculkannya sebelum sync ke cloud
+    if (isOfflineCheckout && billId != null && billId > 0) {
       await addOfflineCompletedServerBillId(billId);
+    } else if (!isOfflineCheckout && billId != null && billId > 0) {
+      // Jika checkout online berhasil, hapus ID dari completed list agar tidak memblokir query server
+      await removeOfflineCompletedServerBillId(billId);
     }
   }
 

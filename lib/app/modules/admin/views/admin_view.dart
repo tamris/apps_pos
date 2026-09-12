@@ -12,6 +12,7 @@ import 'tabs/admin_shifts_tab.dart';
 import 'tabs/admin_open_bills_tab.dart';
 import 'tabs/admin_cash_flow_tab.dart';
 import 'widgets/common/admin_date_range_dialog.dart';
+import 'widgets/navigation/admin_mobile_bottom_nav_bar.dart';
 
 class AdminView extends GetView<AdminController> {
   const AdminView({super.key});
@@ -68,191 +69,214 @@ class AdminView extends GetView<AdminController> {
                 );
               }
 
-              // Mobile View (< 768px): Clean Top AppBar (Sleek 52px matching POS) + Active Tab Body + Bottom Nav Bar
-              return Scaffold(
-                resizeToAvoidBottomInset: false,
-                backgroundColor: const Color(0xFFF8FAFC),
-              appBar: AppBar(
-                backgroundColor: Colors.white,
-                elevation: 0,
-                scrolledUnderElevation: 0,
-                automaticallyImplyLeading: false,
-                toolbarHeight: 52,
-                titleSpacing: 16,
-                shape: const Border(
-                  bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
-                ),
-                title: Row(
-                  children: [
-                    Container(
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        color: AppColors.secondarySoft,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppColors.secondaryLight.withValues(
-                            alpha: 0.3,
-                          ),
-                        ),
-                      ),
-                      child: ClipOval(
-                        child: Image.asset(
-                          'assets/icons/app_icon.png',
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => const Icon(
-                            Icons.point_of_sale_rounded,
-                            color: AppColors.secondary,
-                            size: 15,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Noli Coffee',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF0F172A),
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.secondarySoft,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        user?.role.toUpperCase() == 'OWNER' ? 'Owner' : 'Admin',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.secondary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                actions: [
-                  IconButton(
-                    tooltip: 'Segarkan Data',
-                    icon: const Icon(
-                      Icons.refresh_rounded,
-                      color: Color(0xFF64748B),
-                      size: 19,
-                    ),
-                    onPressed: () => controller.refreshCurrentTab(),
-                    constraints: const BoxConstraints(
-                      minWidth: 36,
-                      minHeight: 36,
-                    ),
-                    padding: EdgeInsets.zero,
-                  ),
-                  IconButton(
-                    tooltip: 'Keluar Akun',
-                    icon: const Icon(
-                      Icons.logout_rounded,
-                      color: AppColors.danger,
-                      size: 19,
-                    ),
-                    onPressed: () => _confirmLogout(context),
-                    constraints: const BoxConstraints(
-                      minWidth: 36,
-                      minHeight: 36,
-                    ),
-                    padding: EdgeInsets.zero,
-                  ),
-                  const SizedBox(width: 6),
-                ],
-              ),
-              body: Obx(
-                () => _buildActiveTab(controller.selectedTabIndex.value),
-              ),
-              bottomNavigationBar: Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
-                ),
-                child: Obx(
-                  () => NavigationBar(
-                    selectedIndex: controller.selectedTabIndex.value.clamp(0, 5),
-                    onDestinationSelected: controller.switchTab,
+              // Mobile View (< 768px): Clean Top AppBar + Active Tab Body + Modern 4-Tab "Menu Hub" Bottom Bar
+              return PopScope(
+                canPop: controller.selectedTabIndex.value == 0,
+                onPopInvokedWithResult: (didPop, result) {
+                  if (!didPop && controller.selectedTabIndex.value != 0) {
+                    controller.switchTab(0);
+                  }
+                },
+                child: Scaffold(
+                  resizeToAvoidBottomInset: false,
+                  backgroundColor: const Color(0xFFF8FAFC),
+                  appBar: AppBar(
                     backgroundColor: Colors.white,
-                    indicatorColor: AppColors.secondarySoft,
                     elevation: 0,
-                    height: 60,
-                    destinations: [
-                      const NavigationDestination(
-                        icon: Icon(Icons.dashboard_outlined, size: 20),
-                        selectedIcon: Icon(
-                          Icons.dashboard_rounded,
-                          color: AppColors.secondary,
-                        ),
-                        label: 'Dashboard',
-                      ),
-                      const NavigationDestination(
-                        icon: Icon(Icons.receipt_long_outlined, size: 20),
-                        selectedIcon: Icon(
-                          Icons.receipt_long_rounded,
-                          color: AppColors.secondary,
-                        ),
-                        label: 'Transaksi',
-                      ),
-                      const NavigationDestination(
-                        icon: Icon(Icons.restaurant_menu_outlined, size: 20),
-                        selectedIcon: Icon(
-                          Icons.restaurant_menu_rounded,
-                          color: AppColors.secondary,
-                        ),
-                        label: 'Menu',
-                      ),
-                      const NavigationDestination(
-                        icon: Icon(Icons.assignment_outlined, size: 20),
-                        selectedIcon: Icon(
-                          Icons.assignment_rounded,
-                          color: AppColors.secondary,
-                        ),
-                        label: 'Audit Shift',
-                      ),
-                      NavigationDestination(
-                        icon: Badge(
-                          isLabelVisible:
-                              controller.openBillsTotalActive.value > 0,
-                          label: Text(
-                            '${controller.openBillsTotalActive.value}',
-                            style: const TextStyle(fontSize: 9),
+                    scrolledUnderElevation: 0,
+                    automaticallyImplyLeading: false,
+                    toolbarHeight: 52,
+                    titleSpacing: 16,
+                    shape: const Border(
+                      bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+                    ),
+                    title: Obx(() {
+                      final tabIndex = controller.selectedTabIndex.value;
+                      final isSubTab = tabIndex == 2 ||
+                          tabIndex == 3 ||
+                          tabIndex == 5 ||
+                          tabIndex == 6;
+
+                      if (tabIndex == 0) {
+                        return Row(
+                          children: [
+                            Container(
+                              width: 30,
+                              height: 30,
+                              decoration: BoxDecoration(
+                                color: AppColors.secondarySoft,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: AppColors.secondaryLight.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                ),
+                              ),
+                              child: ClipOval(
+                                child: Image.asset(
+                                  'assets/icons/app_icon.png',
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (_, __, ___) => const Icon(
+                                    Icons.point_of_sale_rounded,
+                                    color: AppColors.secondary,
+                                    size: 15,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Noli Coffee',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF0F172A),
+                                letterSpacing: -0.2,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.secondarySoft,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                user?.role.toUpperCase() == 'OWNER'
+                                    ? 'Owner'
+                                    : 'Admin',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.secondary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      }
+
+                      final String tabTitle;
+                      switch (tabIndex) {
+                        case 1:
+                          tabTitle = 'Riwayat Transaksi';
+                          break;
+                        case 2:
+                          tabTitle = 'Laporan Menu';
+                          break;
+                        case 3:
+                          tabTitle = 'Audit Shift Kasir';
+                          break;
+                        case 4:
+                          tabTitle = 'Pesanan & Meja';
+                          break;
+                        case 5:
+                          tabTitle = 'Arus Kas & Beban';
+                          break;
+                        case 6:
+                          tabTitle = 'Pengaturan Toko';
+                          break;
+                        default:
+                          tabTitle = 'Portal Admin';
+                      }
+
+                      return Row(
+                        children: [
+                          if (isSubTab) ...[
+                            InkWell(
+                              onTap: () => controller.switchTab(0),
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                padding: const EdgeInsets.all(5),
+                                margin: const EdgeInsets.only(right: 8),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFF1F5F9),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.arrow_back_rounded,
+                                  size: 17,
+                                  color: Color(0xFF334155),
+                                ),
+                              ),
+                            ),
+                          ],
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  tabTitle,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF0F172A),
+                                    letterSpacing: -0.2,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (isSubTab)
+                                  const Text(
+                                    'Menu Hub • Ketuk panah untuk ke Dashboard',
+                                    style: TextStyle(
+                                      fontSize: 9.5,
+                                      color: Color(0xFF94A3B8),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                              ],
+                            ),
                           ),
-                          backgroundColor: AppColors.warning,
-                          child: const Icon(
-                            Icons.table_restaurant_outlined,
-                            size: 20,
-                          ),
+                        ],
+                      );
+                    }),
+                    actions: [
+                      IconButton(
+                        tooltip: 'Segarkan Data',
+                        icon: const Icon(
+                          Icons.refresh_rounded,
+                          color: Color(0xFF64748B),
+                          size: 19,
                         ),
-                        selectedIcon: const Icon(
-                          Icons.table_restaurant_rounded,
-                          color: AppColors.secondary,
+                        onPressed: () => controller.refreshCurrentTab(),
+                        constraints: const BoxConstraints(
+                          minWidth: 36,
+                          minHeight: 36,
                         ),
-                        label: 'Pesanan',
+                        padding: EdgeInsets.zero,
                       ),
-                      const NavigationDestination(
-                        icon: Icon(Icons.account_balance_wallet_outlined, size: 20),
-                        selectedIcon: Icon(
-                          Icons.account_balance_wallet_rounded,
-                          color: AppColors.secondary,
+                      IconButton(
+                        tooltip: 'Keluar Akun',
+                        icon: const Icon(
+                          Icons.logout_rounded,
+                          color: AppColors.danger,
+                          size: 19,
                         ),
-                        label: 'Arus Kas',
+                        onPressed: () => _confirmLogout(context),
+                        constraints: const BoxConstraints(
+                          minWidth: 36,
+                          minHeight: 36,
+                        ),
+                        padding: EdgeInsets.zero,
                       ),
+                      const SizedBox(width: 6),
                     ],
                   ),
+                  body: Obx(
+                    () => _buildActiveTab(controller.selectedTabIndex.value),
+                  ),
+                  bottomNavigationBar: AdminMobileBottomNavBar(
+                    controller: controller,
+                  ),
                 ),
-              ),
-            );
+              );
           },
         ),
       ),

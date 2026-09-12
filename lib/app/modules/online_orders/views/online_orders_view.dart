@@ -17,16 +17,21 @@ class OnlineOrdersView extends GetView<OnlineOrdersController> {
         title: Obx(() {
           final isActive = controller.isStoreOnlineActive.value;
           return Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 isActive ? Icons.delivery_dining_rounded : Icons.pause_circle_outline_rounded,
                 color: isActive ? AppColors.primary : AppColors.danger,
-                size: 24,
+                size: 22,
               ),
-              const SizedBox(width: 8),
-              const Text(
-                'Pesanan Online',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              const SizedBox(width: 6),
+              const Flexible(
+                child: Text(
+                  'Pesanan Online',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
               ),
             ],
           );
@@ -82,9 +87,9 @@ class OnlineOrdersView extends GetView<OnlineOrdersController> {
                                   : null,
                             ),
                           ),
-                          const SizedBox(width: 7),
+                          const SizedBox(width: 6),
                           Text(
-                            isActive ? 'Pesanan Buka' : 'Dijeda',
+                            isActive ? 'Buka' : 'Jeda',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,

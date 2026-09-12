@@ -402,6 +402,7 @@ class CartController extends GetxController {
         await _storageService.removeOpenBillOnCheckout(
           billId: savedOpenBillId,
           tableNumber: savedTable,
+          isOfflineCheckout: false,
         );
 
         if (Get.isRegistered<OpenBillsController>()) {
@@ -551,6 +552,7 @@ class CartController extends GetxController {
       await _storageService.removeOpenBillOnCheckout(
         billId: savedOpenBillId,
         tableNumber: savedTable,
+        isOfflineCheckout: true,
       );
 
       // Bebaskan meja jika sebelumnya open bill / dine in saat offline
