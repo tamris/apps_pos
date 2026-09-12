@@ -139,41 +139,105 @@ class TransactionsView extends GetView<TransactionsController> {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final width = constraints.maxWidth;
+                    final isTabletOrDesktop = width >= 600;
+                    final int crossAxisCount = width >= 1050 ? 3 : 2;
+                    final double mainAxisExtent = width >= 1050 ? 228 : 232;
 
-                    if (width >= 600) {
-                      final int crossAxisCount = width >= 1050 ? 3 : 2;
-                      final double mainAxisExtent = width >= 1050 ? 228 : 232;
+                    return CustomScrollView(
+                      controller: controller.scrollController,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      slivers: [
+                        if (isTabletOrDesktop)
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                            sliver: SliverGrid(
+                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: crossAxisCount,
+                                crossAxisSpacing: 14,
+                                mainAxisSpacing: 14,
+                                mainAxisExtent: mainAxisExtent,
+                              ),
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) {
+                                  final tx = controller.transactions[index];
+                                  return _buildTransactionCard(context, tx, isGrid: true);
+                                },
+                                childCount: controller.transactions.length,
+                              ),
+                            ),
+                          )
+                        else
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                            sliver: SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) {
+                                  final tx = controller.transactions[index];
+                                  return Padding(
+                                    padding: EdgeInsets.only(
+                                      bottom: index == controller.transactions.length - 1 ? 0 : 10,
+                                    ),
+                                    child: _buildTransactionCard(context, tx, isGrid: false),
+                                  );
+                                },
+                                childCount: controller.transactions.length,
+                              ),
+                            ),
+                          ),
 
-                      return GridView.builder(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
+                        // Bottom Loading Spinner or End-of-List Indicator
+                        SliverToBoxAdapter(
+                          child: Obx(() {
+                            if (controller.isLoadingMore.value) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 20),
+                                child: Center(
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.5,
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        'Memuat transaksi berikutnya...',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade600,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }
+
+                            if (!controller.hasMore.value && controller.transactions.length >= 21) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 20),
+                                child: Center(
+                                  child: Text(
+                                    'Semua transaksi hari ini telah ditampilkan',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade500,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
+
+                            return const SizedBox(height: 16);
+                          }),
                         ),
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: crossAxisCount,
-                          crossAxisSpacing: 14,
-                          mainAxisSpacing: 14,
-                          mainAxisExtent: mainAxisExtent,
-                        ),
-                        itemCount: controller.transactions.length,
-                        itemBuilder: (context, index) {
-                          final tx = controller.transactions[index];
-                          return _buildTransactionCard(context, tx, isGrid: true);
-                        },
-                      );
-                    }
-
-                    return ListView.separated(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      itemCount: controller.transactions.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
-                      itemBuilder: (context, index) {
-                        final tx = controller.transactions[index];
-                        return _buildTransactionCard(context, tx, isGrid: false);
-                      },
+                      ],
                     );
                   },
                 ),

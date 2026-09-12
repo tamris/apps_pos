@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -27,16 +28,39 @@ class TransactionsController extends GetxController {
   final RxBool isUpdatingPayment = false.obs;
   final TextEditingController searchController = TextEditingController();
 
+  // --- INFINITE SCROLL / PAGINATION STATE ---
+  int currentPage = 1;
+  final RxBool hasMore = true.obs;
+  final RxBool isLoadingMore = false.obs;
+  final ScrollController scrollController = ScrollController();
+  Timer? _searchDebounce;
+
   @override
   void onInit() {
     super.onInit();
+    scrollController.addListener(_onScroll);
     fetchTodayTransactions();
   }
 
   @override
   void onClose() {
+    scrollController.removeListener(_onScroll);
+    scrollController.dispose();
+    _searchDebounce?.cancel();
     searchController.dispose();
     super.onClose();
+  }
+
+  void _onScroll() {
+    if (!scrollController.hasClients) return;
+    final maxScroll = scrollController.position.maxScrollExtent;
+    final currentScroll = scrollController.position.pixels;
+    // Trigger lazy loading ~300px sebelum mentok dasar
+    if (currentScroll >= (maxScroll - 300)) {
+      if (!isLoading.value && !isLoadingMore.value && hasMore.value && !_storageService.isOfflineToken) {
+        loadMoreTransactions();
+      }
+    }
   }
 
   /// Susun daftar transaksi offline dari antrean lokal StorageService (hanya transaksi hari ini)
@@ -250,7 +274,11 @@ class TransactionsController extends GetxController {
   }
 
   /// Ambil riwayat transaksi hari ini kasir beserta live stats (Server + Offline)
-  Future<void> fetchTodayTransactions({bool silent = false}) async {
+  Future<void> fetchTodayTransactions({bool silent = false, bool resetPage = true}) async {
+    if (resetPage) {
+      currentPage = 1;
+      hasMore.value = true;
+    }
     if (!silent) isLoading.value = true;
     try {
       final offlineTxs = _buildOfflineTransactionsList();
@@ -276,6 +304,7 @@ class TransactionsController extends GetxController {
         final deduplicatedCached = cachedServerTxs.where((t) => !offlineInvoices.contains(t.invoiceNumber.trim().toLowerCase())).toList();
         transactions.assignAll([...filteredOffline, ...deduplicatedCached]);
         _computeOfflineStats(offlineTxs);
+        hasMore.value = false;
         return;
       }
 
@@ -284,6 +313,7 @@ class TransactionsController extends GetxController {
         queryParameters: {
           if (searchQuery.value.trim().isNotEmpty) 'search': searchQuery.value.trim(),
           'status': selectedTab.value,
+          'page': 1,
         },
       );
 
@@ -291,6 +321,17 @@ class TransactionsController extends GetxController {
         final data = response.data['data'];
         final List list = (data is Map && data['data'] != null) ? data['data'] : (data is List ? data : []);
         final serverTxs = list.map((e) => TransactionModel.fromJson(Map<String, dynamic>.from(e))).toList();
+
+        // Cek status pagination apakah masih ada halaman selanjutnya
+        if (data is Map) {
+          final nextUrl = data['next_page_url'];
+          final curPage = int.tryParse(data['current_page']?.toString() ?? '1') ?? 1;
+          final lastPage = int.tryParse(data['last_page']?.toString() ?? '1') ?? 1;
+          currentPage = curPage;
+          hasMore.value = (nextUrl != null) || (curPage < lastPage);
+        } else {
+          hasMore.value = serverTxs.length >= 21;
+        }
 
         // Gabungkan: Transaksi offline di paling atas, deduplikasi jika ada nomor invoice yang sama
         final offlineInvoices = filteredOffline.map((t) => t.invoiceNumber.trim().toLowerCase()).toSet();
@@ -342,6 +383,7 @@ class TransactionsController extends GetxController {
         final deduplicatedCached = cachedServerTxs.where((t) => !offlineInvoices.contains(t.invoiceNumber.trim().toLowerCase())).toList();
         transactions.assignAll([...filteredOffline, ...deduplicatedCached]);
         _computeOfflineStats(offlineTxs);
+        hasMore.value = false;
       }
     } catch (e) {
       final offlineTxs = _buildOfflineTransactionsList();
@@ -364,8 +406,95 @@ class TransactionsController extends GetxController {
       final deduplicatedCached = cachedServerTxs.where((t) => !offlineInvoices.contains(t.invoiceNumber.trim().toLowerCase())).toList();
       transactions.assignAll([...filteredOffline, ...deduplicatedCached]);
       _computeOfflineStats(offlineTxs);
+      hasMore.value = false;
     } finally {
       if (!silent) isLoading.value = false;
+    }
+  }
+
+  /// Muat transaksi halaman berikutnya secara lazy load (Infinite Scroll)
+  Future<void> loadMoreTransactions() async {
+    if (isLoading.value || isLoadingMore.value || !hasMore.value || _storageService.isOfflineToken) {
+      return;
+    }
+
+    isLoadingMore.value = true;
+    try {
+      final nextPage = currentPage + 1;
+      final response = await _apiProvider.get(
+        ApiConstants.todayTransactions,
+        queryParameters: {
+          if (searchQuery.value.trim().isNotEmpty) 'search': searchQuery.value.trim(),
+          'status': selectedTab.value,
+          'page': nextPage,
+        },
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        final data = response.data['data'];
+        final List list = (data is Map && data['data'] != null) ? data['data'] : (data is List ? data : []);
+        final newServerTxs = list.map((e) => TransactionModel.fromJson(Map<String, dynamic>.from(e))).toList();
+
+        if (newServerTxs.isEmpty) {
+          hasMore.value = false;
+        } else {
+          // Deduplikasi agar transaksi tidak duplikat dengan yang sudah tampil
+          final existingInvoices = transactions.map((t) => t.invoiceNumber.trim().toLowerCase()).toSet();
+          final existingIds = transactions.where((t) => t.id > 0).map((t) => t.id).toSet();
+
+          final uniqueNewTxs = newServerTxs.where((t) {
+            final invMatch = existingInvoices.contains(t.invoiceNumber.trim().toLowerCase());
+            final idMatch = t.id > 0 && existingIds.contains(t.id);
+            return !invMatch && !idMatch;
+          }).toList();
+
+          transactions.addAll(uniqueNewTxs);
+          currentPage = nextPage;
+
+          if (data is Map) {
+            final nextUrl = data['next_page_url'];
+            final curPage = int.tryParse(data['current_page']?.toString() ?? '$nextPage') ?? nextPage;
+            final lastPage = int.tryParse(data['last_page']?.toString() ?? '$curPage') ?? curPage;
+            hasMore.value = (nextUrl != null) || (curPage < lastPage);
+          } else {
+            hasMore.value = newServerTxs.length >= 21;
+          }
+
+          // Simpan kumulatif ke cache offline
+          if (searchQuery.value.trim().isEmpty && uniqueNewTxs.isNotEmpty) {
+            final existingCached = _storageService.getCachedTodayTransactions();
+            final mapByInvoice = <String, Map<String, dynamic>>{};
+            for (final item in existingCached) {
+              final inv = (item['invoice_number'] ?? item['invoiceNumber'] ?? item['id'])?.toString();
+              if (inv != null && inv.isNotEmpty) {
+                mapByInvoice[inv.toLowerCase()] = item;
+              }
+            }
+            for (final item in list) {
+              if (item is Map) {
+                final mapItem = Map<String, dynamic>.from(item);
+                final inv = (mapItem['invoice_number'] ?? mapItem['invoiceNumber'] ?? mapItem['id'])?.toString();
+                if (inv != null && inv.isNotEmpty) {
+                  mapByInvoice[inv.toLowerCase()] = mapItem;
+                }
+              }
+            }
+            final mergedList = mapByInvoice.values.toList();
+            mergedList.sort((a, b) {
+              final idA = int.tryParse(a['id']?.toString() ?? '0') ?? 0;
+              final idB = int.tryParse(b['id']?.toString() ?? '0') ?? 0;
+              return idB.compareTo(idA);
+            });
+            await _storageService.saveCachedTodayTransactions(mergedList);
+          }
+        }
+      } else {
+        hasMore.value = false;
+      }
+    } catch (_) {
+      // Pertahankan status agar user dapat mencoba scroll ulang jika sinyal kembali
+    } finally {
+      isLoadingMore.value = false;
     }
   }
 
@@ -451,14 +580,18 @@ class TransactionsController extends GetxController {
     fetchTodayTransactions();
   }
 
-  /// Cari transaksi berdasarkan nama / meja / invoice (silent agar tidak kedip skeleton)
+  /// Cari transaksi berdasarkan nama / meja / invoice dengan debounce 350ms
   void onSearch(String val) {
-    searchQuery.value = val;
-    fetchTodayTransactions(silent: true);
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      searchQuery.value = val;
+      fetchTodayTransactions(silent: true);
+    });
   }
 
   /// Bersihkan pencarian
   void clearSearch() {
+    _searchDebounce?.cancel();
     searchController.clear();
     searchQuery.value = '';
     fetchTodayTransactions(silent: true);

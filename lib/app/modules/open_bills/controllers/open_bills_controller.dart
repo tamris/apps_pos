@@ -96,17 +96,33 @@ class OpenBillsController extends GetxController {
 
         final serverList = list.map((e) => OpenBillModel.fromJson(e)).toList();
 
-        // Filter out ID yang telah diselesaikan saat offline atau sedang aktif di offline bills
-        final activeServerList = serverList
-            .where((b) => !completedIds.contains(b.id) && !offlineIds.contains(b.id))
-            .toList();
+        // Ambil ID bill yang benar-benar sedang menunggu sync checkout di antrean offline
+        final offlineQueue = _storageService.getOfflineQueue();
+        final pendingOfflineBillIds = offlineQueue
+            .map((q) => int.tryParse(q['open_bill_id']?.toString() ?? '0') ?? 0)
+            .where((id) => id > 0)
+            .toSet();
+
+        // Filter out ID yang benar-benar sedang menunggu sync offline atau aktif di offline bills
+        final activeServerList = serverList.where((b) {
+          final isPendingOfflineSync = pendingOfflineBillIds.contains(b.id);
+          final isOfflineActive = offlineIds.contains(b.id);
+          return !isPendingOfflineSync && !isOfflineActive;
+        }).toList();
+
+        // Bersihkan stale completedIds di penyimpanan lokal agar tidak memblokir query
+        for (final b in serverList) {
+          if (!pendingOfflineBillIds.contains(b.id) && completedIds.contains(b.id)) {
+            await _storageService.removeOfflineCompletedServerBillId(b.id);
+          }
+        }
 
         // Gabungkan: Bill offline di atas, disusul bill server aktif
         openBills.assignAll([...filterList(offlineList), ...filterList(activeServerList)]);
 
         // Update count di PosController
         if (Get.isRegistered<PosController>()) {
-          Get.find<PosController>().fetchOpenBillsCount();
+          Get.find<PosController>().updateOpenBillsCount(openBills.length);
         }
       } else {
         openBills.assignAll(filterList(combinedLocal));
