@@ -88,8 +88,9 @@ class TabletCartPanel extends StatelessWidget {
                   ),
                 ),
                 Obx(() {
-                  if (cartController.isCartEmpty)
+                  if (cartController.isCartEmpty) {
                     return const SizedBox.shrink();
+                  }
                   return InkWell(
                     borderRadius: BorderRadius.circular(8),
                     onTap: () {
@@ -132,8 +133,9 @@ class TabletCartPanel extends StatelessWidget {
 
           // Active Open Bill Alert Banner (jika sedang mengedit bill terbuka)
           Obx(() {
-            if (cartController.activeOpenBillId.value == null)
+            if (cartController.activeOpenBillId.value == null) {
               return const SizedBox.shrink();
+            }
             return Container(
               margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
