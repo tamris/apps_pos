@@ -23,6 +23,7 @@ class TransactionsController extends GetxController {
   final Rx<TransactionStatsModel> stats = TransactionStatsModel.empty().obs;
   final RxString selectedTab = 'completed'.obs; // 'completed', 'pending', 'cancelled', 'all'
   RxString get selectedStatus => selectedTab;
+  final RxString selectedPaymentMethod = 'all'.obs; // 'all', 'cash', 'qris', 'transfer'
   final RxString searchQuery = ''.obs;
   final RxBool isLoading = false.obs;
   final RxBool isUpdatingPayment = false.obs;
@@ -191,31 +192,130 @@ class TransactionsController extends GetxController {
     }).toList();
   }
 
-  /// Hitung statistik transaksi saat offline (menggunakan snapshot server + offline queue)
-  void _computeOfflineStats(List<TransactionModel> offlineTxs) {
-    final cachedStats = _storageService.getCachedTodayStats();
-    if (cachedStats != null) {
-      final serverStats = TransactionStatsModel.fromJson(cachedStats);
-      stats.value = TransactionStatsModel(
-        all: serverStats.all + offlineTxs.length,
-        completed: serverStats.completed + offlineTxs.length,
-        pending: serverStats.pending,
-        cancelled: serverStats.cancelled,
-      );
-    } else {
+  /// Helper untuk memeriksa apakah metode pembayaran transaksi sesuai dengan filter aktif
+  bool _matchesPaymentMethod(String txPaymentMethod, String selectedMethod, {bool isPending = false}) {
+    if (selectedMethod == 'all') return true;
+    // Transaksi pending (Open Bill) belum dibayar, sehingga tidak masuk ke filter metode tertentu
+    if (isPending) return false;
+    final tpm = txPaymentMethod.toLowerCase().trim();
+    final pm = selectedMethod.toLowerCase().trim();
+    if (tpm.isEmpty || tpm == 'unpaid' || tpm == 'belum bayar') {
+      return false;
+    }
+    if (pm == 'cash' || pm == 'tunai') {
+      return tpm.contains('cash') || tpm.contains('tunai');
+    }
+    if (pm == 'transfer') {
+      return tpm.contains('transfer') || tpm.contains('bank');
+    }
+    return tpm.contains(pm);
+  }
+
+  /// Hitung statistik (Selesai, Open Bill, Dibatalkan, Semua) sesuai filter metode pembayaran aktif
+  TransactionStatsModel _computeFilteredStats(
+    String paymentMethod,
+    List<TransactionModel> offlineTxs, {
+    List<TransactionModel>? currentTxs,
+    TransactionStatsModel? serverStats,
+    int? currentPaginatorTotal,
+  }) {
+    if (paymentMethod == 'all') {
+      if (serverStats != null) {
+        return TransactionStatsModel(
+          all: serverStats.all + offlineTxs.length,
+          completed: serverStats.completed + offlineTxs.length,
+          pending: serverStats.pending,
+          cancelled: serverStats.cancelled,
+        );
+      }
       final cachedRaw = _storageService.getCachedTodayTransactions();
       final cachedTxs = cachedRaw.map((e) => TransactionModel.fromJson(e)).toList();
       final comp = cachedTxs.where((t) => t.isCompleted).length;
       final pend = cachedTxs.where((t) => t.isPending).length;
       final canc = cachedTxs.where((t) => t.isCancelled).length;
 
-      stats.value = TransactionStatsModel(
+      return TransactionStatsModel(
         all: cachedTxs.length + offlineTxs.length,
         completed: comp + offlineTxs.length,
         pending: pend,
         cancelled: canc,
       );
     }
+
+    // Filter spesifik metode pembayaran (cash, qris, transfer)
+    final cachedRaw = _storageService.getCachedTodayTransactions();
+    final Map<String, TransactionModel> allKnown = {};
+
+    // 1. Masukkan offline txs yang sesuai
+    for (final t in offlineTxs) {
+      if (_matchesPaymentMethod(t.paymentMethod, paymentMethod, isPending: t.isPending)) {
+        allKnown[t.invoiceNumber.toLowerCase().trim()] = t;
+      }
+    }
+
+    // 2. Masukkan cached server txs yang sesuai
+    for (final raw in cachedRaw) {
+      final t = TransactionModel.fromJson(raw);
+      if (_matchesPaymentMethod(t.paymentMethod, paymentMethod, isPending: t.isPending)) {
+        allKnown[t.invoiceNumber.toLowerCase().trim()] = t;
+      }
+    }
+
+    // 3. Masukkan transaksi yang baru difetch dari server jika ada
+    if (currentTxs != null) {
+      for (final t in currentTxs) {
+        if (_matchesPaymentMethod(t.paymentMethod, paymentMethod, isPending: t.isPending)) {
+          allKnown[t.invoiceNumber.toLowerCase().trim()] = t;
+        }
+      }
+    }
+
+    // 4. Masukkan transaksi yang saat ini sedang aktif di layar
+    for (final t in transactions) {
+      if (_matchesPaymentMethod(t.paymentMethod, paymentMethod, isPending: t.isPending)) {
+        allKnown[t.invoiceNumber.toLowerCase().trim()] = t;
+      }
+    }
+
+    final int comp = allKnown.values.where((t) => t.isCompleted).length;
+    final int pend = allKnown.values.where((t) => t.isPending).length;
+    final int canc = allKnown.values.where((t) => t.isCancelled).length;
+
+    // Sinkronisasi dengan total paginator HANYA jika filter paymentMethod == 'all',
+    // karena server paginator tidak memfilter per metode pembayaran!
+    if (paymentMethod == 'all' && currentPaginatorTotal != null && currentPaginatorTotal > 0) {
+      if (selectedTab.value == 'completed' && currentPaginatorTotal > comp) {
+        return TransactionStatsModel(
+          all: currentPaginatorTotal + pend + canc,
+          completed: currentPaginatorTotal,
+          pending: pend,
+          cancelled: canc,
+        );
+      }
+    }
+
+    final totalAll = comp + pend + canc;
+
+    return TransactionStatsModel(
+      all: totalAll,
+      completed: comp,
+      pending: pend,
+      cancelled: canc,
+    );
+  }
+
+  /// Hitung statistik transaksi saat offline (menggunakan snapshot server + offline queue)
+  void _computeOfflineStats(List<TransactionModel> offlineTxs) {
+    final cachedStats = _storageService.getCachedTodayStats();
+    TransactionStatsModel? serverStats;
+    if (cachedStats != null) {
+      serverStats = TransactionStatsModel.fromJson(cachedStats);
+    }
+    stats.value = _computeFilteredStats(
+      selectedPaymentMethod.value,
+      offlineTxs,
+      serverStats: serverStats,
+    );
   }
 
   /// Susun payload struk untuk transaksi offline
@@ -283,10 +383,19 @@ class TransactionsController extends GetxController {
     try {
       final offlineTxs = _buildOfflineTransactionsList();
 
-      // Filter offline berdasarkan tab dan search
+      // Filter offline berdasarkan tab, metode pembayaran, dan search
       List<TransactionModel> filteredOffline = offlineTxs;
       if (selectedTab.value == 'cancelled' || selectedTab.value == 'pending') {
         filteredOffline = [];
+      }
+      if (selectedPaymentMethod.value != 'all') {
+        filteredOffline = filteredOffline.where((t) {
+          return _matchesPaymentMethod(
+            t.paymentMethod,
+            selectedPaymentMethod.value,
+            isPending: t.isPending,
+          );
+        }).toList();
       }
       if (searchQuery.value.trim().isNotEmpty) {
         final q = searchQuery.value.trim().toLowerCase();
@@ -299,7 +408,16 @@ class TransactionsController extends GetxController {
       }
 
       if (_storageService.isOfflineToken) {
-        final cachedServerTxs = _loadCachedServerTransactions();
+        var cachedServerTxs = _loadCachedServerTransactions();
+        if (selectedPaymentMethod.value != 'all') {
+          cachedServerTxs = cachedServerTxs.where((t) {
+            return _matchesPaymentMethod(
+              t.paymentMethod,
+              selectedPaymentMethod.value,
+              isPending: t.isPending,
+            );
+          }).toList();
+        }
         final offlineInvoices = filteredOffline.map((t) => t.invoiceNumber.trim().toLowerCase()).toSet();
         final deduplicatedCached = cachedServerTxs.where((t) => !offlineInvoices.contains(t.invoiceNumber.trim().toLowerCase())).toList();
         transactions.assignAll([...filteredOffline, ...deduplicatedCached]);
@@ -313,6 +431,7 @@ class TransactionsController extends GetxController {
         queryParameters: {
           if (searchQuery.value.trim().isNotEmpty) 'search': searchQuery.value.trim(),
           'status': selectedTab.value,
+          if (selectedPaymentMethod.value != 'all') 'payment_method': selectedPaymentMethod.value,
           'page': 1,
         },
       );
@@ -333,9 +452,21 @@ class TransactionsController extends GetxController {
           hasMore.value = serverTxs.length >= 21;
         }
 
+        // Filter client-side untuk menjamin filter metode pembayaran selalu akurat
+        var processedServerTxs = serverTxs;
+        if (selectedPaymentMethod.value != 'all') {
+          processedServerTxs = processedServerTxs.where((t) {
+            return _matchesPaymentMethod(
+              t.paymentMethod,
+              selectedPaymentMethod.value,
+              isPending: t.isPending,
+            );
+          }).toList();
+        }
+
         // Gabungkan: Transaksi offline di paling atas, deduplikasi jika ada nomor invoice yang sama
         final offlineInvoices = filteredOffline.map((t) => t.invoiceNumber.trim().toLowerCase()).toSet();
-        final deduplicatedServer = serverTxs.where((t) => !offlineInvoices.contains(t.invoiceNumber.trim().toLowerCase())).toList();
+        final deduplicatedServer = processedServerTxs.where((t) => !offlineInvoices.contains(t.invoiceNumber.trim().toLowerCase())).toList();
         transactions.assignAll([...filteredOffline, ...deduplicatedServer]);
 
         // Simpan snapshot server secara kumulatif agar saat offline transaksi hari ini tetap muncul
@@ -366,17 +497,24 @@ class TransactionsController extends GetxController {
           await _storageService.saveCachedTodayTransactions(mergedList);
         }
 
+        TransactionStatsModel? serverStats;
         if (response.data['stats'] != null) {
           final serverStatsRaw = Map<String, dynamic>.from(response.data['stats']);
           await _storageService.saveCachedTodayStats(serverStatsRaw);
-          final serverStats = TransactionStatsModel.fromJson(serverStatsRaw);
-          stats.value = TransactionStatsModel(
-            all: serverStats.all + offlineTxs.length,
-            completed: serverStats.completed + offlineTxs.length,
-            pending: serverStats.pending,
-            cancelled: serverStats.cancelled,
-          );
+          serverStats = TransactionStatsModel.fromJson(serverStatsRaw);
         }
+
+        final paginatorTotal = (data is Map && data['total'] != null)
+            ? int.tryParse(data['total'].toString())
+            : null;
+
+        stats.value = _computeFilteredStats(
+          selectedPaymentMethod.value,
+          offlineTxs,
+          currentTxs: serverTxs,
+          serverStats: serverStats,
+          currentPaginatorTotal: paginatorTotal,
+        );
       } else {
         final cachedServerTxs = _loadCachedServerTransactions();
         final offlineInvoices = filteredOffline.map((t) => t.invoiceNumber.trim().toLowerCase()).toSet();
@@ -426,6 +564,7 @@ class TransactionsController extends GetxController {
         queryParameters: {
           if (searchQuery.value.trim().isNotEmpty) 'search': searchQuery.value.trim(),
           'status': selectedTab.value,
+          if (selectedPaymentMethod.value != 'all') 'payment_method': selectedPaymentMethod.value,
           'page': nextPage,
         },
       );
@@ -435,14 +574,26 @@ class TransactionsController extends GetxController {
         final List list = (data is Map && data['data'] != null) ? data['data'] : (data is List ? data : []);
         final newServerTxs = list.map((e) => TransactionModel.fromJson(Map<String, dynamic>.from(e))).toList();
 
-        if (newServerTxs.isEmpty) {
+        // Filter client-side untuk payment method
+        var processedNewTxs = newServerTxs;
+        if (selectedPaymentMethod.value != 'all') {
+          processedNewTxs = processedNewTxs.where((t) {
+            return _matchesPaymentMethod(
+              t.paymentMethod,
+              selectedPaymentMethod.value,
+              isPending: t.isPending,
+            );
+          }).toList();
+        }
+
+        if (processedNewTxs.isEmpty) {
           hasMore.value = false;
         } else {
           // Deduplikasi agar transaksi tidak duplikat dengan yang sudah tampil
           final existingInvoices = transactions.map((t) => t.invoiceNumber.trim().toLowerCase()).toSet();
           final existingIds = transactions.where((t) => t.id > 0).map((t) => t.id).toSet();
 
-          final uniqueNewTxs = newServerTxs.where((t) {
+          final uniqueNewTxs = processedNewTxs.where((t) {
             final invMatch = existingInvoices.contains(t.invoiceNumber.trim().toLowerCase());
             final idMatch = t.id > 0 && existingIds.contains(t.id);
             return !invMatch && !idMatch;
@@ -577,6 +728,15 @@ class TransactionsController extends GetxController {
   void changeTab(String tab) {
     if (selectedTab.value == tab) return;
     selectedTab.value = tab;
+    fetchTodayTransactions();
+  }
+
+  /// Ganti Filter Metode Pembayaran (all, cash, qris, transfer)
+  void changePaymentMethod(String method) {
+    if (selectedPaymentMethod.value == method) return;
+    selectedPaymentMethod.value = method;
+    final offlineTxs = _buildOfflineTransactionsList();
+    stats.value = _computeFilteredStats(method, offlineTxs);
     fetchTodayTransactions();
   }
 

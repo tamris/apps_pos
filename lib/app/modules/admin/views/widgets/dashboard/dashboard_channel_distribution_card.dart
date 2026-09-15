@@ -10,310 +10,443 @@ class DashboardChannelDistributionCard extends StatelessWidget {
   const DashboardChannelDistributionCard({
     super.key,
     required this.data,
-    required this.isTablet,
+    this.isTablet = false,
     this.height,
   });
 
   @override
   Widget build(BuildContext context) {
-    final posTotal = data.orderSourceBreakdown.pos.total;
-    final onlineTotal = data.orderSourceBreakdown.onlineOrder.total;
     final posCount = data.orderSourceBreakdown.pos.count;
     final onlineCount = data.orderSourceBreakdown.onlineOrder.count;
+    final posTotal = data.orderSourceBreakdown.pos.total;
+    final onlineTotal = data.orderSourceBreakdown.onlineOrder.total;
     final channelCountSum = posCount + onlineCount;
     final channelSum = posTotal + onlineTotal;
 
-    final dineInTotal = data.orderTypeBreakdown.dineIn.total;
-    final takeawayTotal = data.orderTypeBreakdown.takeaway.total;
-    final dineInCount = data.orderTypeBreakdown.dineIn.count;
     final takeawayCount = data.orderTypeBreakdown.takeaway.count;
-    final typeCountSum = dineInCount + takeawayCount;
-    final typeSum = dineInTotal + takeawayTotal;
+    final dineInCount = data.orderTypeBreakdown.dineIn.count;
+    final takeawayTotal = data.orderTypeBreakdown.takeaway.total;
+    final dineInTotal = data.orderTypeBreakdown.dineIn.total;
+    final typeCountSum = takeawayCount + dineInCount;
+    final typeSum = takeawayTotal + dineInTotal;
 
-    final posPercent = channelSum > 0
-        ? (posTotal / channelSum)
-        : (channelCountSum > 0 ? (posCount / channelCountSum) : 0.0);
-    final dineInPercent = typeSum > 0
-        ? (dineInTotal / typeSum)
-        : (typeCountSum > 0 ? (dineInCount / typeCountSum) : 0.0);
+    final posPercent = channelCountSum > 0
+        ? (posCount / channelCountSum)
+        : (channelSum > 0 ? (posTotal / channelSum) : 0.0);
+    final onlinePercent = channelCountSum > 0 ? (1.0 - posPercent) : 0.0;
+
+    final takeawayPercent = typeCountSum > 0
+        ? (takeawayCount / typeCountSum)
+        : (typeSum > 0 ? (takeawayTotal / typeSum) : 0.0);
+    final dineInPercent = typeCountSum > 0 ? (1.0 - takeawayPercent) : 0.0;
+
     final totalOrders = channelCountSum > 0 ? channelCountSum : typeCountSum;
-    final useSideBySide = isTablet || height != null;
 
     return Container(
       height: height,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 6,
+            color: const Color(0xFF0F172A).withValues(alpha: 0.025),
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
-        mainAxisAlignment: height != null
-            ? MainAxisAlignment.spaceBetween
-            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Distribusi Pesanan',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF0F172A),
-              letterSpacing: -0.2,
-            ),
-          ),
-          if (height == null) const SizedBox(height: 10),
-
-          // Side-by-side or stacked
-          if (useSideBySide)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Saluran Penjualan
-                Expanded(
-                  child: _buildProportionSection(
-                    title: 'SALURAN',
-                    labelA: 'Kasir POS',
-                    countA: data.orderSourceBreakdown.pos.count,
-                    totalA: posTotal,
-                    colorA: AppColors.secondary,
-                    labelB: 'Online',
-                    countB: data.orderSourceBreakdown.onlineOrder.count,
-                    totalB: onlineTotal,
-                    colorB: const Color(0xFF0EA5E9),
-                    ratioA: posPercent,
-                  ),
-                ),
-                Container(
-                  width: 1,
-                  height: 65,
-                  color: const Color(0xFFE2E8F0),
-                  margin: const EdgeInsets.symmetric(horizontal: 10),
-                ),
-                // Tipe Pesanan
-                Expanded(
-                  child: _buildProportionSection(
-                    title: 'TIPE',
-                    labelA: 'Dine-in',
-                    countA: data.orderTypeBreakdown.dineIn.count,
-                    totalA: dineInTotal,
-                    colorA: const Color(0xFF10B981),
-                    labelB: 'Takeaway',
-                    countB: data.orderTypeBreakdown.takeaway.count,
-                    totalB: takeawayTotal,
-                    colorB: const Color(0xFFF59E0B),
-                    ratioA: dineInPercent,
-                  ),
-                ),
-              ],
-            )
-          else ...[
-            _buildProportionSection(
-              title: 'SALURAN PENJUALAN',
-              labelA: 'Kasir POS',
-              countA: data.orderSourceBreakdown.pos.count,
-              totalA: posTotal,
-              colorA: AppColors.secondary,
-              labelB: 'Online',
-              countB: data.orderSourceBreakdown.onlineOrder.count,
-              totalB: onlineTotal,
-              colorB: const Color(0xFF0EA5E9),
-              ratioA: posPercent,
-            ),
-            const SizedBox(height: 8),
-            const Divider(height: 1, color: Color(0xFFF1F5F9)),
-            const SizedBox(height: 8),
-            _buildProportionSection(
-              title: 'TIPE PESANAN',
-              labelA: 'Dine-in',
-              countA: data.orderTypeBreakdown.dineIn.count,
-              totalA: dineInTotal,
-              colorA: const Color(0xFF10B981),
-              labelB: 'Takeaway',
-              countB: data.orderTypeBreakdown.takeaway.count,
-              totalB: takeawayTotal,
-              colorB: const Color(0xFFF59E0B),
-              ratioA: dineInPercent,
-            ),
-          ],
-
-          if (height == null) const SizedBox(height: 10),
-          Column(
+          // 1. Header (Judul & Subjudul di Kiri, Pill Badge Total Pesanan di Kanan)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Divider(height: 1, color: Color(0xFFF1F5F9)),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Total Pesanan',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF64748B),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Text(
+                      'Distribusi Pesanan',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
+                        letterSpacing: -0.2,
+                      ),
                     ),
-                  ),
-                  Text(
-                    '$totalOrders Pesanan',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF0F172A),
+                    SizedBox(height: 2),
+                    Text(
+                      'Analisis kanal dan cara konsumsi',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w400,
+                        color: Color(0xFF94A3B8),
+                      ),
                     ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4.5,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '$totalOrders Pesanan',
+                  maxLines: 1,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF475569),
                   ),
-                ],
+                ),
               ),
             ],
           ),
+
+          // 2. Dual Sub-cards: SALURAN & TIPE LAYANAN (Mengisi ruang penuh seimbang)
+          if (height != null)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 14),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Sub-card 1: SALURAN
+                    Expanded(
+                      child: _buildSubCard(
+                        title: 'SALURAN',
+                        isExpanded: true,
+                        barSegments: [
+                          if (posPercent > 0)
+                            _BarSegment(
+                              flex: (posPercent * 1000).toInt().clamp(1, 1000),
+                              color: AppColors.secondary,
+                            ),
+                          if (onlinePercent > 0)
+                            _BarSegment(
+                              flex: (onlinePercent * 1000).toInt().clamp(
+                                1,
+                                1000,
+                              ),
+                              color: const Color(0xFF0EA5E9),
+                            ),
+                        ],
+                        items: [
+                          _ItemData(
+                            label: 'Kasir POS',
+                            count: posCount,
+                            percentage: posPercent,
+                            color: AppColors.secondary,
+                          ),
+                          _ItemData(
+                            label: 'Online',
+                            count: onlineCount,
+                            percentage: onlinePercent,
+                            color: const Color(0xFF0EA5E9),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Sub-card 2: TIPE LAYANAN
+                    Expanded(
+                      child: _buildSubCard(
+                        title: 'TIPE LAYANAN',
+                        isExpanded: true,
+                        barSegments: [
+                          if (dineInPercent > 0)
+                            _BarSegment(
+                              flex: (dineInPercent * 1000).toInt().clamp(
+                                1,
+                                1000,
+                              ),
+                              color: const Color(0xFF10B981),
+                            ),
+                          if (takeawayPercent > 0)
+                            _BarSegment(
+                              flex: (takeawayPercent * 1000).toInt().clamp(
+                                1,
+                                1000,
+                              ),
+                              color: const Color(0xFFF59E0B),
+                            ),
+                        ],
+                        items: [
+                          _ItemData(
+                            label: 'Dine-in',
+                            count: dineInCount,
+                            percentage: dineInPercent,
+                            color: const Color(0xFF10B981),
+                          ),
+                          _ItemData(
+                            label: 'Takeaway',
+                            count: takeawayCount,
+                            percentage: takeawayPercent,
+                            color: const Color(0xFFF59E0B),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else ...[
+            const SizedBox(height: 14),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Sub-card 1: SALURAN
+                Expanded(
+                  child: _buildSubCard(
+                    title: 'SALURAN',
+                    isExpanded: false,
+                    barSegments: [
+                      if (posPercent > 0)
+                        _BarSegment(
+                          flex: (posPercent * 1000).toInt().clamp(1, 1000),
+                          color: AppColors.secondary,
+                        ),
+                      if (onlinePercent > 0)
+                        _BarSegment(
+                          flex: (onlinePercent * 1000).toInt().clamp(1, 1000),
+                          color: const Color(0xFF0EA5E9),
+                        ),
+                    ],
+                    items: [
+                      _ItemData(
+                        label: 'Kasir POS',
+                        count: posCount,
+                        percentage: posPercent,
+                        color: AppColors.secondary,
+                      ),
+                      _ItemData(
+                        label: 'Online',
+                        count: onlineCount,
+                        percentage: onlinePercent,
+                        color: const Color(0xFF0EA5E9),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Sub-card 2: TIPE LAYANAN
+                Expanded(
+                  child: _buildSubCard(
+                    title: 'TIPE LAYANAN',
+                    isExpanded: false,
+                    barSegments: [
+                      if (dineInPercent > 0)
+                        _BarSegment(
+                          flex: (dineInPercent * 1000).toInt().clamp(1, 1000),
+                          color: const Color(0xFF10B981),
+                        ),
+                      if (takeawayPercent > 0)
+                        _BarSegment(
+                          flex: (takeawayPercent * 1000).toInt().clamp(1, 1000),
+                          color: const Color(0xFFF59E0B),
+                        ),
+                    ],
+                    items: [
+                      _ItemData(
+                        label: 'Dine-in',
+                        count: dineInCount,
+                        percentage: dineInPercent,
+                        color: const Color(0xFF10B981),
+                      ),
+                      _ItemData(
+                        label: 'Takeaway',
+                        count: takeawayCount,
+                        percentage: takeawayPercent,
+                        color: const Color(0xFFF59E0B),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildProportionSection({
+  Widget _buildSubCard({
     required String title,
-    required String labelA,
-    required int countA,
-    required double totalA,
-    required Color colorA,
-    required String labelB,
-    required int countB,
-    required double totalB,
-    required Color colorB,
-    required double ratioA,
+    required bool isExpanded,
+    required List<_BarSegment> barSegments,
+    required List<_ItemData> items,
   }) {
-    final hasData = (countA + countB > 0) || (totalA + totalB > 0);
-    final percentA = hasData ? (ratioA * 100).clamp(0, 100).toInt() : 0;
-    final percentB = hasData ? (100 - percentA) : 0;
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: isExpanded ? 12 : 9,
+        vertical: isExpanded ? 14 : 11,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFF1F5F9)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. Bagian Atas Sub-Card: Judul & Progress Bar
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF64748B),
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 7),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(100),
+            child: SizedBox(
+              height: 5,
+              child: Row(
+                children: barSegments.isNotEmpty
+                    ? barSegments
+                          .map(
+                            (s) => Expanded(
+                              flex: s.flex,
+                              child: Container(color: s.color),
+                            ),
+                          )
+                          .toList()
+                    : [
+                        Expanded(
+                          child: Container(color: const Color(0xFFE2E8F0)),
+                        ),
+                      ],
+              ),
+            ),
+          ),
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+          if (isExpanded) const Spacer() else const SizedBox(height: 14),
+
+          // 2. Item Baris Pertama (Kasir POS / Takeaway)
+          _buildItemRow(items[0]),
+
+          if (isExpanded) const Spacer() else const SizedBox(height: 10),
+
+          // 3. Item Baris Kedua (Online / Dine-in)
+          _buildItemRow(items[1]),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildItemRow(_ItemData item) {
+    final percentInt = (item.percentage * 100).clamp(0, 100).toInt();
+    final hasCount = item.count > 0;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF64748B),
-            letterSpacing: 0.5,
+        // Dot & Label
+        Expanded(
+          child: Row(
+            children: [
+              Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  color: item.color,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  item.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    color: hasCount
+                        ? const Color(0xFF334155)
+                        : const Color(0xFF64748B),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: SizedBox(
-            height: 6,
-            child: Row(
-              children: [
-                if (!hasData)
-                  Expanded(
-                    child: Container(color: const Color(0xFFE2E8F0)),
-                  )
-                else ...[
-                  if (percentA > 0)
-                    Expanded(
-                      flex: percentA,
-                      child: Container(color: colorA),
+        const SizedBox(width: 4),
+
+        // Angka & Persentase (Font size sama rata 12.5px, scale down aman tanpa overflow)
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerRight,
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: '${item.count}',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: hasCount ? FontWeight.w700 : FontWeight.w500,
+                      color: hasCount
+                          ? const Color(0xFF0F172A)
+                          : const Color(0xFF94A3B8),
                     ),
-                  if (percentB > 0)
-                    Expanded(
-                      flex: percentB,
-                      child: Container(color: colorB),
+                  ),
+                  TextSpan(
+                    text: ' ($percentInt%)',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF94A3B8),
                     ),
+                  ),
                 ],
-              ],
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Row(
-                children: [
-                  Container(
-                    width: 7,
-                    height: 7,
-                    decoration: BoxDecoration(
-                      color: colorA,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      labelA,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF334155),
-                        fontWeight: FontWeight.w500,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              '$countA ($percentA%)',
-              style: const TextStyle(
-                fontSize: 11.5,
-                color: Color(0xFF64748B),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 5),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Row(
-                children: [
-                  Container(
-                    width: 7,
-                    height: 7,
-                    decoration: BoxDecoration(
-                      color: colorB,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      labelB,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF334155),
-                        fontWeight: FontWeight.w500,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              '$countB ($percentB%)',
-              style: const TextStyle(
-                fontSize: 11.5,
-                color: Color(0xFF64748B),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
         ),
       ],
     );
   }
+}
+
+class _BarSegment {
+  final int flex;
+  final Color color;
+
+  const _BarSegment({required this.flex, required this.color});
+}
+
+class _ItemData {
+  final String label;
+  final int count;
+  final double percentage;
+  final Color color;
+
+  const _ItemData({
+    required this.label,
+    required this.count,
+    required this.percentage,
+    required this.color,
+  });
 }
