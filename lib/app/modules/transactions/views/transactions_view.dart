@@ -118,15 +118,44 @@ class TransactionsView extends GetView<TransactionsController> {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        const Text(
-                          'Riwayat transaksi hari ini akan muncul di sini.',
+                        Text(
+                          controller.selectedPaymentMethod.value != 'all'
+                              ? 'Tidak ada transaksi dengan metode ini.'
+                              : 'Riwayat transaksi hari ini akan muncul di sini.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 13,
                             color: AppColors.textSecondary,
                             height: 1.4,
                           ),
                         ),
+                        if (controller.selectedPaymentMethod.value !=
+                            'all') ...[
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                            onPressed: () =>
+                                controller.changePaymentMethod('all'),
+                            icon: const Icon(Icons.refresh_rounded, size: 16),
+                            label: const Text(
+                              'Reset Filter Metode',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                              side: const BorderSide(color: AppColors.primary),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 8,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -141,7 +170,8 @@ class TransactionsView extends GetView<TransactionsController> {
                     final width = constraints.maxWidth;
                     final isTabletOrDesktop = width >= 600;
                     final int crossAxisCount = width >= 1050 ? 3 : 2;
-                    final double mainAxisExtent = width >= 1050 ? 228 : 232;
+                    // Tinggi seragam pas di bawah item lainnya (tanpa ruang kosong berlebih)
+                    const double cardExtent = 202;
 
                     return CustomScrollView(
                       controller: controller.scrollController,
@@ -151,37 +181,50 @@ class TransactionsView extends GetView<TransactionsController> {
                           SliverPadding(
                             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                             sliver: SliverGrid(
-                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: crossAxisCount,
                                 crossAxisSpacing: 14,
                                 mainAxisSpacing: 14,
-                                mainAxisExtent: mainAxisExtent,
+                                mainAxisExtent: cardExtent,
                               ),
-                              delegate: SliverChildBuilderDelegate(
-                                (context, index) {
-                                  final tx = controller.transactions[index];
-                                  return _buildTransactionCard(context, tx, isGrid: true);
-                                },
-                                childCount: controller.transactions.length,
-                              ),
+                              delegate: SliverChildBuilderDelegate((
+                                context,
+                                index,
+                              ) {
+                                final tx = controller.transactions[index];
+                                return _buildTransactionCard(
+                                  context,
+                                  tx,
+                                  isGrid: true,
+                                );
+                              }, childCount: controller.transactions.length),
                             ),
                           )
                         else
                           SliverPadding(
                             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                             sliver: SliverList(
-                              delegate: SliverChildBuilderDelegate(
-                                (context, index) {
-                                  final tx = controller.transactions[index];
-                                  return Padding(
-                                    padding: EdgeInsets.only(
-                                      bottom: index == controller.transactions.length - 1 ? 0 : 10,
-                                    ),
-                                    child: _buildTransactionCard(context, tx, isGrid: false),
-                                  );
-                                },
-                                childCount: controller.transactions.length,
-                              ),
+                              delegate: SliverChildBuilderDelegate((
+                                context,
+                                index,
+                              ) {
+                                final tx = controller.transactions[index];
+                                return Padding(
+                                  padding: EdgeInsets.only(
+                                    bottom:
+                                        index ==
+                                            controller.transactions.length - 1
+                                        ? 0
+                                        : 10,
+                                  ),
+                                  child: _buildTransactionCard(
+                                    context,
+                                    tx,
+                                    isGrid: false,
+                                  ),
+                                );
+                              }, childCount: controller.transactions.length),
                             ),
                           ),
 
@@ -190,7 +233,9 @@ class TransactionsView extends GetView<TransactionsController> {
                           child: Obx(() {
                             if (controller.isLoadingMore.value) {
                               return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 20),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 20,
+                                ),
                                 child: Center(
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
@@ -218,9 +263,12 @@ class TransactionsView extends GetView<TransactionsController> {
                               );
                             }
 
-                            if (!controller.hasMore.value && controller.transactions.length >= 21) {
+                            if (!controller.hasMore.value &&
+                                controller.transactions.length >= 21) {
                               return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 20),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 20,
+                                ),
                                 child: Center(
                                   child: Text(
                                     'Semua transaksi hari ini telah ditampilkan',
@@ -281,83 +329,261 @@ class TransactionsView extends GetView<TransactionsController> {
         },
       ];
 
-      return SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: tabs.map((tab) {
-            final isCurrent = selected == tab['id'];
-            final color = tab['color'] as Color;
-            final count = tab['count'] as int;
+      return Row(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: tabs.map((tab) {
+                  final isCurrent = selected == tab['id'];
+                  final color = tab['color'] as Color;
+                  final count = tab['count'] as int;
 
-            return Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: Material(
-                color: isCurrent ? color : AppColors.lightBackground,
-                borderRadius: BorderRadius.circular(20),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(20),
-                  onTap: () => controller.changeTab(tab['id'] as String),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 7,
-                    ),
-                    decoration: BoxDecoration(
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: Material(
+                      color: isCurrent ? color : AppColors.lightBackground,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isCurrent ? color : AppColors.lightBorder,
-                        width: 1.2,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          tab['label'] as String,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: isCurrent
-                                ? FontWeight.bold
-                                : FontWeight.w600,
-                            color: isCurrent
-                                ? Colors.white
-                                : AppColors.textPrimary,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: () => controller.changeTab(tab['id'] as String),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isCurrent ? color : AppColors.lightBorder,
+                              width: 1.2,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                tab['label'] as String,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: isCurrent
+                                      ? FontWeight.bold
+                                      : FontWeight.w600,
+                                  color: isCurrent
+                                      ? Colors.white
+                                      : AppColors.textPrimary,
+                                ),
+                              ),
+                              if (count > 0) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 1,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isCurrent
+                                        ? Colors.white.withAlpha(50)
+                                        : color.withAlpha(30),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    '$count',
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: isCurrent ? Colors.white : color,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
-                        if (count > 0) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 1,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isCurrent
-                                  ? Colors.white.withAlpha(50)
-                                  : color.withAlpha(30),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              '$count',
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.bold,
-                                color: isCurrent ? Colors.white : color,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                }).toList(),
               ),
-            );
-          }).toList(),
-        ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          _buildPaymentDropdown(),
+        ],
       );
     });
   }
+
+  Widget _buildPaymentDropdown() {
+    final currentMethod = controller.selectedPaymentMethod.value;
+    final bool isFiltered = currentMethod != 'all';
+
+    String currentLabel = 'Metode';
+    IconData currentIcon = Icons.filter_list_rounded;
+    Color currentColor = AppColors.textSecondary;
+
+    switch (currentMethod) {
+      case 'cash':
+        currentLabel = 'Tunai';
+        currentIcon = Icons.payments_outlined;
+        currentColor = AppColors.success;
+        break;
+      case 'qris':
+        currentLabel = 'QRIS';
+        currentIcon = Icons.qr_code_2_rounded;
+        currentColor = AppColors.secondary;
+        break;
+      case 'transfer':
+        currentLabel = 'Transfer';
+        currentIcon = Icons.account_balance_outlined;
+        currentColor = AppColors.info;
+        break;
+      default:
+        currentLabel = 'Metode';
+        currentIcon = Icons.filter_list_rounded;
+        currentColor = AppColors.textSecondary;
+    }
+
+    return PopupMenuButton<String>(
+      tooltip: 'Filter Metode Pembayaran',
+      position: PopupMenuPosition.under,
+      offset: const Offset(0, 8),
+      elevation: 6,
+      shadowColor: Colors.black.withAlpha(40),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: AppColors.lightBorder, width: 1.2),
+      ),
+      color: Colors.white,
+      initialValue: currentMethod,
+      onSelected: (val) => controller.changePaymentMethod(val),
+      itemBuilder: (context) => [
+        _buildPaymentMenuItem(
+          value: 'all',
+          label: 'Semua Metode',
+          icon: Icons.tune_rounded,
+          color: AppColors.textSecondary,
+          isSelected: currentMethod == 'all',
+        ),
+        _buildPaymentMenuItem(
+          value: 'cash',
+          label: 'Tunai (Cash)',
+          icon: Icons.payments_outlined,
+          color: AppColors.success,
+          isSelected: currentMethod == 'cash',
+        ),
+        _buildPaymentMenuItem(
+          value: 'qris',
+          label: 'QRIS Digital',
+          icon: Icons.qr_code_2_rounded,
+          color: AppColors.secondary,
+          isSelected: currentMethod == 'qris',
+        ),
+        _buildPaymentMenuItem(
+          value: 'transfer',
+          label: 'Transfer Bank',
+          icon: Icons.account_balance_outlined,
+          color: AppColors.info,
+          isSelected: currentMethod == 'transfer',
+        ),
+      ],
+      child: Material(
+        color: isFiltered
+            ? currentColor.withAlpha(22)
+            : AppColors.lightBackground,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isFiltered ? currentColor : AppColors.lightBorder,
+              width: 1.2,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                currentIcon,
+                size: 15,
+                color: isFiltered ? currentColor : AppColors.textSecondary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                currentLabel,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isFiltered ? FontWeight.bold : FontWeight.w600,
+                  color: isFiltered ? currentColor : AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 16,
+                color: isFiltered ? currentColor : AppColors.textSecondary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  PopupMenuItem<String> _buildPaymentMenuItem({
+    required String value,
+    required String label,
+    required IconData icon,
+    required Color color,
+    required bool isSelected,
+  }) {
+    return PopupMenuItem<String>(
+      value: value,
+      height: 42,
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: color.withAlpha(25),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 16, color: color),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected
+                    ? AppColors.textPrimary
+                    : AppColors.textSecondary,
+              ),
+            ),
+          ),
+          if (isSelected)
+            Icon(
+              Icons.check_circle_rounded,
+              size: 18,
+              color: color == AppColors.textSecondary
+                  ? AppColors.primary
+                  : color,
+            ),
+        ],
+      ),
+    );
+  }
+
+  @visibleForTesting
+  Widget buildTransactionCardForTest(
+    BuildContext context,
+    TransactionModel tx, {
+    bool isGrid = false,
+  }) => _buildTransactionCard(context, tx, isGrid: isGrid);
 
   Widget _buildTransactionCard(
     BuildContext context,
@@ -408,6 +634,8 @@ class TransactionsView extends GetView<TransactionsController> {
               padding: const EdgeInsets.only(top: 1.5),
               child: Text(
                 '+$remainingItems item lainnya... (Ketuk untuk rincian)',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 11,
                   fontStyle: FontStyle.italic,
@@ -421,6 +649,7 @@ class TransactionsView extends GetView<TransactionsController> {
 
     return Card(
       elevation: 0,
+      margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: const BorderSide(color: AppColors.lightBorder, width: 1.2),
@@ -584,7 +813,20 @@ class TransactionsView extends GetView<TransactionsController> {
                         tx.isPending
                             ? 'BELUM BAYAR'
                             : tx.paymentMethod.toUpperCase(),
-                        tx.isPending ? AppColors.warning : AppColors.secondary,
+                        tx.isPending
+                            ? AppColors.warning
+                            : (tx.paymentMethod.toLowerCase().contains(
+                                        'cash',
+                                      ) ||
+                                      tx.paymentMethod.toLowerCase().contains(
+                                        'tunai',
+                                      )
+                                  ? AppColors.success
+                                  : (tx.paymentMethod.toLowerCase().contains(
+                                          'qris',
+                                        )
+                                        ? AppColors.secondary
+                                        : AppColors.info)),
                       ),
                       if (tx.customerName != null &&
                           tx.customerName!.isNotEmpty)
@@ -597,60 +839,54 @@ class TransactionsView extends GetView<TransactionsController> {
                   ),
                   const SizedBox(height: 4),
 
-                  // Details summary for List mode
-                  if (!isGrid) detailsSummaryWidget,
+                  // Items details summary (langsung pas di bawah badges)
+                  detailsSummaryWidget,
                 ],
               ),
-
-              // Details summary for Grid mode (guaranteed no vertical overflow)
-              if (isGrid)
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 2.0, bottom: 4.0),
-                    child: SingleChildScrollView(
-                      physics: const ClampingScrollPhysics(),
-                      child: detailsSummaryWidget,
-                    ),
-                  ),
-                ),
 
               // Bagian Bawah: Divider, Total & Cetak Struk Button
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Divider(height: 12, thickness: 0.8),
+                  const Divider(height: 10, thickness: 0.8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Total Pembayaran',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: AppColors.textSecondary,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Total Pembayaran',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
-                          ),
-                          Text(
-                            CurrencyFormatter.format(tx.total),
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primaryDark,
+                            Text(
+                              CurrencyFormatter.format(tx.total),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryDark,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.lightBackground,
                           foregroundColor: AppColors.textPrimary,
                           side: const BorderSide(color: AppColors.lightBorder),
                           elevation: 0,
+                          visualDensity: VisualDensity.compact,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 10,
-                            vertical: 5,
+                            vertical: 4,
                           ),
                         ),
                         icon: const Icon(Icons.print_outlined, size: 15),

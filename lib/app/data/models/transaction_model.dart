@@ -134,8 +134,9 @@ class TransactionModel {
       status: json['status'] ?? 'completed',
       orderType: json['order_type'] ?? 'dine_in',
       tableNumber: json['table_number']?.toString(),
-      customerName: json['customer_name']?.toString(),
-      paymentMethod: json['payment_method'] ?? 'cash',
+      paymentMethod: (json['payment_method'] != null && json['payment_method'].toString().trim().isNotEmpty)
+          ? json['payment_method'].toString().trim()
+          : ((json['status']?.toString().toLowerCase() == 'pending') ? 'unpaid' : 'cash'),
       total: (json['total'] != null)
           ? double.tryParse(json['total'].toString()) ?? 0.0
           : 0.0,
