@@ -111,24 +111,30 @@ class OpenBillsView extends GetView<OpenBillsController> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.receipt_long_rounded,
-                          size: 16,
-                          color: AppColors.primaryDark,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${controller.openBills.length} Bill Tersimpan',
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
+                    Expanded(
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.receipt_long_rounded,
+                            size: 16,
                             color: AppColors.primaryDark,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              '${controller.openBills.length} Bill Tersimpan',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primaryDark,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     Text(
                       'Total: ${CurrencyFormatter.format(controller.totalPendingAmount)}',
                       style: const TextStyle(
@@ -228,7 +234,8 @@ class OpenBillsView extends GetView<OpenBillsController> {
 
                     if (width >= 600) {
                       final int crossAxisCount = width >= 1050 ? 3 : 2;
-                      final double mainAxisExtent = width >= 1050 ? 228 : 232;
+                      // Tinggi seragam pas di bawah item lainnya (rapi tanpa ruang kosong berlebih, konsisten dengan card transaksi)
+                      const double cardExtent = 178;
 
                       return GridView.builder(
                         padding: const EdgeInsets.all(16),
@@ -236,7 +243,7 @@ class OpenBillsView extends GetView<OpenBillsController> {
                           crossAxisCount: crossAxisCount,
                           crossAxisSpacing: 14,
                           mainAxisSpacing: 14,
-                          mainAxisExtent: mainAxisExtent,
+                          mainAxisExtent: cardExtent,
                         ),
                         itemCount: displayedList.length,
                         itemBuilder: (context, index) {
@@ -264,6 +271,13 @@ class OpenBillsView extends GetView<OpenBillsController> {
       ),
     );
   }
+
+  @visibleForTesting
+  Widget buildBillCardForTest(
+    BuildContext context,
+    OpenBillModel bill, {
+    bool isGrid = false,
+  }) => _buildBillCard(context, bill, isGrid: isGrid);
 
   Widget _buildBillCard(
     BuildContext context,
@@ -344,25 +358,19 @@ class OpenBillsView extends GetView<OpenBillsController> {
       ],
     );
 
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: AppColors.lightBorder, width: 1.2),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () => controller.resumeBill(bill),
-        child: Container(
+        child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.lightBorder, width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withAlpha(6),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: isGrid
@@ -370,7 +378,7 @@ class OpenBillsView extends GetView<OpenBillsController> {
                 : MainAxisAlignment.start,
             mainAxisSize: isGrid ? MainAxisSize.max : MainAxisSize.min,
             children: [
-              // 1. Header (Meja / Pelanggan + Invoice + Jam)
+              // 1. Header (Meja / Pelanggan + Invoice + Jam) & Items
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -416,14 +424,18 @@ class OpenBillsView extends GetView<OpenBillsController> {
                                         : AppColors.primaryDark,
                                   ),
                                   const SizedBox(width: 4),
-                                  Text(
-                                    bill.billTitle,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: bill.isTakeAway
-                                          ? AppColors.warning
-                                          : AppColors.primaryDark,
+                                  Flexible(
+                                    child: Text(
+                                      bill.billTitle,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: bill.isTakeAway
+                                            ? AppColors.warning
+                                            : AppColors.primaryDark,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -485,7 +497,7 @@ class OpenBillsView extends GetView<OpenBillsController> {
 
                       const SizedBox(width: 8),
 
-                      // Bagian Kanan: Format Jam saja (tanpa relatif & tanpa titik tiga)
+                      // Bagian Kanan: Format Jam saja
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -518,70 +530,67 @@ class OpenBillsView extends GetView<OpenBillsController> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 5),
 
-                  // Details summary for List mode
-                  if (!isGrid) detailsSummaryWidget,
+                  // Details summary
+                  detailsSummaryWidget,
                 ],
               ),
-              // 2. Daftar Preview Item Pesanan (Grid mode: Expanded to prevent overflow)
-              if (isGrid)
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 2.0, bottom: 4.0),
-                    child: SingleChildScrollView(
-                      physics: const ClampingScrollPhysics(),
-                      child: detailsSummaryWidget,
-                    ),
-                  ),
-                ),
 
-              // 3. Footer (Total Tagihan & Tombol Cetak Struk)
+              // 2. Footer (Total Tagihan & Tombol Cetak Struk)
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Divider(height: 12, thickness: 0.8),
+                  const Divider(height: 10, thickness: 0.8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Total Tagihan ($itemsCount item)',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: AppColors.textSecondary,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Total Tagihan ($itemsCount item)',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
-                          ),
-                          Text(
-                            CurrencyFormatter.format(bill.total),
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primaryDark,
+                            Text(
+                              CurrencyFormatter.format(bill.total),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryDark,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
                           elevation: 0,
+                          visualDensity: VisualDensity.compact,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 10,
-                            vertical: 5,
+                            vertical: 4,
                           ),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                        icon: const Icon(Icons.print_rounded, size: 15),
+                        icon: const Icon(Icons.print_rounded, size: 14),
                         label: const Text(
                           'Cetak Struk',
                           style: TextStyle(
-                            fontSize: 11.5,
+                            fontSize: 11,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
