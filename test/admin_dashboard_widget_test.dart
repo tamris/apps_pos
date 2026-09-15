@@ -58,7 +58,11 @@ void main() {
       },
       'order_source_breakdown': {
         'pos': {'count': 20, 'total': 1200000, 'label': 'Kasir POS'},
-        'self_order': {'count': 5, 'total': 300000, 'label': 'Self-Order (Online)'},
+        'self_order': {
+          'count': 5,
+          'total': 300000,
+          'label': 'Self-Order (Online)',
+        },
       },
       'order_type_breakdown': {
         'dine_in': {'count': 18, 'total': 1000000, 'label': 'Dine In'},
@@ -72,14 +76,8 @@ void main() {
         'cash_sales': 500000,
         'expected_cash': 700000,
       },
-      'open_bills_summary': {
-        'count': 3,
-        'potential_revenue': 250000,
-      },
-      'cancellations_summary': {
-        'count': 1,
-        'total_nominal': 50000,
-      },
+      'open_bills_summary': {'count': 3, 'potential_revenue': 250000},
+      'cancellations_summary': {'count': 1, 'total_nominal': 50000},
     };
 
     controller.dashboardData.value = AdminDashboardModel.fromJson(json);
@@ -90,11 +88,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
 
     await tester.pumpWidget(
-      const GetMaterialApp(
-        home: Scaffold(
-          body: AdminDashboardTab(),
-        ),
-      ),
+      const GetMaterialApp(home: Scaffold(body: AdminDashboardTab())),
     );
 
     await tester.pumpAndSettle();
@@ -106,7 +100,9 @@ void main() {
     expect(find.text('Kasir Budi'), findsWidgets);
   });
 
-  testWidgets('Pumps AdminDashboardTab on mobile screen without error', (tester) async {
+  testWidgets('Pumps AdminDashboardTab on mobile screen without error', (
+    tester,
+  ) async {
     final mockApi = MockApiProvider();
     Get.put<ApiProvider>(mockApi);
 
@@ -127,7 +123,11 @@ void main() {
       },
       'order_source_breakdown': {
         'pos': {'count': 20, 'total': 1200000, 'label': 'Kasir POS'},
-        'online_order': {'count': 5, 'total': 300000, 'label': 'Self-Order (Online)'},
+        'online_order': {
+          'count': 5,
+          'total': 300000,
+          'label': 'Self-Order (Online)',
+        },
       },
       'order_type_breakdown': {
         'dine_in': {'count': 18, 'total': 1000000, 'label': 'Dine In'},
@@ -143,14 +143,8 @@ void main() {
         'total_sales': 1200000,
         'total_transactions': 20,
       },
-      'open_bills_summary': {
-        'count': 3,
-        'potential_revenue': 250000,
-      },
-      'cancellations_summary': {
-        'count': 1,
-        'total_nominal': 50000,
-      },
+      'open_bills_summary': {'count': 3, 'potential_revenue': 250000},
+      'cancellations_summary': {'count': 1, 'total_nominal': 50000},
     };
 
     controller.dashboardData.value = AdminDashboardModel.fromJson(json);
@@ -161,11 +155,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
 
     await tester.pumpWidget(
-      const GetMaterialApp(
-        home: Scaffold(
-          body: AdminDashboardTab(),
-        ),
-      ),
+      const GetMaterialApp(home: Scaffold(body: AdminDashboardTab())),
     );
 
     await tester.pumpAndSettle();
@@ -173,259 +163,321 @@ void main() {
     expect(find.text('Shift Kasir'), findsWidgets);
   });
 
-  testWidgets('Pumps AdminDashboardTab on narrow desktop/tablet (800x700) without overflow', (tester) async {
-    final mockApi = MockApiProvider();
-    Get.put<ApiProvider>(mockApi);
+  testWidgets(
+    'Pumps AdminDashboardTab on narrow desktop/tablet (800x700) without overflow',
+    (tester) async {
+      final mockApi = MockApiProvider();
+      Get.put<ApiProvider>(mockApi);
 
-    final controller = TestAdminController();
-    Get.put<AdminController>(controller);
+      final controller = TestAdminController();
+      Get.put<AdminController>(controller);
 
-    final json = {
-      'date': '2026-09-05',
-      'summary': {
-        'total_revenue': 1098000,
-        'total_transactions': 18,
-        'average_per_transaction': 61000,
-      },
-      'payment_breakdown': {
-        'cash': {'count': 11, 'total': 435000},
-        'qris': {'count': 7, 'total': 663000},
-        'transfer': {'count': 0, 'total': 0},
-      },
-      'order_source_breakdown': {
-        'pos': {'count': 17, 'total': 1000000, 'label': 'Kasir POS'},
-        'online_order': {'count': 1, 'total': 98000, 'label': 'Online'},
-      },
-      'order_type_breakdown': {
-        'dine_in': {'count': 16, 'total': 950000, 'label': 'Dine-in'},
-        'takeaway': {'count': 2, 'total': 148000, 'label': 'Takeaway'},
-      },
-      'active_shift': null,
-      'open_bills_summary': {
-        'count': 0,
-        'potential_revenue': 0,
-      },
-      'cancellations_summary': {
-        'count': 2,
-        'total_nominal': 273000,
-      },
-    };
+      final json = {
+        'date': '2026-09-05',
+        'summary': {
+          'total_revenue': 1098000,
+          'total_transactions': 18,
+          'average_per_transaction': 61000,
+        },
+        'payment_breakdown': {
+          'cash': {'count': 11, 'total': 435000},
+          'qris': {'count': 7, 'total': 663000},
+          'transfer': {'count': 0, 'total': 0},
+        },
+        'order_source_breakdown': {
+          'pos': {'count': 17, 'total': 1000000, 'label': 'Kasir POS'},
+          'online_order': {'count': 1, 'total': 98000, 'label': 'Online'},
+        },
+        'order_type_breakdown': {
+          'dine_in': {'count': 16, 'total': 950000, 'label': 'Dine-in'},
+          'takeaway': {'count': 2, 'total': 148000, 'label': 'Takeaway'},
+        },
+        'active_shift': null,
+        'open_bills_summary': {'count': 0, 'potential_revenue': 0},
+        'cancellations_summary': {'count': 2, 'total_nominal': 273000},
+      };
 
-    controller.dashboardData.value = AdminDashboardModel.fromJson(json);
+      controller.dashboardData.value = AdminDashboardModel.fromJson(json);
 
-    // Screen size 800x700 triggers isWide (>= 760) but < 880
-    tester.view.physicalSize = const Size(800, 700);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
+      // Screen size 800x700 triggers isWide (>= 760) but < 880
+      tester.view.physicalSize = const Size(800, 700);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
 
-    await tester.pumpWidget(
-      const GetMaterialApp(
-        home: Scaffold(
-          body: AdminDashboardTab(),
-        ),
-      ),
-    );
+      await tester.pumpWidget(
+        const GetMaterialApp(home: Scaffold(body: AdminDashboardTab())),
+      );
 
-    await tester.pumpAndSettle();
-    expect(find.text('Distribusi Pesanan'), findsOneWidget);
-    expect(find.text('SALURAN'), findsOneWidget);
-    expect(find.text('TIPE'), findsOneWidget);
-    expect(find.text('Rp 1.098.000'), findsWidgets);
-    expect(tester.takeException(), isNull);
-  });
+      await tester.pumpAndSettle();
+      expect(find.text('Distribusi Pesanan'), findsOneWidget);
+      expect(find.text('SALURAN'), findsOneWidget);
+      expect(find.text('TIPE LAYANAN'), findsOneWidget);
+      expect(find.text('Rp 1.098.000'), findsWidgets);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-  testWidgets('Pumps AdminDashboardTab with 0 transactions and verifies grey bar and 0% in Distribusi Pesanan', (tester) async {
-    final mockApi = MockApiProvider();
-    Get.put<ApiProvider>(mockApi);
+  testWidgets(
+    'Pumps AdminDashboardTab with 0 transactions and verifies grey bar and 0% in Distribusi Pesanan',
+    (tester) async {
+      final mockApi = MockApiProvider();
+      Get.put<ApiProvider>(mockApi);
 
-    final controller = TestAdminController();
-    Get.put<AdminController>(controller);
+      final controller = TestAdminController();
+      Get.put<AdminController>(controller);
 
-    final json = {
-      'date': '2026-09-05',
-      'summary': {
-        'total_revenue': 0,
-        'total_transactions': 0,
-        'average_per_transaction': 0,
-        'total_profit': 0,
-        'profit_margin': 0,
-        'total_items_sold': 0,
-      },
-      'payment_breakdown': {
-        'cash': {'count': 0, 'total': 0},
-        'qris': {'count': 0, 'total': 0},
-        'transfer': {'count': 0, 'total': 0},
-      },
-      'order_source_breakdown': {
-        'pos': {'count': 0, 'total': 0, 'label': 'Kasir POS'},
-        'online_order': {'count': 0, 'total': 0, 'label': 'Online'},
-      },
-      'order_type_breakdown': {
-        'dine_in': {'count': 0, 'total': 0, 'label': 'Dine-in'},
-        'takeaway': {'count': 0, 'total': 0, 'label': 'Takeaway'},
-      },
-      'active_shift': null,
-      'open_bills_summary': {
-        'count': 0,
-        'potential_revenue': 0,
-      },
-      'cancellations_summary': {
-        'count': 0,
-        'total_nominal': 0,
-      },
-    };
+      final json = {
+        'date': '2026-09-05',
+        'summary': {
+          'total_revenue': 0,
+          'total_transactions': 0,
+          'average_per_transaction': 0,
+          'total_profit': 0,
+          'profit_margin': 0,
+          'total_items_sold': 0,
+        },
+        'payment_breakdown': {
+          'cash': {'count': 0, 'total': 0},
+          'qris': {'count': 0, 'total': 0},
+          'transfer': {'count': 0, 'total': 0},
+        },
+        'order_source_breakdown': {
+          'pos': {'count': 0, 'total': 0, 'label': 'Kasir POS'},
+          'online_order': {'count': 0, 'total': 0, 'label': 'Online'},
+        },
+        'order_type_breakdown': {
+          'dine_in': {'count': 0, 'total': 0, 'label': 'Dine-in'},
+          'takeaway': {'count': 0, 'total': 0, 'label': 'Takeaway'},
+        },
+        'active_shift': null,
+        'open_bills_summary': {'count': 0, 'potential_revenue': 0},
+        'cancellations_summary': {'count': 0, 'total_nominal': 0},
+      };
 
-    controller.dashboardData.value = AdminDashboardModel.fromJson(json);
+      controller.dashboardData.value = AdminDashboardModel.fromJson(json);
 
-    tester.view.physicalSize = const Size(1280, 800);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
 
-    await tester.pumpWidget(
-      const GetMaterialApp(
-        home: Scaffold(
-          body: AdminDashboardTab(),
-        ),
-      ),
-    );
+      await tester.pumpWidget(
+        const GetMaterialApp(home: Scaffold(body: AdminDashboardTab())),
+      );
 
-    await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
 
-    // Verify 0 (0%) is displayed, not 0 (100%)
-    expect(find.text('0 (0%)'), findsWidgets);
-    expect(find.text('0 (100%)'), findsNothing);
-    expect(find.text('Total Pesanan'), findsOneWidget);
-    expect(find.text('0 Pesanan'), findsOneWidget);
-  });
+      // Verify 0 (0%) is displayed, not 0 (100%)
+      expect(find.text('0 (0%)'), findsWidgets);
+      expect(find.text('0 (100%)'), findsNothing);
+      expect(find.text('0 Pesanan'), findsOneWidget);
+    },
+  );
 
-  testWidgets('Opens AdminDateRangeDialog when tapping mobile date filter bar', (tester) async {
-    final mockApi = MockApiProvider();
-    Get.put<ApiProvider>(mockApi);
+  testWidgets(
+    'Opens AdminDateRangeDialog when tapping mobile date filter bar',
+    (tester) async {
+      final mockApi = MockApiProvider();
+      Get.put<ApiProvider>(mockApi);
 
-    final controller = TestAdminController();
-    Get.put<AdminController>(controller);
+      final controller = TestAdminController();
+      Get.put<AdminController>(controller);
 
-    final json = {
-      'date': '2026-09-05',
-      'summary': {
-        'total_revenue': 500000,
-        'total_transactions': 5,
-        'average_per_transaction': 100000,
-      },
-      'payment_breakdown': {
-        'cash': {'count': 5, 'total': 500000},
-        'qris': {'count': 0, 'total': 0},
-        'transfer': {'count': 0, 'total': 0},
-      },
-      'order_source_breakdown': {
-        'pos': {'count': 5, 'total': 500000, 'label': 'Kasir POS'},
-      },
-      'order_type_breakdown': {
-        'dine_in': {'count': 5, 'total': 500000, 'label': 'Dine In'},
-      },
-      'active_shift': null,
-      'open_bills_summary': {'count': 0, 'potential_revenue': 0},
-      'cancellations_summary': {'count': 0, 'total_nominal': 0},
-    };
+      final json = {
+        'date': '2026-09-05',
+        'summary': {
+          'total_revenue': 500000,
+          'total_transactions': 5,
+          'average_per_transaction': 100000,
+        },
+        'payment_breakdown': {
+          'cash': {'count': 5, 'total': 500000},
+          'qris': {'count': 0, 'total': 0},
+          'transfer': {'count': 0, 'total': 0},
+        },
+        'order_source_breakdown': {
+          'pos': {'count': 5, 'total': 500000, 'label': 'Kasir POS'},
+        },
+        'order_type_breakdown': {
+          'dine_in': {'count': 5, 'total': 500000, 'label': 'Dine In'},
+        },
+        'active_shift': null,
+        'open_bills_summary': {'count': 0, 'potential_revenue': 0},
+        'cancellations_summary': {'count': 0, 'total_nominal': 0},
+      };
 
-    controller.dashboardData.value = AdminDashboardModel.fromJson(json);
+      controller.dashboardData.value = AdminDashboardModel.fromJson(json);
 
-    // Set size to mobile phone (390 x 844) so isScreenMobile is true
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
+      // Set size to mobile phone (390 x 844) so isScreenMobile is true
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
 
-    await tester.pumpWidget(
-      const GetMaterialApp(
-        home: Scaffold(
-          body: AdminDashboardTab(),
-        ),
-      ),
-    );
+      await tester.pumpWidget(
+        const GetMaterialApp(home: Scaffold(body: AdminDashboardTab())),
+      );
 
-    await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
 
-    // Tap the calendar icon or date inkwell
-    final calendarIcon = find.byIcon(Icons.calendar_today_rounded).first;
-    expect(calendarIcon, findsOneWidget);
+      // Tap the calendar icon or date inkwell
+      final calendarIcon = find.byIcon(Icons.calendar_today_rounded).first;
+      expect(calendarIcon, findsOneWidget);
 
-    await tester.tap(calendarIcon);
-    await tester.pumpAndSettle();
+      await tester.tap(calendarIcon);
+      await tester.pumpAndSettle();
 
-    // Verify AdminDateRangeDialog is shown
-    expect(find.text('Pilih Tanggal Dashboard'), findsOneWidget);
-    expect(find.text('Pilih tanggal untuk melihat ringkasan performa'), findsOneWidget);
-    expect(find.text('Hari Ini'), findsWidgets);
-    expect(find.text('Kemarin'), findsWidgets);
-  });
+      // Verify AdminDateRangeDialog is shown
+      expect(find.text('Pilih Tanggal Dashboard'), findsOneWidget);
+      expect(
+        find.text('Pilih tanggal untuk melihat ringkasan performa'),
+        findsOneWidget,
+      );
+      expect(find.text('Hari Ini'), findsWidgets);
+      expect(find.text('Kemarin'), findsWidgets);
+    },
+  );
 
-  testWidgets('Pumps AdminDashboardTab on narrow mobile screen (360x640) with menu sales 118 Terjual without overflow', (tester) async {
-    final mockApi = MockApiProvider();
-    Get.put<ApiProvider>(mockApi);
+  testWidgets(
+    'Pumps AdminDashboardTab on narrow mobile screen (360x640) with menu sales 118 Terjual without overflow',
+    (tester) async {
+      final mockApi = MockApiProvider();
+      Get.put<ApiProvider>(mockApi);
 
-    final controller = TestAdminController();
-    Get.put<AdminController>(controller);
+      final controller = TestAdminController();
+      Get.put<AdminController>(controller);
 
-    final json = {
-      'date': '2026-09-05',
-      'summary': {
-        'total_revenue': 1500000,
-        'total_transactions': 25,
-        'average_per_transaction': 60000,
-      },
-      'payment_breakdown': {
-        'cash': {'count': 10, 'total': 500000},
-        'qris': {'count': 10, 'total': 700000},
-        'transfer': {'count': 5, 'total': 300000},
-      },
-      'order_source_breakdown': {
-        'pos': {'count': 20, 'total': 1200000, 'label': 'Kasir POS'},
-        'online_order': {'count': 5, 'total': 300000, 'label': 'Self-Order (Online)'},
-      },
-      'order_type_breakdown': {
-        'dine_in': {'count': 18, 'total': 1000000, 'label': 'Dine In'},
-        'takeaway': {'count': 7, 'total': 500000, 'label': 'Take Away'},
-      },
-      'active_shift': null,
-      'open_bills_summary': {'count': 0, 'potential_revenue': 0},
-      'cancellations_summary': {'count': 0, 'total_nominal': 0},
-    };
+      final json = {
+        'date': '2026-09-05',
+        'summary': {
+          'total_revenue': 1500000,
+          'total_transactions': 25,
+          'average_per_transaction': 60000,
+        },
+        'payment_breakdown': {
+          'cash': {'count': 10, 'total': 500000},
+          'qris': {'count': 10, 'total': 700000},
+          'transfer': {'count': 5, 'total': 300000},
+        },
+        'order_source_breakdown': {
+          'pos': {'count': 20, 'total': 1200000, 'label': 'Kasir POS'},
+          'online_order': {
+            'count': 5,
+            'total': 300000,
+            'label': 'Self-Order (Online)',
+          },
+        },
+        'order_type_breakdown': {
+          'dine_in': {'count': 18, 'total': 1000000, 'label': 'Dine In'},
+          'takeaway': {'count': 7, 'total': 500000, 'label': 'Take Away'},
+        },
+        'active_shift': null,
+        'open_bills_summary': {'count': 0, 'potential_revenue': 0},
+        'cancellations_summary': {'count': 0, 'total_nominal': 0},
+      };
 
-    controller.dashboardData.value = AdminDashboardModel.fromJson(json);
-    controller.menuSalesSummary.value = AdminMenuSalesSummaryModel.fromJson({
-      'total_quantity_sold': 118,
-      'total_revenue': 2500000,
-      'total_cost': 1300000,
-      'total_profit': 1200000,
-      'profit_margin': 48.0,
-      'total_unique_items_sold': 12,
-      'top_selling_product': {
-        'id': 1,
-        'name': 'Es Kopi Susu',
-        'quantity_sold': 45,
-        'total_revenue': 900000,
-      },
-    });
+      controller.dashboardData.value = AdminDashboardModel.fromJson(json);
+      controller.menuSalesSummary.value = AdminMenuSalesSummaryModel.fromJson({
+        'total_quantity_sold': 118,
+        'total_revenue': 2500000,
+        'total_cost': 1300000,
+        'total_profit': 1200000,
+        'profit_margin': 48.0,
+        'total_unique_items_sold': 12,
+        'top_selling_product': {
+          'id': 1,
+          'name': 'Es Kopi Susu',
+          'quantity_sold': 45,
+          'total_revenue': 900000,
+        },
+      });
 
-    // Set size to narrow mobile (360 x 640)
-    tester.view.physicalSize = const Size(360, 640);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
+      // Set size to narrow mobile (360 x 640)
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
 
-    await tester.pumpWidget(
-      const GetMaterialApp(
-        home: Scaffold(
-          body: AdminDashboardTab(),
-        ),
-      ),
-    );
+      await tester.pumpWidget(
+        const GetMaterialApp(home: Scaffold(body: AdminDashboardTab())),
+      );
 
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Laporan Penjualan Menu'), 200);
-    await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Laporan Penjualan Menu'), 200);
+      await tester.pumpAndSettle();
 
-    expect(find.text('118 Terjual'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      expect(find.text('118 Terjual'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Verifies redesigned Metode Pembayaran and Distribusi Pesanan cards with 100% QRIS and Takeaway',
+    (tester) async {
+      final mockApi = MockApiProvider();
+      Get.put<ApiProvider>(mockApi);
+
+      final controller = TestAdminController();
+      Get.put<AdminController>(controller);
+
+      final json = {
+        'date': '2026-09-15',
+        'summary': {
+          'total_revenue': 52000,
+          'total_transactions': 2,
+          'average_per_transaction': 26000,
+        },
+        'payment_breakdown': {
+          'cash': {'count': 0, 'total': 0},
+          'qris': {'count': 2, 'total': 52000},
+          'transfer': {'count': 0, 'total': 0},
+        },
+        'order_source_breakdown': {
+          'pos': {'count': 2, 'total': 52000, 'label': 'Kasir POS'},
+          'online_order': {'count': 0, 'total': 0, 'label': 'Online'},
+        },
+        'order_type_breakdown': {
+          'dine_in': {'count': 0, 'total': 0, 'label': 'Dine-in'},
+          'takeaway': {'count': 2, 'total': 52000, 'label': 'Takeaway'},
+        },
+        'active_shift': null,
+        'open_bills_summary': {'count': 0, 'potential_revenue': 0},
+        'cancellations_summary': {'count': 0, 'total_nominal': 0},
+      };
+
+      controller.dashboardData.value = AdminDashboardModel.fromJson(json);
+
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(
+        const GetMaterialApp(home: Scaffold(body: AdminDashboardTab())),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Verify Metode Pembayaran elements
+      expect(find.text('Metode Pembayaran'), findsOneWidget);
+      expect(find.text('Total penerimaan kas & non-tunai'), findsOneWidget);
+      expect(find.text('2 Transaksi'), findsOneWidget);
+      expect(find.textContaining('Cash'), findsOneWidget);
+      expect(find.textContaining('QRIS Digital'), findsOneWidget);
+      expect(find.textContaining('Transfer Bank'), findsOneWidget);
+      expect(find.textContaining('(2 trx • 100%)'), findsOneWidget);
+      expect(find.textContaining('(0 trx • 0%)'), findsNWidgets(2));
+
+      await tester.scrollUntilVisible(find.text('Distribusi Pesanan'), 200);
+      await tester.pumpAndSettle();
+
+      // Verify Distribusi Pesanan elements
+      expect(find.text('Distribusi Pesanan'), findsOneWidget);
+      expect(find.text('Analisis kanal dan cara konsumsi'), findsOneWidget);
+      expect(find.text('2 Pesanan'), findsOneWidget);
+      expect(find.text('SALURAN'), findsOneWidget);
+      expect(find.text('TIPE LAYANAN'), findsOneWidget);
+      expect(find.text('Kasir POS'), findsOneWidget);
+      expect(find.text('Online'), findsOneWidget);
+      expect(find.text('Takeaway'), findsOneWidget);
+      expect(find.text('Dine-in'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
-

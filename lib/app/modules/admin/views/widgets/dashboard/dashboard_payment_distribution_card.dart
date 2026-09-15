@@ -19,23 +19,33 @@ class DashboardPaymentDistributionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = data.paymentBreakdown;
 
-    final cashPercent = totalRevenue > 0 ? (p.cash.total / totalRevenue) : 0.0;
-    final qrisPercent = totalRevenue > 0 ? (p.qris.total / totalRevenue) : 0.0;
-    final transferPercent = totalRevenue > 0
-        ? (p.transfer.total / totalRevenue)
+    // Hitung total penerimaan efektif
+    final calculatedTotal = p.cash.total + p.qris.total + p.transfer.total;
+    final effectiveRevenue = totalRevenue > 0 ? totalRevenue : calculatedTotal;
+
+    final qrisPercent = effectiveRevenue > 0
+        ? (p.qris.total / effectiveRevenue)
         : 0.0;
+    final cashPercent = effectiveRevenue > 0
+        ? (p.cash.total / effectiveRevenue)
+        : 0.0;
+    final transferPercent = effectiveRevenue > 0
+        ? (p.transfer.total / effectiveRevenue)
+        : 0.0;
+
+    final totalTransactions = p.cash.count + p.qris.count + p.transfer.count;
 
     return Container(
       height: height,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 6,
+            color: const Color(0xFF0F172A).withValues(alpha: 0.025),
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
@@ -46,132 +56,145 @@ class DashboardPaymentDistributionCard extends StatelessWidget {
             : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Row
+          // 1. Header Row (Judul & Subjudul di Kiri, Total Rupiah & Jumlah Transaksi di Kanan)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Metode Pembayaran',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF0F172A),
-                  letterSpacing: -0.2,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Text(
+                      'Metode Pembayaran',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Total penerimaan kas & non-tunai',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w400,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 8),
-              Flexible(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    CurrencyFormatter.format(totalRevenue),
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F172A),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      CurrencyFormatter.format(effectiveRevenue),
+                      maxLines: 1,
+                      style: const TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
+                        letterSpacing: -0.3,
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$totalTransactions Transaksi',
+                    maxLines: 1,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w400,
+                      color: Color(0xFF94A3B8),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          if (height == null) const SizedBox(height: 10),
 
-          // Multi-Segment Distribution Bar
+          if (height == null) const SizedBox(height: 16),
+
+          // 2. Bar Distribusi Multi-Segmen Pill Rounded
           ClipRRect(
-            borderRadius: BorderRadius.circular(5),
+            borderRadius: BorderRadius.circular(100),
             child: SizedBox(
-              height: 6,
+              height: 6.5,
               child: Row(
                 children: [
                   if (cashPercent > 0)
                     Expanded(
-                      flex: (cashPercent * 100).toInt().clamp(1, 100),
+                      flex: (cashPercent * 1000).toInt().clamp(1, 1000),
                       child: Container(color: const Color(0xFF10B981)),
                     ),
                   if (qrisPercent > 0)
                     Expanded(
-                      flex: (qrisPercent * 100).toInt().clamp(1, 100),
+                      flex: (qrisPercent * 1000).toInt().clamp(1, 1000),
                       child: Container(color: AppColors.secondary),
                     ),
                   if (transferPercent > 0)
                     Expanded(
-                      flex: (transferPercent * 100).toInt().clamp(1, 100),
+                      flex: (transferPercent * 1000).toInt().clamp(1, 1000),
                       child: Container(color: const Color(0xFF0EA5E9)),
                     ),
-                  if (totalRevenue == 0)
-                    Expanded(child: Container(color: const Color(0xFFE2E8F0))),
+                  if (qrisPercent == 0 &&
+                      cashPercent == 0 &&
+                      transferPercent == 0)
+                    Expanded(child: Container(color: const Color(0xFFF1F5F9))),
                 ],
               ),
             ),
           ),
-          if (height == null) const SizedBox(height: 10),
 
-          // Breakdown Items
-          Column(
-            children: [
-              _buildPaymentRow(
-                label: 'Uang Tunai',
-                dotColor: const Color(0xFF10B981),
-                total: p.cash.total,
-                count: p.cash.count,
-                percentage: cashPercent,
-              ),
-              const SizedBox(height: 5),
-              _buildPaymentRow(
-                label: 'QRIS Digital',
-                dotColor: AppColors.secondary,
-                total: p.qris.total,
-                count: p.qris.count,
-                percentage: qrisPercent,
-              ),
-              const SizedBox(height: 5),
-              _buildPaymentRow(
-                label: 'Transfer Bank',
-                dotColor: const Color(0xFF0EA5E9),
-                total: p.transfer.total,
-                count: p.transfer.count,
-                percentage: transferPercent,
-              ),
-            ],
+          if (height == null) const SizedBox(height: 16),
+
+          // 3. Item 1: Cash
+          _buildPaymentItem(
+            label: 'Cash',
+            dotColor: const Color(0xFF10B981),
+            total: p.cash.total,
+            count: p.cash.count,
+            percentage: cashPercent,
           ),
 
-          if (height == null) const SizedBox(height: 10),
-          Column(
-            children: [
-              const Divider(height: 1, color: Color(0xFFF1F5F9)),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Flexible(
-                    child: Text(
-                      'Total Pembayaran',
-                      maxLines: 1,
-                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${p.cash.count + p.qris.count + p.transfer.count} Transaksi',
-                    maxLines: 1,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF0F172A),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+          if (height == null) const SizedBox(height: 14),
+
+          // 4. Item 2: QRIS Digital
+          _buildPaymentItem(
+            label: 'QRIS Digital',
+            dotColor: AppColors.secondary,
+            total: p.qris.total,
+            count: p.qris.count,
+            percentage: qrisPercent,
+          ),
+
+          if (height == null) const SizedBox(height: 14),
+
+          // 5. Item 3: Transfer Bank
+          _buildPaymentItem(
+            label: 'Transfer Bank',
+            dotColor: const Color(0xFF0EA5E9),
+            total: p.transfer.total,
+            count: p.transfer.count,
+            percentage: transferPercent,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPaymentRow({
+  Widget _buildPaymentItem({
     required String label,
     required Color dotColor,
     required double total,
@@ -182,67 +205,57 @@ class DashboardPaymentDistributionCard extends StatelessWidget {
 
     return Row(
       children: [
-        // 1. Dot Indikator Warna
+        // Dot Indikator Warna
         Container(
-          width: 7,
-          height: 7,
+          width: 7.5,
+          height: 7.5,
           decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 9),
 
-        // 2. Nama Metode Pembayaran
+        // Nama Metode Pembayaran & Tag Transaksi Persen dengan jarak lega
         Expanded(
-          child: Text(
-            label,
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: label,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+                const WidgetSpan(
+                  alignment: PlaceholderAlignment.middle,
+                  child: SizedBox(width: 7),
+                ),
+                TextSpan(
+                  text: '($count trx • $percentInt%)',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    color: Color(0xFF94A3B8),
+                  ),
+                ),
+              ],
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF334155),
-            ),
           ),
         ),
         const SizedBox(width: 8),
 
-        // 3. Kolom Transaksi & Persentase (Rata Kanan Presisi, Sejajar Vertikal)
-        SizedBox(
-          width: 86,
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                '$count trx • $percentInt%',
-                maxLines: 1,
-                style: const TextStyle(
-                  fontSize: 11.5,
-                  color: Color(0xFF64748B),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 14),
-
-        // 4. Kolom Nominal Rupiah (Rata Kanan Presisi di Ujung Kanan)
-        SizedBox(
-          width: 96,
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                CurrencyFormatter.format(total),
-                maxLines: 1,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF0F172A),
-                ),
-              ),
-            ),
+        // Nominal Rupiah di Sisi Kanan (Muted jika 0, Bold Slate jika ada nilai)
+        Text(
+          CurrencyFormatter.format(total),
+          maxLines: 1,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: total > 0 ? FontWeight.w700 : FontWeight.w500,
+            color: total > 0
+                ? const Color(0xFF0F172A)
+                : const Color(0xFF94A3B8),
           ),
         ),
       ],
