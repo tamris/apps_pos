@@ -10,6 +10,7 @@ import '../widgets/cash_flow/cash_flow_empty_state.dart';
 import '../widgets/cash_flow/admin_add_expense_dialog.dart';
 import '../widgets/cash_flow/admin_manage_categories_dialog.dart';
 import '../widgets/cash_flow/admin_cash_flow_detail_dialog.dart';
+import '../widgets/common/admin_load_more_footer.dart';
 
 class AdminCashFlowTab extends GetView<AdminController> {
   const AdminCashFlowTab({super.key});
@@ -30,7 +31,7 @@ class AdminCashFlowTab extends GetView<AdminController> {
             onManageCategoriesPressed: () => AdminManageCategoriesDialog.show(context),
           ),
 
-          // 3. Responsive Data Grid / List
+          // 3. Responsive Data Grid / List with Infinite Scroll
           Expanded(
             child: Obx(() {
               if (controller.isLoadingCashFlow.value && controller.cashFlowMovements.isEmpty) {
@@ -57,41 +58,71 @@ class AdminCashFlowTab extends GetView<AdminController> {
                           final width = constraints.maxWidth;
                           final isDesktop = width >= 1150;
                           final isTablet = width >= 750;
+                          final crossAxisCount = isDesktop ? 3 : 2;
 
-                          if (isTablet) {
-                            final crossAxisCount = isDesktop ? 3 : 2;
-                            return GridView.builder(
-                              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: crossAxisCount,
-                                crossAxisSpacing: 14,
-                                mainAxisSpacing: 14,
-                                mainAxisExtent: 148,
+                          return CustomScrollView(
+                            controller: controller.cashFlowScrollController,
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            keyboardDismissBehavior:
+                                ScrollViewKeyboardDismissBehavior.onDrag,
+                            slivers: [
+                              SliverPadding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isTablet ? 20 : 16,
+                                  vertical: isTablet ? 16 : 14,
+                                ),
+                                sliver: isTablet
+                                    ? SliverGrid(
+                                        gridDelegate:
+                                            SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount: crossAxisCount,
+                                          crossAxisSpacing: 14,
+                                          mainAxisSpacing: 14,
+                                          mainAxisExtent: 148,
+                                        ),
+                                        delegate:
+                                            SliverChildBuilderDelegate(
+                                          (context, i) {
+                                            final m = movements[i];
+                                            return CashFlowCard(
+                                              movement: m,
+                                              onTap: () =>
+                                                  AdminCashFlowDetailDialog.show(
+                                                      context,
+                                                      movement: m),
+                                            );
+                                          },
+                                          childCount: movements.length,
+                                        ),
+                                      )
+                                    : SliverList.separated(
+                                        itemCount: movements.length,
+                                        separatorBuilder: (_, __) =>
+                                            const SizedBox(height: 12),
+                                        itemBuilder: (context, i) {
+                                          final m = movements[i];
+                                          return CashFlowCard(
+                                            movement: m,
+                                            onTap: () =>
+                                                AdminCashFlowDetailDialog.show(
+                                                    context,
+                                                    movement: m),
+                                          );
+                                        },
+                                      ),
                               ),
-                              itemCount: movements.length,
-                              itemBuilder: (context, i) {
-                                final m = movements[i];
-                                return CashFlowCard(
-                                  movement: m,
-                                  onTap: () => AdminCashFlowDetailDialog.show(context, movement: m),
-                                );
-                              },
-                            );
-                          }
 
-                          return ListView.separated(
-                            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                            itemCount: movements.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 12),
-                            itemBuilder: (context, i) {
-                              final m = movements[i];
-                              return CashFlowCard(
-                                movement: m,
-                                onTap: () => AdminCashFlowDetailDialog.show(context, movement: m),
-                              );
-                            },
+                              // Bottom Loading Spinner or End-of-List Indicator
+                              SliverToBoxAdapter(
+                                child: Obx(() => AdminLoadMoreFooter(
+                                      isLoadingMore:
+                                          controller.isLoadingMoreCashFlow.value,
+                                      hasMore: controller.hasMoreCashFlow.value,
+                                      itemCount: movements.length,
+                                      itemName: 'arus kas',
+                                    )),
+                              ),
+                            ],
                           );
                         },
                       ),

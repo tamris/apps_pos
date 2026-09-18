@@ -7,6 +7,7 @@ import '../widgets/products/admin_product_form_dialog.dart';
 import '../widgets/products/product_metrics_strip.dart';
 import '../widgets/products/product_filter_bar.dart';
 import '../widgets/products/product_card.dart';
+import '../widgets/common/admin_load_more_footer.dart';
 import 'admin_hpp_tab.dart';
 
 class AdminProductsTab extends GetView<AdminController> {
@@ -257,44 +258,68 @@ class AdminProductsTab extends GetView<AdminController> {
                         final isWideScreen = width >= 1500;
                         final isDesktop = width >= 1100;
                         final isTablet = width >= 700;
+                        final crossAxisCount =
+                            isWideScreen ? 4 : (isDesktop ? 3 : 2);
 
-                        if (isTablet) {
-                          final crossAxisCount = isWideScreen ? 4 : (isDesktop ? 3 : 2);
-                          return GridView.builder(
-                            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: crossAxisCount,
-                              crossAxisSpacing: 14,
-                              mainAxisSpacing: 14,
-                              mainAxisExtent: 140,
-                            ),
-                            itemCount: products.length,
-                            itemBuilder: (context, i) {
-                              final p = products[i];
-                              return ProductCard(
-                                product: p,
-                                controller: controller,
-                              );
-                            },
-                          );
-                        }
-
-                        return ListView.separated(
-                          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                          itemCount: products.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 12),
-                          itemBuilder: (context, i) {
-                            final p = products[i];
-                            return SizedBox(
-                              height: 140,
-                              child: ProductCard(
-                                product: p,
-                                controller: controller,
+                        return CustomScrollView(
+                          controller: controller.productScrollController,
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior.onDrag,
+                          slivers: [
+                            SliverPadding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isTablet ? 20 : 16,
+                                vertical: isTablet ? 16 : 14,
                               ),
-                            );
-                          },
+                              sliver: isTablet
+                                  ? SliverGrid(
+                                      gridDelegate:
+                                          SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount: crossAxisCount,
+                                        crossAxisSpacing: 14,
+                                        mainAxisSpacing: 14,
+                                        mainAxisExtent: 140,
+                                      ),
+                                      delegate: SliverChildBuilderDelegate(
+                                        (context, i) {
+                                          final p = products[i];
+                                          return ProductCard(
+                                            product: p,
+                                            controller: controller,
+                                          );
+                                        },
+                                        childCount: products.length,
+                                      ),
+                                    )
+                                  : SliverList.separated(
+                                      itemCount: products.length,
+                                      separatorBuilder: (_, __) =>
+                                          const SizedBox(height: 12),
+                                      itemBuilder: (context, i) {
+                                        final p = products[i];
+                                        return SizedBox(
+                                          height: 140,
+                                          child: ProductCard(
+                                            product: p,
+                                            controller: controller,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                            ),
+
+                            // Bottom Loading Spinner or End-of-List Indicator
+                            SliverToBoxAdapter(
+                              child: Obx(() => AdminLoadMoreFooter(
+                                    isLoadingMore:
+                                        controller.isLoadingMoreProducts.value,
+                                    hasMore: controller.hasMoreProducts.value,
+                                    itemCount: products.length,
+                                    itemName: 'produk',
+                                  )),
+                            ),
+                          ],
                         );
                       },
                     ),

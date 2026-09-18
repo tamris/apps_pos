@@ -10,6 +10,7 @@ import '../widgets/transactions/transactions_metrics_strip.dart';
 import '../widgets/transactions/transactions_filter_bar.dart';
 import '../widgets/transactions/transaction_card.dart';
 import '../widgets/transactions/transactions_empty_state.dart';
+import '../widgets/common/admin_load_more_footer.dart';
 
 class AdminTransactionsTab extends GetView<AdminController> {
   const AdminTransactionsTab({super.key});
@@ -26,7 +27,7 @@ class AdminTransactionsTab extends GetView<AdminController> {
           // 2. Search & Filter Bar
           const TransactionsFilterBar(),
 
-          // 3. Transactions Responsive Grid / List
+          // 3. Transactions Responsive Grid / List with Infinite Scroll
           Expanded(
             child: Obx(() {
               if (controller.isLoadingTransactions.value &&
@@ -55,51 +56,72 @@ class AdminTransactionsTab extends GetView<AdminController> {
                           final isDesktop = width >= 1100;
                           final isTablet = width >= 650;
 
-                          if (isTablet) {
-                      final crossAxisCount = isDesktop ? 3 : 2;
-                      return GridView.builder(
-                        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 16,
-                        ),
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: crossAxisCount,
-                          crossAxisSpacing: 14,
-                          mainAxisSpacing: 14,
-                          mainAxisExtent: 152,
-                        ),
-                        itemCount: displayList.length,
-                        itemBuilder: (context, index) {
-                          final tx = displayList[index];
-                          return TransactionCard(
-                            tx: tx,
-                            onTap: () => _openDetailDialog(context, tx),
-                            onVoidPressed: () => _openVoidDialog(context, tx),
+                          return CustomScrollView(
+                            controller: controller.trxScrollController,
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            keyboardDismissBehavior:
+                                ScrollViewKeyboardDismissBehavior.onDrag,
+                            slivers: [
+                              SliverPadding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isTablet ? 20 : 16,
+                                  vertical: isTablet ? 16 : 14,
+                                ),
+                                sliver: isTablet
+                                    ? SliverGrid(
+                                        gridDelegate:
+                                            SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount: isDesktop ? 3 : 2,
+                                          crossAxisSpacing: 14,
+                                          mainAxisSpacing: 14,
+                                          mainAxisExtent: 152,
+                                        ),
+                                        delegate:
+                                            SliverChildBuilderDelegate(
+                                          (context, index) {
+                                            final tx = displayList[index];
+                                            return TransactionCard(
+                                              tx: tx,
+                                              onTap: () =>
+                                                  _openDetailDialog(context, tx),
+                                              onVoidPressed: () =>
+                                                  _openVoidDialog(context, tx),
+                                            );
+                                          },
+                                          childCount: displayList.length,
+                                        ),
+                                      )
+                                    : SliverList.separated(
+                                        itemCount: displayList.length,
+                                        separatorBuilder: (_, __) =>
+                                            const SizedBox(height: 12),
+                                        itemBuilder: (context, index) {
+                                          final tx = displayList[index];
+                                          return TransactionCard(
+                                            tx: tx,
+                                            onTap: () =>
+                                                _openDetailDialog(context, tx),
+                                            onVoidPressed: () =>
+                                                _openVoidDialog(context, tx),
+                                          );
+                                        },
+                                      ),
+                              ),
+
+                              // Bottom Loading Spinner or End-of-List Indicator
+                              SliverToBoxAdapter(
+                                child: Obx(() => AdminLoadMoreFooter(
+                                      isLoadingMore:
+                                          controller.isLoadingMoreTrx.value,
+                                      hasMore: controller.hasMoreTrx.value,
+                                      itemCount: displayList.length,
+                                      itemName: 'transaksi',
+                                    )),
+                              ),
+                            ],
                           );
                         },
-                      );
-                    }
-
-                    return ListView.separated(
-                      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
                       ),
-                      itemCount: displayList.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final tx = displayList[index];
-                        return TransactionCard(
-                          tx: tx,
-                          onTap: () => _openDetailDialog(context, tx),
-                          onVoidPressed: () => _openVoidDialog(context, tx),
-                        );
-                      },
-                    );
-                  },
-                ),
               );
             }),
           ),

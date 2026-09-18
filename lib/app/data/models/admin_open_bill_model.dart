@@ -51,6 +51,17 @@ class AdminOpenBillModel {
     return 0;
   }
 
+  /// Format durasi duduk / tunggu ringkas dan hemat tempat
+  /// Jika < 60 menit: 'Baru' atau '${m}m' (misal: 15m, 45m)
+  /// Jika >= 60 menit: '$hours Jam' (misal: 1 Jam, 2 Jam, 77 Jam)
+  String get formattedDuration {
+    final m = elapsedMinutes;
+    if (m <= 0) return 'Baru';
+    if (m < 60) return '${m}m';
+    final hours = m ~/ 60;
+    return '$hours Jam';
+  }
+
   factory AdminOpenBillModel.fromJson(Map<String, dynamic> json) {
     final rawTable = json['table_number']?.toString().trim() ?? '';
     final tableNum = (rawTable.isEmpty || rawTable == '-') ? '-' : rawTable;

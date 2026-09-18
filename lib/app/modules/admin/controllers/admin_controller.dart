@@ -61,6 +61,12 @@ class AdminController extends GetxController {
   final RxBool isLoadingMenuDetail = false.obs;
   final Rx<AdminMenuSalesDetailModel?> selectedMenuDetail = Rx<AdminMenuSalesDetailModel?>(null);
 
+  // --- MENU SALES INFINITE SCROLL / PAGINATION STATE ---
+  int menuCurrentPage = 1;
+  final RxBool hasMoreMenuSales = true.obs;
+  final RxBool isLoadingMoreMenuSales = false.obs;
+  final ScrollController menuScrollController = ScrollController();
+
   List<AdminMenuSalesItemModel> get filteredMenuSalesItems {
     final query = menuSearchQuery.value.trim().toLowerCase();
     final catId = selectedMenuCategoryId.value;
@@ -90,6 +96,22 @@ class AdminController extends GetxController {
   final TextEditingController trxSearchController = TextEditingController();
   final RxBool isLoadingTransactions = false.obs;
 
+  // --- TRANSACTIONS INFINITE SCROLL / PAGINATION & SUMMARY STATE ---
+  int trxCurrentPage = 1;
+  final RxBool hasMoreTrx = true.obs;
+  final RxBool isLoadingMoreTrx = false.obs;
+  final ScrollController trxScrollController = ScrollController();
+  final RxInt totalTrxCount = 0.obs;
+  final RxInt completedTrxCount = 0.obs;
+  final RxDouble totalTrxRevenue = 0.0.obs;
+  final RxDouble totalTrxProfit = 0.0.obs;
+  final RxDouble totalTrxAov = 0.0.obs;
+  final RxDouble totalTrxProfitMargin = 0.0.obs;
+  final RxBool hasServerTrxSummary = false.obs;
+
+  // --- PRODUCTS TOTAL STATE ---
+  final RxInt totalProductCount = 0.obs;
+
   // --- TAB 3: SHIFT AUDIT & Z-REPORT ---
   final RxList<AdminShiftModel> shifts = <AdminShiftModel>[].obs;
   final RxString selectedShiftStatus = 'all'.obs; // 'all', 'open', 'closed', 'balanced', 'discrepancy'
@@ -99,6 +121,12 @@ class AdminController extends GetxController {
   final RxString shiftSearchQuery = ''.obs;
   final TextEditingController shiftSearchController = TextEditingController();
   final RxBool isLoadingShifts = false.obs;
+
+  // --- SHIFTS INFINITE SCROLL / PAGINATION STATE ---
+  int shiftCurrentPage = 1;
+  final RxBool hasMoreShifts = true.obs;
+  final RxBool isLoadingMoreShifts = false.obs;
+  final ScrollController shiftScrollController = ScrollController();
 
   List<AdminShiftModel> get filteredShifts {
     return shifts.where((s) {
@@ -216,6 +244,12 @@ class AdminController extends GetxController {
   final RxBool isLoadingAdminCategories = false.obs;
   final RxBool isSubmittingGeneralExpense = false.obs;
 
+  // --- CASH FLOW INFINITE SCROLL / PAGINATION STATE ---
+  int cashFlowCurrentPage = 1;
+  final RxBool hasMoreCashFlow = true.obs;
+  final RxBool isLoadingMoreCashFlow = false.obs;
+  final ScrollController cashFlowScrollController = ScrollController();
+
   List<CashMovementModel> get filteredCashFlowMovements {
     final query = cashFlowSearchQuery.value.trim().toLowerCase();
     final type = selectedCashFlowType.value;
@@ -263,6 +297,12 @@ class AdminController extends GetxController {
   final RxString selectedProductStatus = 'all'.obs; // 'all', 'active', 'inactive', 'archived'
   final RxString selectedProductSort = 'name'.obs; // 'name', 'price_asc', 'price_desc', 'margin_desc', 'margin_asc'
   final RxBool hasProductSearch = false.obs;
+
+  // --- PRODUCTS INFINITE SCROLL / PAGINATION STATE ---
+  int productCurrentPage = 1;
+  final RxBool hasMoreProducts = true.obs;
+  final RxBool isLoadingMoreProducts = false.obs;
+  final ScrollController productScrollController = ScrollController();
 
   List<AdminProductModel> get filteredProducts {
     final q = productSearchQuery.value.trim().toLowerCase();
@@ -471,6 +511,12 @@ class AdminController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    trxScrollController.addListener(_onTrxScroll);
+    productScrollController.addListener(_onProductScroll);
+    shiftScrollController.addListener(_onShiftScroll);
+    cashFlowScrollController.addListener(_onCashFlowScroll);
+    menuScrollController.addListener(_onMenuScroll);
+
     fetchDashboard();
     fetchTransactions();
     fetchOpenBills();
@@ -485,6 +531,17 @@ class AdminController extends GetxController {
 
   @override
   void onClose() {
+    trxScrollController.removeListener(_onTrxScroll);
+    trxScrollController.dispose();
+    productScrollController.removeListener(_onProductScroll);
+    productScrollController.dispose();
+    shiftScrollController.removeListener(_onShiftScroll);
+    shiftScrollController.dispose();
+    cashFlowScrollController.removeListener(_onCashFlowScroll);
+    cashFlowScrollController.dispose();
+    menuScrollController.removeListener(_onMenuScroll);
+    menuScrollController.dispose();
+
     _cashFlowSearchDebounce?.cancel();
     _trxSearchDebounce?.cancel();
     _shiftSearchDebounce?.cancel();
@@ -498,6 +555,61 @@ class AdminController extends GetxController {
     cashFlowSearchController.dispose();
     productSearchController.dispose();
     super.onClose();
+  }
+
+  void _onTrxScroll() {
+    if (!trxScrollController.hasClients) return;
+    final maxScroll = trxScrollController.position.maxScrollExtent;
+    final currentScroll = trxScrollController.position.pixels;
+    if (currentScroll >= (maxScroll - 300)) {
+      if (!isLoadingTransactions.value && !isLoadingMoreTrx.value && hasMoreTrx.value) {
+        loadMoreTransactions();
+      }
+    }
+  }
+
+  void _onProductScroll() {
+    if (!productScrollController.hasClients) return;
+    final maxScroll = productScrollController.position.maxScrollExtent;
+    final currentScroll = productScrollController.position.pixels;
+    if (currentScroll >= (maxScroll - 300)) {
+      if (!isLoadingProducts.value && !isLoadingMoreProducts.value && hasMoreProducts.value) {
+        loadMoreProducts();
+      }
+    }
+  }
+
+  void _onShiftScroll() {
+    if (!shiftScrollController.hasClients) return;
+    final maxScroll = shiftScrollController.position.maxScrollExtent;
+    final currentScroll = shiftScrollController.position.pixels;
+    if (currentScroll >= (maxScroll - 300)) {
+      if (!isLoadingShifts.value && !isLoadingMoreShifts.value && hasMoreShifts.value) {
+        loadMoreShifts();
+      }
+    }
+  }
+
+  void _onCashFlowScroll() {
+    if (!cashFlowScrollController.hasClients) return;
+    final maxScroll = cashFlowScrollController.position.maxScrollExtent;
+    final currentScroll = cashFlowScrollController.position.pixels;
+    if (currentScroll >= (maxScroll - 300)) {
+      if (!isLoadingCashFlow.value && !isLoadingMoreCashFlow.value && hasMoreCashFlow.value) {
+        loadMoreCashFlow();
+      }
+    }
+  }
+
+  void _onMenuScroll() {
+    if (!menuScrollController.hasClients) return;
+    final maxScroll = menuScrollController.position.maxScrollExtent;
+    final currentScroll = menuScrollController.position.pixels;
+    if (currentScroll >= (maxScroll - 300)) {
+      if (!isLoadingMenuSales.value && !isLoadingMoreMenuSales.value && hasMoreMenuSales.value) {
+        loadMoreMenuSales();
+      }
+    }
   }
 
   void switchTab(int index) {
@@ -599,55 +711,110 @@ class AdminController extends GetxController {
   // ==========================================
   // 2. TRANSACTIONS & VOID LOGIC
   // ==========================================
+  Map<String, dynamic> _buildTrxQueryParams({int page = 1}) {
+    final Map<String, dynamic> params = {
+      'per_page': 20,
+      'page': page,
+    };
+
+    if (selectedTrxStatus.value != 'all') {
+      params['status'] = selectedTrxStatus.value;
+    }
+    if (selectedTrxOrderSource.value != 'all') {
+      params['order_source'] = selectedTrxOrderSource.value;
+    }
+    if (selectedTrxPaymentMethod.value != 'all') {
+      params['payment_method'] = selectedTrxPaymentMethod.value;
+    }
+    if (selectedTrxDate.value == null || selectedTrxDate.value!.isEmpty) {
+      // No date filter - fetch all transactions
+    } else if (selectedTrxStartDate.value != null) {
+      final s = DateFormat('yyyy-MM-dd').format(selectedTrxStartDate.value!);
+      final e = selectedTrxEndDate.value != null
+          ? DateFormat('yyyy-MM-dd').format(selectedTrxEndDate.value!)
+          : s;
+      if (s == e) {
+        params['date'] = s;
+      } else {
+        params['start_date'] = s;
+        params['end_date'] = e;
+      }
+    } else if (selectedTrxDate.value != null && selectedTrxDate.value!.isNotEmpty) {
+      if (selectedTrxDate.value!.contains('..')) {
+        final parts = selectedTrxDate.value!.split('..');
+        params['start_date'] = parts[0];
+        params['end_date'] = parts[1];
+      } else {
+        params['date'] = selectedTrxDate.value;
+      }
+    }
+    if (trxSearchQuery.value.trim().isNotEmpty) {
+      params['search'] = trxSearchQuery.value.trim();
+    }
+    return params;
+  }
+
   Future<void> fetchTransactions() async {
     isLoadingTransactions.value = true;
+    trxCurrentPage = 1;
+    hasMoreTrx.value = true;
 
     try {
-      final Map<String, dynamic> params = {'per_page': 100};
-
-      if (selectedTrxStatus.value != 'all') {
-        params['status'] = selectedTrxStatus.value;
-      }
-      if (selectedTrxOrderSource.value != 'all') {
-        params['order_source'] = selectedTrxOrderSource.value;
-      }
-      if (selectedTrxPaymentMethod.value != 'all') {
-        params['payment_method'] = selectedTrxPaymentMethod.value;
-      }
-      if (selectedTrxDate.value == null || selectedTrxDate.value!.isEmpty) {
-        // No date filter - fetch all transactions
-      } else if (selectedTrxStartDate.value != null) {
-        final s = DateFormat('yyyy-MM-dd').format(selectedTrxStartDate.value!);
-        final e = selectedTrxEndDate.value != null
-            ? DateFormat('yyyy-MM-dd').format(selectedTrxEndDate.value!)
-            : s;
-        if (s == e) {
-          params['date'] = s;
-        } else {
-          params['start_date'] = s;
-          params['end_date'] = e;
-        }
-      } else if (selectedTrxDate.value != null && selectedTrxDate.value!.isNotEmpty) {
-        if (selectedTrxDate.value!.contains('..')) {
-          final parts = selectedTrxDate.value!.split('..');
-          params['start_date'] = parts[0];
-          params['end_date'] = parts[1];
-        } else {
-          params['date'] = selectedTrxDate.value;
-        }
-      }
-      if (trxSearchQuery.value.trim().isNotEmpty) {
-        params['search'] = trxSearchQuery.value.trim();
-      }
-
+      final params = _buildTrxQueryParams(page: 1);
       final response = await _apiProvider.get(
         ApiConstants.adminTransactions,
         queryParameters: params,
       );
 
       if (response.data != null && response.data['success'] == true) {
-        final List list = response.data['data'] ?? [];
-        transactions.assignAll(list.map((e) => AdminTransactionModel.fromJson(e)).toList());
+        final rawData = response.data['data'];
+        final List list = (rawData is Map && rawData['data'] != null)
+            ? rawData['data']
+            : (rawData is List ? rawData : []);
+        final items = list.map((e) => AdminTransactionModel.fromJson(e)).toList();
+        transactions.assignAll(items);
+
+        final meta = response.data['meta'];
+        if (meta is Map) {
+          final curPage = int.tryParse(meta['current_page']?.toString() ?? '1') ?? 1;
+          final lastPage = int.tryParse(meta['last_page']?.toString() ?? '1') ?? 1;
+          hasMoreTrx.value = curPage < lastPage;
+          totalTrxCount.value = int.tryParse(meta['total']?.toString() ?? '0') ?? items.length;
+        } else if (rawData is Map) {
+          final nextUrl = rawData['next_page_url'];
+          final curPage = int.tryParse(rawData['current_page']?.toString() ?? '1') ?? 1;
+          final lastPage = int.tryParse(rawData['last_page']?.toString() ?? '1') ?? 1;
+          hasMoreTrx.value = (nextUrl != null) || (curPage < lastPage);
+          totalTrxCount.value = int.tryParse(rawData['total']?.toString() ?? '0') ?? items.length;
+        } else {
+          hasMoreTrx.value = items.length >= 20;
+          totalTrxCount.value = items.length;
+        }
+
+        final summary = response.data['summary'];
+        if (summary is Map) {
+          if (summary['total_transactions'] != null) {
+            totalTrxCount.value = int.tryParse(summary['total_transactions'].toString()) ?? totalTrxCount.value;
+          }
+          if (summary['completed_count'] != null) {
+            completedTrxCount.value = int.tryParse(summary['completed_count'].toString()) ?? 0;
+          }
+          if (summary['total_revenue'] != null) {
+            totalTrxRevenue.value = double.tryParse(summary['total_revenue'].toString()) ?? 0.0;
+          }
+          if (summary['total_profit'] != null) {
+            totalTrxProfit.value = double.tryParse(summary['total_profit'].toString()) ?? 0.0;
+          }
+          if (summary['aov'] != null) {
+            totalTrxAov.value = double.tryParse(summary['aov'].toString()) ?? 0.0;
+          }
+          if (summary['profit_margin'] != null) {
+            totalTrxProfitMargin.value = double.tryParse(summary['profit_margin'].toString()) ?? 0.0;
+          }
+          hasServerTrxSummary.value = true;
+        } else {
+          hasServerTrxSummary.value = false;
+        }
       } else {
         AppSnackbar.warning('Info', response.data?['message'] ?? 'Gagal memuat transaksi.');
       }
@@ -655,6 +822,75 @@ class AdminController extends GetxController {
       AppSnackbar.danger('Gagal Transaksi', ApiProvider.getErrorMessage(e));
     } finally {
       isLoadingTransactions.value = false;
+    }
+  }
+
+  /// Muat transaksi halaman berikutnya secara lazy load (Infinite Scroll)
+  Future<void> loadMoreTransactions() async {
+    if (isLoadingTransactions.value || isLoadingMoreTrx.value || !hasMoreTrx.value) {
+      return;
+    }
+
+    isLoadingMoreTrx.value = true;
+    try {
+      final nextPage = trxCurrentPage + 1;
+      final params = _buildTrxQueryParams(page: nextPage);
+      final response = await _apiProvider.get(
+        ApiConstants.adminTransactions,
+        queryParameters: params,
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        final rawData = response.data['data'];
+        final List list = (rawData is Map && rawData['data'] != null)
+            ? rawData['data']
+            : (rawData is List ? rawData : []);
+        final newTxs = list.map((e) => AdminTransactionModel.fromJson(e)).toList();
+
+        if (newTxs.isEmpty) {
+          hasMoreTrx.value = false;
+        } else {
+          final existingInvoices = transactions.map((t) => t.invoiceNumber.trim().toLowerCase()).toSet();
+          final existingIds = transactions.where((t) => t.id > 0).map((t) => t.id).toSet();
+
+          final uniqueNewTxs = newTxs.where((t) {
+            final invMatch = existingInvoices.contains(t.invoiceNumber.trim().toLowerCase());
+            final idMatch = t.id > 0 && existingIds.contains(t.id);
+            return !invMatch && !idMatch;
+          }).toList();
+
+          transactions.addAll(uniqueNewTxs);
+          trxCurrentPage = nextPage;
+
+          final meta = response.data['meta'];
+          if (meta is Map) {
+            final curPage = int.tryParse(meta['current_page']?.toString() ?? '$nextPage') ?? nextPage;
+            final lastPage = int.tryParse(meta['last_page']?.toString() ?? '$curPage') ?? curPage;
+            hasMoreTrx.value = curPage < lastPage;
+            final parsedTotal = int.tryParse(meta['total']?.toString() ?? '0') ?? 0;
+            if (parsedTotal > 0) {
+              totalTrxCount.value = parsedTotal;
+            }
+          } else if (rawData is Map) {
+            final nextUrl = rawData['next_page_url'];
+            final curPage = int.tryParse(rawData['current_page']?.toString() ?? '$nextPage') ?? nextPage;
+            final lastPage = int.tryParse(rawData['last_page']?.toString() ?? '$curPage') ?? curPage;
+            hasMoreTrx.value = (nextUrl != null) || (curPage < lastPage);
+            final parsedTotal = int.tryParse(rawData['total']?.toString() ?? '0') ?? 0;
+            if (parsedTotal > 0) {
+              totalTrxCount.value = parsedTotal;
+            }
+          } else {
+            hasMoreTrx.value = newTxs.length >= 20;
+          }
+        }
+      } else {
+        hasMoreTrx.value = false;
+      }
+    } catch (_) {
+      // Non-blocking fallback
+    } finally {
+      isLoadingMoreTrx.value = false;
     }
   }
 
@@ -739,43 +975,74 @@ class AdminController extends GetxController {
   // ==========================================
   // 3. SHIFT AUDIT & Z-REPORT LOGIC
   // ==========================================
+  Map<String, dynamic> _buildShiftQueryParams({int page = 1}) {
+    final Map<String, dynamic> params = {
+      'limit': 20,
+      'page': page,
+    };
+
+    if (selectedShiftStatus.value == 'open' || selectedShiftStatus.value == 'closed') {
+      params['status'] = selectedShiftStatus.value;
+    }
+
+    if (selectedShiftStartDate.value != null && selectedShiftEndDate.value != null) {
+      final startStr = DateFormat('yyyy-MM-dd').format(selectedShiftStartDate.value!);
+      final endStr = DateFormat('yyyy-MM-dd').format(selectedShiftEndDate.value!);
+      if (startStr == endStr) {
+        params['date'] = startStr;
+      } else {
+        params['start_date'] = startStr;
+        params['end_date'] = endStr;
+      }
+    } else if (selectedShiftDate.value != null && selectedShiftDate.value!.isNotEmpty) {
+      if (selectedShiftDate.value!.contains('..')) {
+        final parts = selectedShiftDate.value!.split('..');
+        params['start_date'] = parts[0];
+        params['end_date'] = parts[1];
+      } else {
+        params['date'] = selectedShiftDate.value;
+      }
+    }
+
+    if (shiftSearchQuery.value.trim().isNotEmpty) {
+      params['search'] = shiftSearchQuery.value.trim();
+    }
+
+    return params;
+  }
+
   Future<void> fetchShifts() async {
     isLoadingShifts.value = true;
+    shiftCurrentPage = 1;
+    hasMoreShifts.value = true;
 
     try {
-      final Map<String, dynamic> params = {'limit': 100};
-
-      if (selectedShiftStatus.value == 'open' || selectedShiftStatus.value == 'closed') {
-        params['status'] = selectedShiftStatus.value;
-      }
-
-      if (selectedShiftStartDate.value != null && selectedShiftEndDate.value != null) {
-        final startStr = DateFormat('yyyy-MM-dd').format(selectedShiftStartDate.value!);
-        final endStr = DateFormat('yyyy-MM-dd').format(selectedShiftEndDate.value!);
-        if (startStr == endStr) {
-          params['date'] = startStr;
-        } else {
-          params['start_date'] = startStr;
-          params['end_date'] = endStr;
-        }
-      } else if (selectedShiftDate.value != null && selectedShiftDate.value!.isNotEmpty) {
-        if (selectedShiftDate.value!.contains('..')) {
-          final parts = selectedShiftDate.value!.split('..');
-          params['start_date'] = parts[0];
-          params['end_date'] = parts[1];
-        } else {
-          params['date'] = selectedShiftDate.value;
-        }
-      }
-
+      final params = _buildShiftQueryParams(page: 1);
       final response = await _apiProvider.get(
         ApiConstants.adminShiftHistory,
         queryParameters: params,
       );
 
       if (response.data != null && response.data['success'] == true) {
-        final List list = response.data['data'] ?? [];
-        shifts.assignAll(list.map((e) => AdminShiftModel.fromJson(e)).toList());
+        final rawData = response.data['data'];
+        final List list = (rawData is Map && rawData['data'] != null)
+            ? rawData['data']
+            : (rawData is List ? rawData : []);
+        final items = list.map((e) => AdminShiftModel.fromJson(e)).toList();
+        shifts.assignAll(items);
+
+        final meta = response.data['meta'];
+        if (meta is Map) {
+          final curPage = int.tryParse(meta['current_page']?.toString() ?? '1') ?? 1;
+          final lastPage = int.tryParse(meta['last_page']?.toString() ?? '1') ?? 1;
+          hasMoreShifts.value = curPage < lastPage;
+        } else if (rawData is Map) {
+          final curPage = int.tryParse(rawData['current_page']?.toString() ?? '1') ?? 1;
+          final lastPage = int.tryParse(rawData['last_page']?.toString() ?? '1') ?? 1;
+          hasMoreShifts.value = curPage < lastPage;
+        } else {
+          hasMoreShifts.value = items.length >= 20;
+        }
       } else {
         AppSnackbar.warning('Info', response.data?['message'] ?? 'Gagal memuat riwayat shift.');
       }
@@ -783,6 +1050,59 @@ class AdminController extends GetxController {
       AppSnackbar.danger('Gagal Shift', ApiProvider.getErrorMessage(e));
     } finally {
       isLoadingShifts.value = false;
+    }
+  }
+
+  /// Muat shift halaman berikutnya secara lazy load (Infinite Scroll)
+  Future<void> loadMoreShifts() async {
+    if (isLoadingShifts.value || isLoadingMoreShifts.value || !hasMoreShifts.value) {
+      return;
+    }
+
+    isLoadingMoreShifts.value = true;
+    try {
+      final nextPage = shiftCurrentPage + 1;
+      final params = _buildShiftQueryParams(page: nextPage);
+      final response = await _apiProvider.get(
+        ApiConstants.adminShiftHistory,
+        queryParameters: params,
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        final rawData = response.data['data'];
+        final List list = (rawData is Map && rawData['data'] != null)
+            ? rawData['data']
+            : (rawData is List ? rawData : []);
+        final newShifts = list.map((e) => AdminShiftModel.fromJson(e)).toList();
+
+        if (newShifts.isEmpty) {
+          hasMoreShifts.value = false;
+        } else {
+          final existingIds = shifts.map((s) => s.id).toSet();
+          final uniqueNew = newShifts.where((s) => !existingIds.contains(s.id)).toList();
+          shifts.addAll(uniqueNew);
+          shiftCurrentPage = nextPage;
+
+          final meta = response.data['meta'];
+          if (meta is Map) {
+            final curPage = int.tryParse(meta['current_page']?.toString() ?? '$nextPage') ?? nextPage;
+            final lastPage = int.tryParse(meta['last_page']?.toString() ?? '$curPage') ?? curPage;
+            hasMoreShifts.value = curPage < lastPage;
+          } else if (rawData is Map) {
+            final curPage = int.tryParse(rawData['current_page']?.toString() ?? '$nextPage') ?? nextPage;
+            final lastPage = int.tryParse(rawData['last_page']?.toString() ?? '$curPage') ?? curPage;
+            hasMoreShifts.value = curPage < lastPage;
+          } else {
+            hasMoreShifts.value = newShifts.length >= 20;
+          }
+        }
+      } else {
+        hasMoreShifts.value = false;
+      }
+    } catch (_) {
+      // Non-blocking fallback
+    } finally {
+      isLoadingMoreShifts.value = false;
     }
   }
 
@@ -839,38 +1159,47 @@ class AdminController extends GetxController {
   // ==========================================
   // 5. MENU SALES ANALYTICS LOGIC
   // ==========================================
+  Map<String, dynamic> _buildMenuSalesQueryParams({int page = 1}) {
+    final queryParams = <String, dynamic>{
+      'per_page': 20,
+      'page': page,
+      'sort_by': selectedMenuSortBy.value,
+      'sort_dir': selectedMenuSortDir.value,
+    };
+
+    if (selectedMenuPeriod.value == 'custom' && menuCustomStartDate.value != null) {
+      queryParams['start_date'] = DateFormat('yyyy-MM-dd').format(menuCustomStartDate.value!);
+      if (menuCustomEndDate.value != null) {
+        queryParams['end_date'] = DateFormat('yyyy-MM-dd').format(menuCustomEndDate.value!);
+      } else {
+        queryParams['end_date'] = queryParams['start_date'];
+      }
+    } else {
+      queryParams['range'] = selectedMenuPeriod.value;
+    }
+
+    if (selectedMenuCategoryId.value != null) {
+      queryParams['category_id'] = selectedMenuCategoryId.value;
+    }
+
+    if (menuSearchQuery.value.trim().isNotEmpty) {
+      queryParams['search'] = menuSearchQuery.value.trim();
+    }
+
+    if (selectedMenuSource.value != 'all') {
+      queryParams['source'] = selectedMenuSource.value;
+    }
+
+    return queryParams;
+  }
+
   Future<void> fetchMenuSales({bool refresh = false}) async {
     isLoadingMenuSales.value = true;
+    menuCurrentPage = 1;
+    hasMoreMenuSales.value = true;
 
     try {
-      final queryParams = <String, dynamic>{
-        'per_page': 'all',
-        'sort_by': selectedMenuSortBy.value,
-        'sort_dir': selectedMenuSortDir.value,
-      };
-
-      if (selectedMenuPeriod.value == 'custom' && menuCustomStartDate.value != null) {
-        queryParams['start_date'] = DateFormat('yyyy-MM-dd').format(menuCustomStartDate.value!);
-        if (menuCustomEndDate.value != null) {
-          queryParams['end_date'] = DateFormat('yyyy-MM-dd').format(menuCustomEndDate.value!);
-        } else {
-          queryParams['end_date'] = queryParams['start_date'];
-        }
-      } else {
-        queryParams['range'] = selectedMenuPeriod.value;
-      }
-
-      if (selectedMenuCategoryId.value != null) {
-        queryParams['category_id'] = selectedMenuCategoryId.value;
-      }
-
-      if (menuSearchQuery.value.trim().isNotEmpty) {
-        queryParams['search'] = menuSearchQuery.value.trim();
-      }
-
-      if (selectedMenuSource.value != 'all') {
-        queryParams['source'] = selectedMenuSource.value;
-      }
+      final queryParams = _buildMenuSalesQueryParams(page: 1);
 
       final response = await _apiProvider.get(
         ApiConstants.adminMenuSales,
@@ -890,8 +1219,18 @@ class AdminController extends GetxController {
               .map((e) => AdminMenuSalesItemModel.fromJson(e as Map<String, dynamic>))
               .toList();
           menuSalesItems.assignAll(list);
+
+          final meta = data['meta'];
+          if (meta is Map) {
+            final curPage = int.tryParse(meta['current_page']?.toString() ?? '1') ?? 1;
+            final lastPage = int.tryParse(meta['last_page']?.toString() ?? '1') ?? 1;
+            hasMoreMenuSales.value = curPage < lastPage;
+          } else {
+            hasMoreMenuSales.value = list.length >= 20;
+          }
         } else {
           menuSalesItems.clear();
+          hasMoreMenuSales.value = false;
         }
       } else {
         AppSnackbar.warning('Info', response.data?['message'] ?? 'Gagal memuat penjualan menu.');
@@ -900,6 +1239,59 @@ class AdminController extends GetxController {
       AppSnackbar.danger('Kendala Penjualan Menu', ApiProvider.getErrorMessage(e));
     } finally {
       isLoadingMenuSales.value = false;
+    }
+  }
+
+  /// Muat penjualan menu halaman berikutnya secara lazy load (Infinite Scroll)
+  Future<void> loadMoreMenuSales() async {
+    if (isLoadingMenuSales.value || isLoadingMoreMenuSales.value || !hasMoreMenuSales.value) {
+      return;
+    }
+
+    isLoadingMoreMenuSales.value = true;
+    try {
+      final nextPage = menuCurrentPage + 1;
+      final queryParams = _buildMenuSalesQueryParams(page: nextPage);
+
+      final response = await _apiProvider.get(
+        ApiConstants.adminMenuSales,
+        queryParameters: queryParams,
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        final data = response.data;
+        if (data['data'] != null && data['data'] is List) {
+          final list = (data['data'] as List)
+              .map((e) => AdminMenuSalesItemModel.fromJson(e as Map<String, dynamic>))
+              .toList();
+
+          if (list.isEmpty) {
+            hasMoreMenuSales.value = false;
+          } else {
+            final existingIds = menuSalesItems.map((m) => m.productId).toSet();
+            final uniqueNew = list.where((m) => !existingIds.contains(m.productId)).toList();
+            menuSalesItems.addAll(uniqueNew);
+            menuCurrentPage = nextPage;
+
+            final meta = data['meta'];
+            if (meta is Map) {
+              final curPage = int.tryParse(meta['current_page']?.toString() ?? '$nextPage') ?? nextPage;
+              final lastPage = int.tryParse(meta['last_page']?.toString() ?? '$curPage') ?? curPage;
+              hasMoreMenuSales.value = curPage < lastPage;
+            } else {
+              hasMoreMenuSales.value = list.length >= 20;
+            }
+          }
+        } else {
+          hasMoreMenuSales.value = false;
+        }
+      } else {
+        hasMoreMenuSales.value = false;
+      }
+    } catch (_) {
+      // Non-blocking fallback
+    } finally {
+      isLoadingMoreMenuSales.value = false;
     }
   }
 
@@ -1083,48 +1475,74 @@ class AdminController extends GetxController {
   // 6. CASH FLOW & EXPENSE MANAGEMENT LOGIC
   // ==========================================
 
+  Map<String, dynamic> _buildCashFlowQueryParams({int page = 1}) {
+    final Map<String, dynamic> params = {
+      'limit': 20,
+      'page': page,
+    };
+
+    if (selectedCashFlowType.value != 'all') {
+      params['type'] = selectedCashFlowType.value;
+    }
+    if (selectedCashFlowSource.value != 'all') {
+      params['source'] = selectedCashFlowSource.value;
+    }
+    if (selectedCashFlowCategoryId.value != null) {
+      params['category_id'] = selectedCashFlowCategoryId.value;
+    }
+    if (cashFlowSearchQuery.value.trim().isNotEmpty) {
+      params['search'] = cashFlowSearchQuery.value.trim();
+    }
+
+    // Period filter
+    if (selectedCashFlowPeriod.value == 'today') {
+      params['date'] = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    } else if (selectedCashFlowPeriod.value == 'month') {
+      final now = DateTime.now();
+      params['start_date'] = DateFormat('yyyy-MM-dd').format(DateTime(now.year, now.month, 1));
+      params['end_date'] = DateFormat('yyyy-MM-dd').format(DateTime(now.year, now.month + 1, 0));
+    } else if (selectedCashFlowPeriod.value == 'custom' &&
+        cashFlowCustomStartDate.value != null &&
+        cashFlowCustomEndDate.value != null) {
+      params['start_date'] = DateFormat('yyyy-MM-dd').format(cashFlowCustomStartDate.value!);
+      params['end_date'] = DateFormat('yyyy-MM-dd').format(cashFlowCustomEndDate.value!);
+    }
+
+    return params;
+  }
+
   Future<void> fetchCashFlow({bool showLoader = true}) async {
     if (showLoader) isLoadingCashFlow.value = true;
+    cashFlowCurrentPage = 1;
+    hasMoreCashFlow.value = true;
+
     try {
-      final Map<String, dynamic> params = {'limit': 100};
-
-      if (selectedCashFlowType.value != 'all') {
-        params['type'] = selectedCashFlowType.value;
-      }
-      if (selectedCashFlowSource.value != 'all') {
-        params['source'] = selectedCashFlowSource.value;
-      }
-      if (selectedCashFlowCategoryId.value != null) {
-        params['category_id'] = selectedCashFlowCategoryId.value;
-      }
-      if (cashFlowSearchQuery.value.trim().isNotEmpty) {
-        params['search'] = cashFlowSearchQuery.value.trim();
-      }
-
-      // Period filter
-      if (selectedCashFlowPeriod.value == 'today') {
-        params['date'] = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      } else if (selectedCashFlowPeriod.value == 'month') {
-        final now = DateTime.now();
-        params['start_date'] = DateFormat('yyyy-MM-dd').format(DateTime(now.year, now.month, 1));
-        params['end_date'] = DateFormat('yyyy-MM-dd').format(DateTime(now.year, now.month + 1, 0));
-      } else if (selectedCashFlowPeriod.value == 'custom' &&
-          cashFlowCustomStartDate.value != null &&
-          cashFlowCustomEndDate.value != null) {
-        params['start_date'] = DateFormat('yyyy-MM-dd').format(cashFlowCustomStartDate.value!);
-        params['end_date'] = DateFormat('yyyy-MM-dd').format(cashFlowCustomEndDate.value!);
-      }
-
+      final params = _buildCashFlowQueryParams(page: 1);
       final response = await _apiProvider.get(
         ApiConstants.adminCashFlow,
         queryParameters: params,
       );
 
       if (response.data != null && response.data['success'] == true) {
-        final List list = response.data['data'] ?? [];
-        cashFlowMovements.assignAll(
-          list.map((e) => CashMovementModel.fromJson(e)).toList(),
-        );
+        final rawData = response.data['data'];
+        final List list = (rawData is Map && rawData['data'] != null)
+            ? rawData['data']
+            : (rawData is List ? rawData : []);
+        final items = list.map((e) => CashMovementModel.fromJson(e)).toList();
+        cashFlowMovements.assignAll(items);
+
+        final meta = response.data['meta'];
+        if (meta is Map) {
+          final curPage = int.tryParse(meta['current_page']?.toString() ?? '1') ?? 1;
+          final lastPage = int.tryParse(meta['last_page']?.toString() ?? '1') ?? 1;
+          hasMoreCashFlow.value = curPage < lastPage;
+        } else if (rawData is Map) {
+          final curPage = int.tryParse(rawData['current_page']?.toString() ?? '1') ?? 1;
+          final lastPage = int.tryParse(rawData['last_page']?.toString() ?? '1') ?? 1;
+          hasMoreCashFlow.value = curPage < lastPage;
+        } else {
+          hasMoreCashFlow.value = items.length >= 20;
+        }
       } else {
         AppSnackbar.warning('Info', response.data?['message'] ?? 'Gagal memuat riwayat arus kas.');
       }
@@ -1132,6 +1550,59 @@ class AdminController extends GetxController {
       AppSnackbar.danger('Kendala Arus Kas', ApiProvider.getErrorMessage(e));
     } finally {
       isLoadingCashFlow.value = false;
+    }
+  }
+
+  /// Muat arus kas halaman berikutnya secara lazy load (Infinite Scroll)
+  Future<void> loadMoreCashFlow() async {
+    if (isLoadingCashFlow.value || isLoadingMoreCashFlow.value || !hasMoreCashFlow.value) {
+      return;
+    }
+
+    isLoadingMoreCashFlow.value = true;
+    try {
+      final nextPage = cashFlowCurrentPage + 1;
+      final params = _buildCashFlowQueryParams(page: nextPage);
+      final response = await _apiProvider.get(
+        ApiConstants.adminCashFlow,
+        queryParameters: params,
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        final rawData = response.data['data'];
+        final List list = (rawData is Map && rawData['data'] != null)
+            ? rawData['data']
+            : (rawData is List ? rawData : []);
+        final newMovements = list.map((e) => CashMovementModel.fromJson(e)).toList();
+
+        if (newMovements.isEmpty) {
+          hasMoreCashFlow.value = false;
+        } else {
+          final existingIds = cashFlowMovements.map((m) => m.id).toSet();
+          final uniqueNew = newMovements.where((m) => !existingIds.contains(m.id)).toList();
+          cashFlowMovements.addAll(uniqueNew);
+          cashFlowCurrentPage = nextPage;
+
+          final meta = response.data['meta'];
+          if (meta is Map) {
+            final curPage = int.tryParse(meta['current_page']?.toString() ?? '$nextPage') ?? nextPage;
+            final lastPage = int.tryParse(meta['last_page']?.toString() ?? '$curPage') ?? curPage;
+            hasMoreCashFlow.value = curPage < lastPage;
+          } else if (rawData is Map) {
+            final curPage = int.tryParse(rawData['current_page']?.toString() ?? '$nextPage') ?? nextPage;
+            final lastPage = int.tryParse(rawData['last_page']?.toString() ?? '$curPage') ?? curPage;
+            hasMoreCashFlow.value = curPage < lastPage;
+          } else {
+            hasMoreCashFlow.value = newMovements.length >= 20;
+          }
+        }
+      } else {
+        hasMoreCashFlow.value = false;
+      }
+    } catch (_) {
+      // Non-blocking fallback
+    } finally {
+      isLoadingMoreCashFlow.value = false;
     }
   }
 
@@ -1348,26 +1819,39 @@ class AdminController extends GetxController {
   // 7. PRODUCT & RECIPE MASTER LOGIC
   // ==========================================
 
+  Map<String, dynamic> _buildProductQueryParams({int page = 1}) {
+    final queryParams = <String, dynamic>{
+      'page': page,
+      'per_page': 20,
+      'paginate': true,
+    };
+    if (selectedProductCategoryId.value != null) {
+      queryParams['category_id'] = selectedProductCategoryId.value;
+    }
+    if (selectedProductStatus.value == 'active') {
+      queryParams['status'] = 'active';
+      queryParams['is_active'] = true;
+    } else if (selectedProductStatus.value == 'inactive') {
+      queryParams['status'] = 'inactive';
+      queryParams['is_active'] = false;
+    } else if (selectedProductStatus.value == 'archived') {
+      queryParams['status'] = 'archived';
+      queryParams['is_archived'] = true;
+    }
+    if (productSearchQuery.value.trim().isNotEmpty) {
+      queryParams['search'] = productSearchQuery.value.trim();
+    }
+
+    return queryParams;
+  }
+
   Future<void> fetchAdminProducts({bool showLoader = true}) async {
     if (showLoader) isLoadingProducts.value = true;
-    try {
-      final queryParams = <String, dynamic>{
-        'paginate': false,
-      };
-      if (selectedProductCategoryId.value != null) {
-        queryParams['category_id'] = selectedProductCategoryId.value;
-      }
-      if (selectedProductStatus.value == 'active') {
-        queryParams['status'] = 'active';
-        queryParams['is_active'] = true;
-      } else if (selectedProductStatus.value == 'inactive') {
-        queryParams['status'] = 'inactive';
-        queryParams['is_active'] = false;
-      } else if (selectedProductStatus.value == 'archived') {
-        queryParams['status'] = 'archived';
-        queryParams['is_archived'] = true;
-      }
+    productCurrentPage = 1;
+    hasMoreProducts.value = true;
 
+    try {
+      final queryParams = _buildProductQueryParams(page: 1);
       final response = await _apiProvider.get(
         ApiConstants.adminProducts,
         queryParameters: queryParams,
@@ -1375,17 +1859,86 @@ class AdminController extends GetxController {
 
       if (response.data != null && response.data['success'] == true) {
         final rawData = response.data['data'];
-        if (rawData is List) {
-          products.value = rawData
-              .whereType<Map>()
-              .map((item) => AdminProductModel.fromJson(Map<String, dynamic>.from(item)))
-              .toList();
+        final List list = (rawData is Map && rawData['data'] != null)
+            ? rawData['data']
+            : (rawData is List ? rawData : []);
+        final items = list
+            .whereType<Map>()
+            .map((item) => AdminProductModel.fromJson(Map<String, dynamic>.from(item)))
+            .toList();
+        products.assignAll(items);
+
+        final meta = response.data['meta'];
+        if (meta is Map) {
+          final curPage = int.tryParse(meta['current_page']?.toString() ?? '1') ?? 1;
+          final lastPage = int.tryParse(meta['last_page']?.toString() ?? '1') ?? 1;
+          hasMoreProducts.value = curPage < lastPage;
+          totalProductCount.value = int.tryParse(meta['total']?.toString() ?? '0') ?? items.length;
+        } else {
+          hasMoreProducts.value = items.length >= 20;
+          totalProductCount.value = items.length;
         }
       }
     } catch (e) {
       AppSnackbar.danger('Gagal Memuat Produk', ApiProvider.getErrorMessage(e));
     } finally {
       isLoadingProducts.value = false;
+    }
+  }
+
+  /// Muat produk halaman berikutnya secara lazy load (Infinite Scroll)
+  Future<void> loadMoreProducts() async {
+    if (isLoadingProducts.value || isLoadingMoreProducts.value || !hasMoreProducts.value) {
+      return;
+    }
+
+    isLoadingMoreProducts.value = true;
+    try {
+      final nextPage = productCurrentPage + 1;
+      final queryParams = _buildProductQueryParams(page: nextPage);
+      final response = await _apiProvider.get(
+        ApiConstants.adminProducts,
+        queryParameters: queryParams,
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        final rawData = response.data['data'];
+        final List list = (rawData is Map && rawData['data'] != null)
+            ? rawData['data']
+            : (rawData is List ? rawData : []);
+        final newItems = list
+            .whereType<Map>()
+            .map((item) => AdminProductModel.fromJson(Map<String, dynamic>.from(item)))
+            .toList();
+
+        if (newItems.isEmpty) {
+          hasMoreProducts.value = false;
+        } else {
+          final existingIds = products.map((p) => p.id).toSet();
+          final uniqueNew = newItems.where((p) => !existingIds.contains(p.id)).toList();
+          products.addAll(uniqueNew);
+          productCurrentPage = nextPage;
+
+          final meta = response.data['meta'];
+          if (meta is Map) {
+            final curPage = int.tryParse(meta['current_page']?.toString() ?? '$nextPage') ?? nextPage;
+            final lastPage = int.tryParse(meta['last_page']?.toString() ?? '$curPage') ?? curPage;
+            hasMoreProducts.value = curPage < lastPage;
+            final parsedTotal = int.tryParse(meta['total']?.toString() ?? '0') ?? 0;
+            if (parsedTotal > 0) {
+              totalProductCount.value = parsedTotal;
+            }
+          } else {
+            hasMoreProducts.value = newItems.length >= 20;
+          }
+        }
+      } else {
+        hasMoreProducts.value = false;
+      }
+    } catch (_) {
+      // Non-blocking fallback
+    } finally {
+      isLoadingMoreProducts.value = false;
     }
   }
 

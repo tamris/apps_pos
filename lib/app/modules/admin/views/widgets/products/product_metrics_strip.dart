@@ -50,7 +50,7 @@ class ProductMetricsStrip extends StatelessWidget {
                     _buildMetricCard(
                       label: 'Menu Aktif',
                       value: '$totalActive Produk',
-                      subtitle: 'Dari total ${controller.products.length} menu',
+                      subtitle: 'Dari total ${controller.totalProductCount.value > 0 ? controller.totalProductCount.value : controller.products.length} menu',
                       icon: Icons.inventory_2_outlined,
                       color: const Color(0xFF334155),
                       bgColor: const Color(0xFFF1F5F9),
@@ -97,7 +97,7 @@ class ProductMetricsStrip extends StatelessWidget {
                   child: _buildMetricCard(
                     label: 'Menu Aktif',
                     value: '$totalActive Produk',
-                    subtitle: 'Dari ${controller.products.length} total menu',
+                    subtitle: 'Dari ${controller.totalProductCount.value > 0 ? controller.totalProductCount.value : controller.products.length} total menu',
                     icon: Icons.inventory_2_outlined,
                     color: const Color(0xFF334155),
                     bgColor: const Color(0xFFF1F5F9),
