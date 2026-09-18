@@ -78,7 +78,10 @@ class _AiRecipeGeneratorBoxState extends State<AiRecipeGeneratorBox> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 4,
                       children: [
                         const Text(
                           'Estimasi Resep & HPP Otomatis',
@@ -89,7 +92,6 @@ class _AiRecipeGeneratorBoxState extends State<AiRecipeGeneratorBox> {
                             letterSpacing: -0.2,
                           ),
                         ),
-                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                           decoration: BoxDecoration(

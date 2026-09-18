@@ -39,20 +39,61 @@ class AdminProductsTab extends GetView<AdminController> {
   // Top Segmented Sub-Tab Bar
   // ---------------------------------------------------------------------------
   Widget _buildSubTabBar(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isNarrow = constraints.maxWidth < 720;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 720;
 
-          return Obx(() {
+        return Container(
+          padding: EdgeInsets.symmetric(horizontal: isNarrow ? 16 : 20, vertical: isNarrow ? 8 : 10),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
+          ),
+          child: Obx(() {
             final activeTab = controller.productManagementSubTab.value;
             final totalProducts = controller.products.length;
             final lowMarginCount = controller.hppSummary.value.lowMarginProducts.length;
+
+            final btn1 = _buildSegmentedBtn(
+              index: 0,
+              isActive: activeTab == 0,
+              title: isNarrow ? 'Katalog' : 'Katalog Produk',
+              icon: Icons.inventory_2_outlined,
+              badgeText: totalProducts > 0 ? '$totalProducts' : null,
+              badgeColor: const Color(0xFF64748B),
+              onTap: () => controller.setProductManagementSubTab(0),
+              isExpanded: isNarrow,
+            );
+
+            final btn2 = _buildSegmentedBtn(
+              index: 1,
+              isActive: activeTab == 1,
+              title: isNarrow ? 'Resep & HPP' : 'Kalkulator & Resep HPP',
+              icon: Icons.calculate_outlined,
+              badgeText: lowMarginCount > 0 ? (isNarrow ? '$lowMarginCount' : '$lowMarginCount Perhatian') : null,
+              badgeColor: AppColors.danger,
+              onTap: () => controller.setProductManagementSubTab(1),
+              isExpanded: isNarrow,
+            );
+
+            if (isNarrow) {
+              return Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(9),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(child: btn1),
+                    const SizedBox(width: 4),
+                    Expanded(child: btn2),
+                  ],
+                ),
+              );
+            }
 
             final segmentedPill = Container(
               padding: const EdgeInsets.all(3),
@@ -64,36 +105,12 @@ class AdminProductsTab extends GetView<AdminController> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildSegmentedBtn(
-                    index: 0,
-                    isActive: activeTab == 0,
-                    title: 'Katalog Produk',
-                    icon: Icons.inventory_2_outlined,
-                    badgeText: totalProducts > 0 ? '$totalProducts' : null,
-                    badgeColor: const Color(0xFF64748B),
-                    onTap: () => controller.setProductManagementSubTab(0),
-                  ),
+                  btn1,
                   const SizedBox(width: 4),
-                  _buildSegmentedBtn(
-                    index: 1,
-                    isActive: activeTab == 1,
-                    title: 'Kalkulator & Resep HPP',
-                    icon: Icons.calculate_outlined,
-                    badgeText: lowMarginCount > 0 ? '$lowMarginCount Perhatian' : null,
-                    badgeColor: AppColors.danger,
-                    onTap: () => controller.setProductManagementSubTab(1),
-                  ),
+                  btn2,
                 ],
               ),
             );
-
-            if (isNarrow) {
-              return Row(
-                children: [
-                  Expanded(child: segmentedPill),
-                ],
-              );
-            }
 
             return Row(
               children: [
@@ -119,9 +136,9 @@ class AdminProductsTab extends GetView<AdminController> {
                 ),
               ],
             );
-          });
-        },
-      ),
+          }),
+        );
+      },
     );
   }
 
@@ -133,6 +150,7 @@ class AdminProductsTab extends GetView<AdminController> {
     required VoidCallback onTap,
     String? badgeText,
     Color badgeColor = const Color(0xFF64748B),
+    bool isExpanded = false,
   }) {
     return Material(
       color: isActive ? Colors.white : Colors.transparent,
@@ -143,7 +161,7 @@ class AdminProductsTab extends GetView<AdminController> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(7),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          padding: EdgeInsets.symmetric(horizontal: isExpanded ? 8 : 14, vertical: 7),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(7),
             border: Border.all(
@@ -151,20 +169,25 @@ class AdminProductsTab extends GetView<AdminController> {
             ),
           ),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: isExpanded ? MainAxisAlignment.center : MainAxisAlignment.start,
+            mainAxisSize: isExpanded ? MainAxisSize.max : MainAxisSize.min,
             children: [
               Icon(
                 icon,
                 size: 15,
                 color: isActive ? const Color(0xFF0F172A) : const Color(0xFF64748B),
               ),
-              const SizedBox(width: 7),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
-                  color: isActive ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
+                    color: isActive ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (badgeText != null) ...[

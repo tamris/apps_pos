@@ -54,6 +54,7 @@ class ProductMetricsStrip extends StatelessWidget {
                       icon: Icons.inventory_2_outlined,
                       color: const Color(0xFF334155),
                       bgColor: const Color(0xFFF1F5F9),
+                      cardWidth: 195,
                     ),
                     const SizedBox(width: 10),
                     _buildMetricCard(
@@ -63,6 +64,7 @@ class ProductMetricsStrip extends StatelessWidget {
                       icon: Icons.trending_up_rounded,
                       color: isMarginHealthy ? const Color(0xFF059669) : const Color(0xFFD97706),
                       bgColor: isMarginHealthy ? const Color(0xFFECFDF5) : const Color(0xFFFFFBEB),
+                      cardWidth: 195,
                     ),
                     const SizedBox(width: 10),
                     _buildMetricCard(
@@ -72,6 +74,7 @@ class ProductMetricsStrip extends StatelessWidget {
                       icon: lowMarginCount > 0 ? Icons.warning_amber_rounded : Icons.check_circle_outline_rounded,
                       color: lowMarginCount > 0 ? AppColors.danger : const Color(0xFF059669),
                       bgColor: lowMarginCount > 0 ? const Color(0xFFFEF2F2) : const Color(0xFFECFDF5),
+                      cardWidth: 195,
                     ),
                     const SizedBox(width: 10),
                     _buildMetricCard(
@@ -81,6 +84,7 @@ class ProductMetricsStrip extends StatelessWidget {
                       icon: Icons.category_outlined,
                       color: const Color(0xFF334155),
                       bgColor: const Color(0xFFF1F5F9),
+                      cardWidth: 195,
                     ),
                   ],
                 ),
@@ -147,9 +151,11 @@ class ProductMetricsStrip extends StatelessWidget {
     required IconData icon,
     required Color color,
     required Color bgColor,
+    double? cardWidth,
   }) {
     return Container(
-      constraints: const BoxConstraints(minWidth: 165),
+      width: cardWidth,
+      constraints: cardWidth == null ? const BoxConstraints(minWidth: 165) : null,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,

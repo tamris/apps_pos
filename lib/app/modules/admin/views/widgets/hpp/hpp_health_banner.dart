@@ -53,6 +53,7 @@ class HppHealthBanner extends StatelessWidget {
                           icon: Icons.pie_chart_rounded,
                           color: isHealthy ? AppColors.primary : AppColors.warning,
                           bgColor: isHealthy ? AppColors.primarySoft : AppColors.warningSoft,
+                          cardWidth: 195,
                         ),
                         const SizedBox(width: 10),
                         _buildKpiCard(
@@ -62,6 +63,7 @@ class HppHealthBanner extends StatelessWidget {
                           icon: Icons.kitchen_rounded,
                           color: AppColors.secondary,
                           bgColor: AppColors.secondarySoft,
+                          cardWidth: 195,
                         ),
                         const SizedBox(width: 10),
                         _buildKpiCard(
@@ -71,6 +73,7 @@ class HppHealthBanner extends StatelessWidget {
                           icon: Icons.warning_amber_rounded,
                           color: lowCount > 0 ? AppColors.danger : AppColors.primary,
                           bgColor: lowCount > 0 ? AppColors.dangerSoft : AppColors.primarySoft,
+                          cardWidth: 195,
                         ),
                         const SizedBox(width: 10),
                         _buildKpiCard(
@@ -80,6 +83,7 @@ class HppHealthBanner extends StatelessWidget {
                           icon: Icons.checklist_rounded,
                           color: const Color(0xFF0D9488),
                           bgColor: const Color(0xFFCCFBF1),
+                          cardWidth: 195,
                         ),
                       ],
                     ),
@@ -243,9 +247,11 @@ class HppHealthBanner extends StatelessWidget {
     required IconData icon,
     required Color color,
     required Color bgColor,
+    double? cardWidth,
   }) {
     return Container(
-      constraints: const BoxConstraints(minWidth: 165),
+      width: cardWidth,
+      constraints: cardWidth == null ? const BoxConstraints(minWidth: 165) : null,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),

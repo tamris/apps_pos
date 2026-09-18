@@ -102,6 +102,7 @@ class AdminView extends GetView<AdminController> {
 
                       if (tabIndex == 0) {
                         return Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Container(
                               width: 30,
@@ -128,13 +129,17 @@ class AdminView extends GetView<AdminController> {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            const Text(
-                              'Noli Coffee',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF0F172A),
-                                letterSpacing: -0.2,
+                            const Flexible(
+                              child: Text(
+                                'Noli Coffee',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF0F172A),
+                                  letterSpacing: -0.2,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             const SizedBox(width: 6),

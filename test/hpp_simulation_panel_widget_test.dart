@@ -182,4 +182,77 @@ void main() {
 
     expect(find.text('Tier Kompetitif'), findsOneWidget);
   });
+
+  testWidgets('Pumps HppSimulationPanel on mobile (390x844) without any overflow errors', (tester) async {
+    Get.put<ApiProvider>(MockApiProvider());
+    final controller = Get.put<AdminController>(TestAdminController());
+
+    controller.simulationProductName.value = 'Americano Ice';
+    controller.simulationIngredients.value = testIngredients;
+    controller.simulationCalculationResult.value = testCalcResult;
+
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: HppSimulationPanel(controller: controller),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Americano Ice'), findsOneWidget);
+    expect(find.text('3 Bahan Baku'), findsOneWidget);
+    expect(find.text('RINCIAN BAHAN BAKU'), findsOneWidget);
+    expect(find.text('Total Biaya Bahan Murni (Food Cost)'), findsOneWidget);
+    expect(find.text('Tier Kompetitif'), findsOneWidget);
+    expect(find.text('Tier Standar Cafe'), findsOneWidget);
+    expect(find.text('Tier Premium'), findsOneWidget);
+
+    // Scroll and tap Tier Premium on mobile
+    await tester.scrollUntilVisible(find.text('Tier Premium'), 200, scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.text('Tier Premium'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tier Premium'), findsOneWidget);
+  });
+
+  testWidgets('Pumps HppSimulationPanel on compact Android (360x780) with zero overflow', (tester) async {
+    Get.put<ApiProvider>(MockApiProvider());
+    final controller = Get.put<AdminController>(TestAdminController());
+
+    controller.simulationProductName.value = 'Americano Ice';
+    controller.simulationIngredients.value = testIngredients;
+    controller.simulationCalculationResult.value = testCalcResult;
+
+    tester.view.physicalSize = const Size(360, 780);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: HppSimulationPanel(controller: controller),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Americano Ice'), findsOneWidget);
+    expect(find.text('RINCIAN BAHAN BAKU'), findsOneWidget);
+    expect(find.text('Tambah Bahan Baku'), findsOneWidget);
+  });
 }

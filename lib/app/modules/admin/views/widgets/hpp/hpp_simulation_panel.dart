@@ -581,32 +581,33 @@ class _HppSimulationPanelState extends State<HppSimulationPanel> {
                   ),
                 ],
               ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppColors.primarySoft,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-                    ),
-                    child: const Icon(Icons.receipt_long_rounded, color: AppColors.primary, size: 20),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isCompact = constraints.maxWidth < 650;
+                  if (isCompact) {
+                    return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            Flexible(
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: AppColors.primarySoft,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                              ),
+                              child: const Icon(Icons.receipt_long_rounded, color: AppColors.primary, size: 18),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
                               child: Text(
                                 productName.isNotEmpty
                                     ? 'Hasil Estimasi Resep: $productName'
                                     : 'Komposisi Resep Bahan Baku',
                                 style: const TextStyle(
-                                  fontSize: 15.5,
+                                  fontSize: 14.5,
                                   fontWeight: FontWeight.w800,
                                   color: Color(0xFF0F172A),
                                   letterSpacing: -0.2,
@@ -614,7 +615,13 @@ class _HppSimulationPanelState extends State<HppSimulationPanel> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            const SizedBox(width: 8),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
                               decoration: BoxDecoration(
@@ -627,7 +634,6 @@ class _HppSimulationPanelState extends State<HppSimulationPanel> {
                                 style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
                               ),
                             ),
-                            const SizedBox(width: 6),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
                               decoration: BoxDecoration(
@@ -649,30 +655,127 @@ class _HppSimulationPanelState extends State<HppSimulationPanel> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 6),
                         const Text(
                           'Klik baris bahan untuk mengedit takaran atau harga beli. Perubahan akan mengkalkulasi HPP seketika.',
                           style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
                         ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () => _showIngredientDialog(),
+                            icon: const Icon(Icons.add_rounded, size: 16, color: Colors.white),
+                            label: const Text(
+                              'Tambah Bahan Baku',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                            ),
+                          ),
+                        ),
                       ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  ElevatedButton.icon(
-                    onPressed: () => _showIngredientDialog(),
-                    icon: const Icon(Icons.add_rounded, size: 16, color: Colors.white),
-                    label: const Text(
-                      'Tambah Bahan Baku',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
-                    ),
-                  ),
-                ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.primarySoft,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                        ),
+                        child: const Icon(Icons.receipt_long_rounded, color: AppColors.primary, size: 20),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    productName.isNotEmpty
+                                        ? 'Hasil Estimasi Resep: $productName'
+                                        : 'Komposisi Resep Bahan Baku',
+                                    style: const TextStyle(
+                                      fontSize: 15.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF0F172A),
+                                      letterSpacing: -0.2,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                                  ),
+                                  child: Text(
+                                    '${ingredients.length} Bahan Baku',
+                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primarySoft,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.auto_awesome_rounded, size: 11, color: AppColors.primary),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Kalkulasi Otomatis',
+                                        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: AppColors.primary),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            const Text(
+                              'Klik baris bahan untuk mengedit takaran atau harga beli. Perubahan akan mengkalkulasi HPP seketika.',
+                              style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: () => _showIngredientDialog(),
+                        icon: const Icon(Icons.add_rounded, size: 16, color: Colors.white),
+                        label: const Text(
+                          'Tambah Bahan Baku',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
             const SizedBox(height: 12),
@@ -691,283 +794,513 @@ class _HppSimulationPanelState extends State<HppSimulationPanel> {
                   ),
                 ],
               ),
-              child: Column(
-                children: [
-                  // Modern Table Header
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
-                      border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
-                    ),
-                    child: const Row(
-                      children: [
-                        SizedBox(
-                          width: 32,
-                          child: Text('#', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B))),
-                        ),
-                        SizedBox(width: 14),
-                        Expanded(
-                          flex: 3,
-                          child: Text(
-                            'NAMA BAHAN BAKU',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.3),
-                          ),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: Text(
-                            'TAKARAN PORSI',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.3),
-                          ),
-                        ),
-                        Expanded(
-                          flex: 3,
-                          child: Text(
-                            'HARGA BELI KEMASAN',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.3),
-                          ),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: Text(
-                            'SUBTOTAL / CUP',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.3),
-                            textAlign: TextAlign.right,
-                          ),
-                        ),
-                        SizedBox(width: 72),
-                      ],
-                    ),
-                  ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isCompact = constraints.maxWidth < 650;
 
-                  // Table Rows
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: ingredients.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                    itemBuilder: (context, idx) {
-                      final ing = ingredients[idx];
-                      final cat = _IngredientVisualHelper.getCategory(ing.name);
-                      final catColor = _IngredientVisualHelper.getColor(cat);
-
-                      final sharePercent = totalFoodCost > 0 ? (ing.subtotal / totalFoodCost) * 100.0 : 0.0;
-                      final isDominantCost = sharePercent >= 35.0;
-
-                      return Material(
-                        color: Colors.white,
-                        child: InkWell(
-                          onTap: () => _showIngredientDialog(index: idx),
-                          hoverColor: const Color(0xFFF8FAFC),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                            child: Row(
-                              children: [
-                                // Number Indicator
-                                SizedBox(
-                                  width: 32,
-                                  child: Container(
-                                    width: 24,
-                                    height: 24,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF1F5F9),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      '${idx + 1}',
-                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
-                                    ),
-                                  ),
+                  return Column(
+                    children: [
+                      // Modern Table Header
+                      if (isCompact)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+                            border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'RINCIAN BAHAN BAKU',
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.3),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE2E8F0),
+                                  borderRadius: BorderRadius.circular(6),
                                 ),
-                                const SizedBox(width: 14),
-                                // Name with Category Subtitle
-                                Expanded(
-                                  flex: 3,
+                                child: Text(
+                                  '${ingredients.length} item',
+                                  style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+                            border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+                          ),
+                          child: const Row(
+                            children: [
+                              SizedBox(
+                                width: 32,
+                                child: Text('#', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B))),
+                              ),
+                              SizedBox(width: 14),
+                              Expanded(
+                                flex: 3,
+                                child: Text(
+                                  'NAMA BAHAN BAKU',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.3),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: Text(
+                                  'TAKARAN PORSI',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.3),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 3,
+                                child: Text(
+                                  'HARGA BELI KEMASAN',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.3),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: Text(
+                                  'SUBTOTAL / CUP',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B), letterSpacing: 0.3),
+                                  textAlign: TextAlign.right,
+                                ),
+                              ),
+                              SizedBox(width: 72),
+                            ],
+                          ),
+                        ),
+
+                      // Table Rows
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: ingredients.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                        itemBuilder: (context, idx) {
+                          final ing = ingredients[idx];
+                          final cat = _IngredientVisualHelper.getCategory(ing.name);
+                          final catColor = _IngredientVisualHelper.getColor(cat);
+
+                          final sharePercent = totalFoodCost > 0 ? (ing.subtotal / totalFoodCost) * 100.0 : 0.0;
+                          final isDominantCost = sharePercent >= 35.0;
+
+                          if (isCompact) {
+                            // Mobile Compact Card Row
+                            return Material(
+                              color: Colors.white,
+                              child: InkWell(
+                                onTap: () => _showIngredientDialog(index: idx),
+                                hoverColor: const Color(0xFFF8FAFC),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Text(
-                                        ing.name,
-                                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
-                                        overflow: TextOverflow.ellipsis,
+                                      Row(
+                                        children: [
+                                          Container(
+                                            width: 22,
+                                            height: 22,
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFF1F5F9),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            alignment: Alignment.center,
+                                            child: Text(
+                                              '${idx + 1}',
+                                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  ing.name,
+                                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                const SizedBox(height: 1),
+                                                Text(
+                                                  _IngredientVisualHelper.getLabel(cat),
+                                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: catColor),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF475569)),
+                                            tooltip: 'Edit Bahan',
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                            onPressed: () => _showIngredientDialog(index: idx),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.delete_outline_rounded, size: 16, color: AppColors.danger),
+                                            tooltip: 'Hapus Bahan',
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                            onPressed: () {
+                                              widget.controller.simulationIngredients.removeAt(idx);
+                                              _recalculate();
+                                            },
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        _IngredientVisualHelper.getLabel(cat),
-                                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: catColor),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          // Takaran & Kemasan Pill
+                                          Expanded(
+                                            child: Wrap(
+                                              spacing: 6,
+                                              runSpacing: 4,
+                                              crossAxisAlignment: WrapCrossAlignment.center,
+                                              children: [
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xFFF1F5F9),
+                                                    borderRadius: BorderRadius.circular(6),
+                                                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                                                  ),
+                                                  child: Text(
+                                                    '${ing.amount % 1 == 0 ? ing.amount.toInt() : ing.amount} ${ing.unit}',
+                                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
+                                                  ),
+                                                ),
+                                                Text(
+                                                  '(${_currencyFormat.format(ing.buyPrice)} / ${ing.buyAmount % 1 == 0 ? ing.buyAmount.toInt() : ing.buyAmount} ${ing.buyUnit})',
+                                                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          // Subtotal & % porsi
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.end,
+                                            children: [
+                                              Text(
+                                                _currencyFormat.format(ing.subtotal),
+                                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                                decoration: BoxDecoration(
+                                                  color: isDominantCost ? const Color(0xFFFEF3C7) : const Color(0xFFF1F5F9),
+                                                  borderRadius: BorderRadius.circular(4),
+                                                ),
+                                                child: Text(
+                                                  '${sharePercent.toStringAsFixed(1)}% porsi',
+                                                  style: TextStyle(
+                                                    fontSize: 9,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: isDominantCost ? const Color(0xFFB45309) : const Color(0xFF64748B),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
                                 ),
-                                // Takaran Porsi Pill
-                                Expanded(
-                                  flex: 2,
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                              ),
+                            );
+                          }
+
+                          // Desktop Row
+                          return Material(
+                            color: Colors.white,
+                            child: InkWell(
+                              onTap: () => _showIngredientDialog(index: idx),
+                              hoverColor: const Color(0xFFF8FAFC),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                child: Row(
+                                  children: [
+                                    // Number Indicator
+                                    SizedBox(
+                                      width: 32,
+                                      child: Container(
+                                        width: 24,
+                                        height: 24,
                                         decoration: BoxDecoration(
                                           color: const Color(0xFFF1F5F9),
-                                          borderRadius: BorderRadius.circular(7),
-                                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                                          borderRadius: BorderRadius.circular(6),
                                         ),
+                                        alignment: Alignment.center,
                                         child: Text(
-                                          '${ing.amount % 1 == 0 ? ing.amount.toInt() : ing.amount} ${ing.unit}',
-                                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
+                                          '${idx + 1}',
+                                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    // Name with Category Subtitle
+                                    Expanded(
+                                      flex: 3,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            ing.name,
+                                            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            _IngredientVisualHelper.getLabel(cat),
+                                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: catColor),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    // Takaran Porsi Pill
+                                    Expanded(
+                                      flex: 2,
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFF1F5F9),
+                                              borderRadius: BorderRadius.circular(7),
+                                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                                            ),
+                                            child: Text(
+                                              '${ing.amount % 1 == 0 ? ing.amount.toInt() : ing.amount} ${ing.unit}',
+                                              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    // Harga Beli Kemasan
+                                    Expanded(
+                                      flex: 3,
+                                      child: Text.rich(
+                                        TextSpan(
+                                          children: [
+                                            TextSpan(
+                                              text: _currencyFormat.format(ing.buyPrice),
+                                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                                            ),
+                                            TextSpan(
+                                              text: ' / ${ing.buyAmount % 1 == 0 ? ing.buyAmount.toInt() : ing.buyAmount} ${ing.buyUnit}',
+                                              style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    // Subtotal / Cup with Contribution Pill
+                                    Expanded(
+                                      flex: 2,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            _currencyFormat.format(ing.subtotal),
+                                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                            decoration: BoxDecoration(
+                                              color: isDominantCost ? const Color(0xFFFEF3C7) : const Color(0xFFF1F5F9),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              '${sharePercent.toStringAsFixed(1)}% porsi',
+                                              style: TextStyle(
+                                                fontSize: 9.5,
+                                                fontWeight: FontWeight.bold,
+                                                color: isDominantCost ? const Color(0xFFB45309) : const Color(0xFF64748B),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    // Actions (Edit & Delete)
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF475569)),
+                                          tooltip: 'Edit Bahan',
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                                          onPressed: () => _showIngredientDialog(index: idx),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.delete_outline_rounded, size: 16, color: AppColors.danger),
+                                          tooltip: 'Hapus Bahan',
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                                          onPressed: () {
+                                            widget.controller.simulationIngredients.removeAt(idx);
+                                            _recalculate();
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+
+                      // Table Footer Summary & Proportion Bar
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.vertical(bottom: Radius.circular(14)),
+                          border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Main Summary
+                            if (isCompact)
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFE2E8F0),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: const Icon(Icons.pie_chart_outline_rounded, size: 16, color: Color(0xFF334155)),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      const Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Total Biaya Bahan Murni (Food Cost)',
+                                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF1E293B)),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            Text(
+                                              'Total pengeluaran bahan dasar per 1 porsi saji',
+                                              style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ],
                                   ),
-                                ),
-                                // Harga Beli Kemasan
-                                Expanded(
-                                  flex: 3,
-                                  child: Text.rich(
-                                    TextSpan(
+                                  const SizedBox(height: 10),
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(9),
+                                      border: Border.all(color: const Color(0xFFCBD5E1)),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
-                                        TextSpan(
-                                          text: _currencyFormat.format(ing.buyPrice),
-                                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                                        const Flexible(
+                                          child: Text(
+                                            'Total Food Cost:',
+                                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                         ),
-                                        TextSpan(
-                                          text: ' / ${ing.buyAmount % 1 == 0 ? ing.buyAmount.toInt() : ing.buyAmount} ${ing.buyUnit}',
-                                          style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          _currencyFormat.format(totalFoodCost),
+                                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
                                         ),
                                       ],
                                     ),
                                   ),
-                                ),
-                                // Subtotal / Cup with Contribution Pill
-                                Expanded(
-                                  flex: 2,
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    mainAxisSize: MainAxisSize.min,
+                                ],
+                              )
+                            else
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
                                     children: [
-                                      Text(
-                                        _currencyFormat.format(ing.subtotal),
-                                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
-                                      ),
-                                      const SizedBox(height: 2),
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                        padding: const EdgeInsets.all(6),
                                         decoration: BoxDecoration(
-                                          color: isDominantCost ? const Color(0xFFFEF3C7) : const Color(0xFFF1F5F9),
-                                          borderRadius: BorderRadius.circular(4),
+                                          color: const Color(0xFFE2E8F0),
+                                          borderRadius: BorderRadius.circular(8),
                                         ),
-                                        child: Text(
-                                          '${sharePercent.toStringAsFixed(1)}% porsi',
-                                          style: TextStyle(
-                                            fontSize: 9.5,
-                                            fontWeight: FontWeight.bold,
-                                            color: isDominantCost ? const Color(0xFFB45309) : const Color(0xFF64748B),
+                                        child: const Icon(Icons.pie_chart_outline_rounded, size: 16, color: Color(0xFF334155)),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      const Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Total Biaya Bahan Murni (Food Cost)',
+                                            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF1E293B)),
                                           ),
-                                        ),
+                                          Text(
+                                            'Total pengeluaran bahan dasar per 1 porsi saji',
+                                            style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                // Actions (Edit & Delete)
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF475569)),
-                                      tooltip: 'Edit Bahan',
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-                                      onPressed: () => _showIngredientDialog(index: idx),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(9),
+                                      border: Border.all(color: const Color(0xFFCBD5E1)),
                                     ),
-                                    IconButton(
-                                      icon: const Icon(Icons.delete_outline_rounded, size: 16, color: AppColors.danger),
-                                      tooltip: 'Hapus Bahan',
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-                                      onPressed: () {
-                                        widget.controller.simulationIngredients.removeAt(idx);
-                                        _recalculate();
-                                      },
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Text(
+                                          'Subtotal: ',
+                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                                        ),
+                                        Text(
+                                          _currencyFormat.format(totalFoodCost),
+                                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-
-                  // Table Footer Summary & Proportion Bar
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.vertical(bottom: Radius.circular(14)),
-                      border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Main Summary Row
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFE2E8F0),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Icon(Icons.pie_chart_outline_rounded, size: 16, color: Color(0xFF334155)),
-                                ),
-                                const SizedBox(width: 10),
-                                const Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Total Biaya Bahan Murni (Food Cost)',
-                                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFF1E293B)),
-                                    ),
-                                    Text(
-                                      'Total pengeluaran bahan dasar per 1 porsi saji',
-                                      style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(9),
-                                border: Border.all(color: const Color(0xFFCBD5E1)),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Text(
-                                    'Subtotal: ',
-                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
-                                  ),
-                                  Text(
-                                    _currencyFormat.format(totalFoodCost),
-                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
                                   ),
                                 ],
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
+                            const SizedBox(height: 12),
 
                         // Mini Multi-Color Proportion Bar
                         ClipRRect(
@@ -1020,9 +1353,11 @@ class _HppSimulationPanelState extends State<HppSimulationPanel> {
                     ),
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(height: 16),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 16),
 
             // 3. SIMULATION CONTROLS (OVERHEAD & FLUCTUATION)
             Container(
@@ -1293,15 +1628,24 @@ class _HppSimulationPanelState extends State<HppSimulationPanel> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('0% Normal', style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
-                                if (_markupPercent > 0)
-                                  Text(
-                                    '+${_currencyFormat.format(totalFoodCost * (_markupPercent / 100.0))}',
-                                    style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFFB45309)),
-                                  )
-                                else
-                                  const Text('Harga Resep', style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
-                                const Text('+30% Krisis', style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+                                const Text('0% Normal', style: TextStyle(fontSize: 9, color: Color(0xFF94A3B8))),
+                                Flexible(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                                    child: Text(
+                                      _markupPercent > 0
+                                          ? '+${_currencyFormat.format(totalFoodCost * (_markupPercent / 100.0))}'
+                                          : 'Harga Resep',
+                                      style: TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: _markupPercent > 0 ? FontWeight.bold : FontWeight.w600,
+                                        color: _markupPercent > 0 ? const Color(0xFFB45309) : const Color(0xFF64748B),
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ),
+                                const Text('+30% Krisis', style: TextStyle(fontSize: 9, color: Color(0xFF94A3B8))),
                               ],
                             ),
                           ],
@@ -1434,26 +1778,26 @@ class _HppSimulationPanelState extends State<HppSimulationPanel> {
 
             // 4. 3-TIER PRICING RECOMMENDATION
             if (tiers.isNotEmpty) ...[
-              Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 8,
-                runSpacing: 4,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
-                    mainAxisSize: MainAxisSize.min,
+                  Row(
                     children: [
-                      Icon(Icons.sell_outlined, size: 16, color: Color(0xFF0F172A)),
-                      SizedBox(width: 8),
-                      Text(
-                        'Rekomendasi 3 Tier Harga Jual Cafe (Dibulatkan Rp 500)',
-                        style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                      const Icon(Icons.sell_outlined, size: 16, color: Color(0xFF0F172A)),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Rekomendasi 3 Tier Harga Jual Cafe',
+                          style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 2),
                   const Text(
-                    'Klik kartu untuk memilih tier harga yang diinginkan',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                    'Dibulatkan kelipatan Rp 500 • Klik kartu untuk memilih harga',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF64748B)),
                   ),
                 ],
               ),
@@ -1567,11 +1911,15 @@ class _HppSimulationPanelState extends State<HppSimulationPanel> {
                       children: [
                         const Icon(Icons.add_task_rounded, size: 19, color: Colors.white),
                         const SizedBox(width: 10),
-                        Text(
-                          selectedTierItem != null && selectedPrice != null && selectedPrice > 0
-                              ? 'Terapkan ke Katalog (${selectedTierItem.label} • ${_currencyFormat.format(selectedPrice)})'
-                              : 'Terapkan ke Katalog Produk Baru',
-                          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.2),
+                        Flexible(
+                          child: Text(
+                            selectedTierItem != null && selectedPrice != null && selectedPrice > 0
+                                ? 'Terapkan ke Katalog (${selectedTierItem.label} • ${_currencyFormat.format(selectedPrice)})'
+                                : 'Terapkan ke Katalog Produk Baru',
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.2),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
                         ),
                         const SizedBox(width: 8),
                         const Icon(Icons.arrow_forward_rounded, size: 16, color: Colors.white70),
