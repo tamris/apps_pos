@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../../../../data/models/admin_shift_model.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_cached_image.dart';
 
 class AdminShiftDetailDialog extends StatelessWidget {
   final AdminShiftDetailModel shift;
@@ -1132,12 +1133,11 @@ class AdminShiftDetailDialog extends StatelessWidget {
                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                   ),
                                   const SizedBox(height: 8),
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.network(
-                                      m.receiptImageUrl!,
-                                      fit: BoxFit.contain,
-                                    ),
+                                  AppCachedImage(
+                                    imageUrl: m.receiptImageUrl,
+                                    fit: BoxFit.contain,
+                                    borderRadius: 8,
+                                    placeholderIcon: Icons.receipt_long_rounded,
                                   ),
                                 ],
                               ),

@@ -11,6 +11,7 @@ import 'tabs/admin_transactions_tab.dart';
 import 'tabs/admin_shifts_tab.dart';
 import 'tabs/admin_open_bills_tab.dart';
 import 'tabs/admin_cash_flow_tab.dart';
+import 'tabs/admin_products_tab.dart';
 import 'widgets/common/admin_date_range_dialog.dart';
 import 'widgets/navigation/admin_mobile_bottom_nav_bar.dart';
 
@@ -95,10 +96,13 @@ class AdminView extends GetView<AdminController> {
                       final isSubTab = tabIndex == 2 ||
                           tabIndex == 3 ||
                           tabIndex == 5 ||
-                          tabIndex == 6;
+                          tabIndex == 6 ||
+                          tabIndex == 7 ||
+                          tabIndex == 8;
 
                       if (tabIndex == 0) {
                         return Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Container(
                               width: 30,
@@ -125,13 +129,17 @@ class AdminView extends GetView<AdminController> {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            const Text(
-                              'Noli Coffee',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF0F172A),
-                                letterSpacing: -0.2,
+                            const Flexible(
+                              child: Text(
+                                'Noli Coffee',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF0F172A),
+                                  letterSpacing: -0.2,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             const SizedBox(width: 6),
@@ -177,6 +185,9 @@ class AdminView extends GetView<AdminController> {
                           tabTitle = 'Arus Kas & Beban';
                           break;
                         case 6:
+                          tabTitle = 'Produk & Resep HPP';
+                          break;
+                        case 7:
                           tabTitle = 'Pengaturan Toko';
                           break;
                         default:
@@ -534,6 +545,12 @@ class AdminView extends GetView<AdminController> {
                     ),
                     const SizedBox(height: 3),
                     _buildExpandedNavItem(
+                      index: 6,
+                      icon: Icons.inventory_2_rounded,
+                      label: 'Produk & HPP',
+                    ),
+                    const SizedBox(height: 3),
+                    _buildExpandedNavItem(
                       index: 5,
                       icon: Icons.account_balance_wallet_rounded,
                       label: 'Arus Kas & Beban',
@@ -548,7 +565,7 @@ class AdminView extends GetView<AdminController> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             child: _buildExpandedNavItem(
-              index: 6,
+              index: 7,
               icon: Icons.settings_rounded,
               label: 'Pengaturan',
             ),
@@ -658,6 +675,12 @@ class AdminView extends GetView<AdminController> {
                     ),
                     const SizedBox(height: 4),
                     _buildCollapsedNavItem(
+                      index: 6,
+                      icon: Icons.inventory_2_rounded,
+                      label: 'Produk & HPP',
+                    ),
+                    const SizedBox(height: 4),
+                    _buildCollapsedNavItem(
                       index: 5,
                       icon: Icons.account_balance_wallet_rounded,
                       label: 'Arus Kas & Beban',
@@ -672,7 +695,7 @@ class AdminView extends GetView<AdminController> {
           Padding(
             padding: const EdgeInsets.only(bottom: 6),
             child: _buildCollapsedNavItem(
-              index: 6,
+              index: 7,
               icon: Icons.settings_rounded,
               label: 'Pengaturan',
             ),
@@ -981,6 +1004,12 @@ class AdminView extends GetView<AdminController> {
                   title = 'Arus Kas & Beban Toko';
                   break;
                 case 6:
+                  title = 'Master Produk & Resep Menu';
+                  break;
+                case 7:
+                  title = 'Kalkulator & Analisis HPP';
+                  break;
+                case 8:
                   title = 'Pengaturan Sistem';
                   break;
                 default:
@@ -1165,6 +1194,8 @@ class AdminView extends GetView<AdminController> {
       case 5:
         return const AdminCashFlowTab();
       case 6:
+        return const AdminProductsTab();
+      case 7:
         return _buildSettingsPlaceholder();
       default:
         return const AdminDashboardTab();

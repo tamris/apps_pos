@@ -27,9 +27,10 @@ class TableBillCard extends StatelessWidget {
         ? 'MEJA ${bill.tableNumber.toUpperCase()}'
         : 'PESANAN LANGSUNG';
 
+    final String durationStr = bill.formattedDuration;
     final String timeDisplay = bill.formattedTime != null && bill.formattedTime!.isNotEmpty && bill.formattedTime != '-'
-        ? '${bill.formattedTime} • Duduk ${bill.elapsedMinutes > 0 ? '${bill.elapsedMinutes}m' : 'Baru'}'
-        : (bill.elapsedMinutes > 0 ? 'Duduk ${bill.elapsedMinutes}m' : 'Baru Datang');
+        ? (bill.elapsedMinutes > 0 ? '${bill.formattedTime} • Duduk $durationStr' : '${bill.formattedTime} • Baru')
+        : (bill.elapsedMinutes > 0 ? 'Duduk $durationStr' : 'Baru Datang');
 
     return Container(
       decoration: BoxDecoration(

@@ -330,7 +330,24 @@ class AdminMenuHubBottomSheet extends StatelessWidget {
                           )),
                       const SizedBox(height: 18),
 
-                      // Section 2: LAPORAN & ANALITIK
+                      // Section 2: KATALOG & STRATEGI HPP
+                      _buildSectionHeader('KATALOG & STRATEGI HPP'),
+                      const SizedBox(height: 8),
+                      Obx(() => _buildHubItem(
+                            context: context,
+                            index: 6,
+                            icon: Icons.inventory_2_rounded,
+                            iconColor: const Color(0xFF4F46E5),
+                            iconBgColor: const Color(0xFFEEF2FF),
+                            title: 'Katalog Produk & Resep HPP',
+                            subtitle:
+                                'Katalog menu, foto, resep bahan baku & kalkulator margin HPP',
+                            isSelected:
+                                controller.selectedTabIndex.value == 6,
+                          )),
+                      const SizedBox(height: 18),
+
+                      // Section 3: LAPORAN & ANALITIK
                       _buildSectionHeader('LAPORAN & ANALITIK'),
                       const SizedBox(height: 8),
                       Obx(() => _buildHubItem(
@@ -360,7 +377,7 @@ class AdminMenuHubBottomSheet extends StatelessWidget {
                           )),
                       const SizedBox(height: 18),
 
-                      // Section 3: RINGKASAN & SISTEM
+                      // Section 4: RINGKASAN & SISTEM
                       _buildSectionHeader('NAVIGASI UTAMA & SISTEM'),
                       const SizedBox(height: 8),
                       Row(
@@ -391,7 +408,7 @@ class AdminMenuHubBottomSheet extends StatelessWidget {
                       const SizedBox(height: 8),
                       Obx(() => _buildHubItem(
                             context: context,
-                            index: 6,
+                            index: 7,
                             icon: Icons.settings_rounded,
                             iconColor: const Color(0xFF475569),
                             iconBgColor: const Color(0xFFF1F5F9),
@@ -399,7 +416,7 @@ class AdminMenuHubBottomSheet extends StatelessWidget {
                             subtitle:
                                 'Konfigurasi printer, akun kasir & preferensi sistem',
                             isSelected:
-                                controller.selectedTabIndex.value == 6,
+                                controller.selectedTabIndex.value == 7,
                           )),
                     ],
                   ),

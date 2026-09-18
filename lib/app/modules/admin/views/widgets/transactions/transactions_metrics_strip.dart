@@ -10,18 +10,36 @@ class TransactionsMetricsStrip extends GetView<AdminController> {
   Widget build(BuildContext context) {
     return Obx(() {
       final list = controller.transactions;
-      final totalTrx = list.length;
+      final bool useServerSummary = controller.hasServerTrxSummary.value;
+
+      final int totalTrx = controller.totalTrxCount.value > 0
+          ? controller.totalTrxCount.value
+          : list.length;
+
       final completedTrx = list.where((t) => t.isCompleted).toList();
+      final int completedCount = useServerSummary
+          ? controller.completedTrxCount.value
+          : completedTrx.length;
+
       double totalRevenue = 0.0;
       double totalProfit = 0.0;
-      for (final t in completedTrx) {
-        totalRevenue += t.total;
-        totalProfit += (t.profit ?? 0.0);
+      if (useServerSummary) {
+        totalRevenue = controller.totalTrxRevenue.value;
+        totalProfit = controller.totalTrxProfit.value;
+      } else {
+        for (final t in completedTrx) {
+          totalRevenue += t.total;
+          totalProfit += (t.profit ?? 0.0);
+        }
       }
-      final aov =
-          completedTrx.isNotEmpty ? totalRevenue / completedTrx.length : 0.0;
-      final profitMargin =
-          totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0.0;
+
+      final double aov = useServerSummary
+          ? controller.totalTrxAov.value
+          : (completedCount > 0 ? totalRevenue / completedCount : 0.0);
+
+      final double profitMargin = useServerSummary
+          ? controller.totalTrxProfitMargin.value
+          : (totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0.0);
 
       return Container(
         padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
@@ -51,7 +69,7 @@ class TransactionsMetricsStrip extends GetView<AdminController> {
                       width: 195,
                       label: 'Total Omzet (Selesai)',
                       value: CurrencyFormatter.format(totalRevenue),
-                      subtext: '${completedTrx.length} berhasil',
+                      subtext: '$completedCount berhasil',
                       icon: Icons.account_balance_wallet_rounded,
                       iconColor: const Color(0xFF059669),
                       iconBg: const Color(0xFFECFDF5),
@@ -98,7 +116,7 @@ class TransactionsMetricsStrip extends GetView<AdminController> {
                   child: _buildMetricCard(
                     label: 'Total Omzet (Selesai)',
                     value: CurrencyFormatter.format(totalRevenue),
-                    subtext: '${completedTrx.length} berhasil',
+                    subtext: '$completedCount berhasil',
                     icon: Icons.account_balance_wallet_rounded,
                     iconColor: const Color(0xFF059669),
                     iconBg: const Color(0xFFECFDF5),
