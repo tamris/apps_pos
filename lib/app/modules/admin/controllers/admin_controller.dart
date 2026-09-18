@@ -4,6 +4,7 @@ import 'package:dio/dio.dart' as dio;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'dart:convert';
 import '../../../data/models/admin_dashboard_model.dart';
 import '../../../data/models/admin_shift_model.dart';
 import '../../../data/models/admin_transaction_model.dart';
@@ -12,6 +13,11 @@ import '../../../data/models/admin_menu_sales_model.dart';
 import '../../../data/models/cash_movement_model.dart';
 import '../../../data/models/expense_category_model.dart';
 import '../../../data/models/cash_flow_summary_model.dart';
+import '../../../data/models/admin_product_model.dart';
+import '../../../data/models/product_ingredient_model.dart';
+import '../../../data/models/hpp_calculation_model.dart';
+import '../../../data/models/hpp_summary_model.dart';
+import '../../../data/models/admin_category_model.dart';
 import '../../../data/providers/api_provider.dart';
 import '../../../data/services/storage_service.dart';
 import '../../../core/constants/api_constants.dart';
@@ -241,12 +247,90 @@ class AdminController extends GetxController {
     }).toList();
   }
 
+  // --- TAB 6: MASTER PRODUK & RESEP ---
+  final RxInt productManagementSubTab = 0.obs; // 0: Katalog Produk, 1: Analisis Margin & AI Resep
+  void setProductManagementSubTab(int val) => productManagementSubTab.value = val;
+
+  final RxList<AdminProductModel> products = <AdminProductModel>[].obs;
+  final RxList<AdminCategoryModel> productCategories = <AdminCategoryModel>[].obs;
+  final RxBool isLoadingProducts = false.obs;
+  final RxBool isLoadingProductCategories = false.obs;
+  final RxBool isSubmittingProduct = false.obs;
+  final RxBool isDeletingProduct = false.obs;
+  final RxString productSearchQuery = ''.obs;
+  final TextEditingController productSearchController = TextEditingController();
+  final Rx<int?> selectedProductCategoryId = Rx<int?>(null);
+  final RxString selectedProductStatus = 'all'.obs; // 'all', 'active', 'inactive', 'archived'
+  final RxString selectedProductSort = 'name'.obs; // 'name', 'price_asc', 'price_desc', 'margin_desc', 'margin_asc'
+  final RxBool hasProductSearch = false.obs;
+
+  List<AdminProductModel> get filteredProducts {
+    final q = productSearchQuery.value.trim().toLowerCase();
+    final catId = selectedProductCategoryId.value;
+    final status = selectedProductStatus.value;
+
+    final list = products.where((p) {
+      if (catId != null && p.categoryId != catId) return false;
+      if (status == 'active' && (!p.isActive || p.isArchived)) return false;
+      if (status == 'inactive' && (p.isActive || p.isArchived)) return false;
+      if (status == 'archived' && !p.isArchived) return false;
+      if (status == 'all' && p.isArchived) return false;
+
+      if (q.isNotEmpty) {
+        final matchName = p.name.toLowerCase().contains(q);
+        final matchSku = p.sku.toLowerCase().contains(q);
+        final matchBarcode = p.barcode?.toLowerCase().contains(q) ?? false;
+        final matchCat = p.categoryName.toLowerCase().contains(q);
+        if (!matchName && !matchSku && !matchBarcode && !matchCat) return false;
+      }
+      return true;
+    }).toList();
+
+    switch (selectedProductSort.value) {
+      case 'price_asc':
+        list.sort((a, b) => a.price.compareTo(b.price));
+        break;
+      case 'price_desc':
+        list.sort((a, b) => b.price.compareTo(a.price));
+        break;
+      case 'margin_desc':
+        list.sort((a, b) => b.marginPercent.compareTo(a.marginPercent));
+        break;
+      case 'margin_asc':
+        list.sort((a, b) => a.marginPercent.compareTo(b.marginPercent));
+        break;
+      case 'name':
+      default:
+        list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+        break;
+    }
+    return list;
+  }
+
+  // --- TAB 7: HPP, HEALTH CHECK & STRATEGI RESEP ---
+  final Rx<HppSummaryModel> hppSummary = HppSummaryModel.empty().obs;
+  final RxBool isLoadingHppSummary = false.obs;
+  final RxBool isCalculatingHpp = false.obs;
+  final RxBool isGeneratingAiRecipe = false.obs;
+
+  // Simulator HPP State
+  final RxString simulationProductName = ''.obs;
+  final RxList<ProductIngredientModel> simulationIngredients = <ProductIngredientModel>[].obs;
+  final RxDouble simulationSellingPrice = 0.0.obs;
+  final RxDouble simulationOperationalCost = 1000.0.obs;
+  final RxDouble simulationKenaikanPersen = 0.0.obs;
+  final RxInt simulationTargetMonthlyUnits = 3000.obs;
+  final RxDouble simulationTargetMonthlyProfit = 5000000.0.obs;
+  final RxInt simulationOperationalDays = 30.obs;
+  final Rx<HppCalculationModel?> simulationCalculationResult = Rx<HppCalculationModel?>(null);
+
   // --- SEARCH DEBOUNCERS & INSTANT INDICATORS ---
   Timer? _cashFlowSearchDebounce;
   Timer? _trxSearchDebounce;
   Timer? _shiftSearchDebounce;
   Timer? _menuSearchDebounce;
   Timer? _openBillSearchDebounce;
+  Timer? _productSearchDebounce;
 
   final RxBool hasCashFlowSearch = false.obs;
   final RxBool hasTrxSearch = false.obs;
@@ -362,12 +446,41 @@ class AdminController extends GetxController {
     openBillSearchQuery.value = openBillSearchController.text;
   }
 
+  void onProductSearchChanged(String val) {
+    hasProductSearch.value = val.isNotEmpty;
+    _productSearchDebounce?.cancel();
+    _productSearchDebounce = Timer(const Duration(milliseconds: 250), () {
+      productSearchQuery.value = val;
+    });
+  }
+
+  void clearProductSearch() {
+    _productSearchDebounce?.cancel();
+    productSearchController.clear();
+    hasProductSearch.value = false;
+    productSearchQuery.value = '';
+  }
+
+  void clearProductFilters() {
+    clearProductSearch();
+    selectedProductCategoryId.value = null;
+    selectedProductStatus.value = 'all';
+    selectedProductSort.value = 'name';
+  }
+
   @override
   void onInit() {
     super.onInit();
     fetchDashboard();
     fetchTransactions();
     fetchOpenBills();
+
+    // Auto re-fetch products when status filter changes (e.g. switching to Arsip)
+    ever(selectedProductStatus, (_) {
+      if (selectedTabIndex.value == 6) {
+        fetchAdminProducts(showLoader: false);
+      }
+    });
   }
 
   @override
@@ -377,11 +490,13 @@ class AdminController extends GetxController {
     _shiftSearchDebounce?.cancel();
     _menuSearchDebounce?.cancel();
     _openBillSearchDebounce?.cancel();
+    _productSearchDebounce?.cancel();
     menuSearchController.dispose();
     trxSearchController.dispose();
     shiftSearchController.dispose();
     openBillSearchController.dispose();
     cashFlowSearchController.dispose();
+    productSearchController.dispose();
     super.onClose();
   }
 
@@ -410,7 +525,12 @@ class AdminController extends GetxController {
         fetchAdminExpenseCategories();
         break;
       case 6:
-        // Tab Pengaturan (Segera Hadir / Setting Placeholder)
+        fetchAdminProducts();
+        fetchAdminProductCategories();
+        fetchHppSummary(showLoader: false);
+        break;
+      case 7:
+        // Tab Pengaturan
         break;
     }
   }
@@ -941,6 +1061,19 @@ class AdminController extends GetxController {
         ]);
         break;
       case 6:
+        if (productManagementSubTab.value == 0) {
+          await Future.wait([
+            fetchAdminProducts(),
+            fetchAdminProductCategories(),
+          ]);
+        } else {
+          await Future.wait([
+            fetchHppSummary(),
+            fetchAdminProductCategories(),
+          ]);
+        }
+        break;
+      case 7:
         // Tab Pengaturan
         break;
     }
@@ -1211,7 +1344,478 @@ class AdminController extends GetxController {
     }
   }
 
-  /// Logout admin / owner dan kembali ke halaman PIN Login
+  // ==========================================
+  // 7. PRODUCT & RECIPE MASTER LOGIC
+  // ==========================================
+
+  Future<void> fetchAdminProducts({bool showLoader = true}) async {
+    if (showLoader) isLoadingProducts.value = true;
+    try {
+      final queryParams = <String, dynamic>{
+        'paginate': false,
+      };
+      if (selectedProductCategoryId.value != null) {
+        queryParams['category_id'] = selectedProductCategoryId.value;
+      }
+      if (selectedProductStatus.value == 'active') {
+        queryParams['status'] = 'active';
+        queryParams['is_active'] = true;
+      } else if (selectedProductStatus.value == 'inactive') {
+        queryParams['status'] = 'inactive';
+        queryParams['is_active'] = false;
+      } else if (selectedProductStatus.value == 'archived') {
+        queryParams['status'] = 'archived';
+        queryParams['is_archived'] = true;
+      }
+
+      final response = await _apiProvider.get(
+        ApiConstants.adminProducts,
+        queryParameters: queryParams,
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        final rawData = response.data['data'];
+        if (rawData is List) {
+          products.value = rawData
+              .whereType<Map>()
+              .map((item) => AdminProductModel.fromJson(Map<String, dynamic>.from(item)))
+              .toList();
+        }
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Memuat Produk', ApiProvider.getErrorMessage(e));
+    } finally {
+      isLoadingProducts.value = false;
+    }
+  }
+
+  Future<void> fetchAdminProductCategories() async {
+    isLoadingProductCategories.value = true;
+    try {
+      final response = await _apiProvider.get(ApiConstants.adminCategories);
+      if (response.data != null && response.data['success'] == true) {
+        final rawData = response.data['data'];
+        if (rawData is List) {
+          productCategories.value = rawData
+              .whereType<Map>()
+              .map((item) => AdminCategoryModel.fromJson(Map<String, dynamic>.from(item)))
+              .toList();
+        }
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Memuat Kategori', ApiProvider.getErrorMessage(e));
+    } finally {
+      isLoadingProductCategories.value = false;
+    }
+  }
+
+  Future<AdminProductModel?> fetchProductDetail(int id) async {
+    try {
+      final response = await _apiProvider.get(ApiConstants.adminProductDetail(id));
+      if (response.data != null && response.data['success'] == true) {
+        final data = response.data['data'];
+        if (data is Map) {
+          return AdminProductModel.fromJson(Map<String, dynamic>.from(data));
+        }
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Memuat Detail', ApiProvider.getErrorMessage(e));
+    }
+    return null;
+  }
+
+  Future<bool> storeProduct({
+    required String name,
+    required int categoryId,
+    required double price,
+    String? sku,
+    String? barcode,
+    String? description,
+    bool isActive = true,
+    double? hargaBeli,
+    double? operationalCost,
+    List<ProductIngredientModel>? ingredients,
+    String modeAlokasiOps = 'manual',
+    int targetPenjualanBulanan = 3000,
+    double kenaikanPersen = 0.0,
+    String? selectedTier,
+    File? imageFile,
+  }) async {
+    isSubmittingProduct.value = true;
+    try {
+      final mapData = <String, dynamic>{
+        'name': name.trim(),
+        'category_id': categoryId,
+        'price': price,
+        if (sku != null && sku.trim().isNotEmpty) 'sku': sku.trim(),
+        if (barcode != null && barcode.trim().isNotEmpty) 'barcode': barcode.trim(),
+        if (description != null && description.trim().isNotEmpty) 'description': description.trim(),
+        'is_active': isActive ? 1 : 0,
+        if (hargaBeli != null) 'harga_beli': hargaBeli,
+        if (operationalCost != null) 'operational_cost': operationalCost,
+        'mode_alokasi_ops': modeAlokasiOps,
+        'target_penjualan_bulanan': targetPenjualanBulanan,
+        'kenaikan_persen': kenaikanPersen,
+        if (selectedTier != null) 'selected_tier': selectedTier,
+      };
+
+      if (ingredients != null && ingredients.isNotEmpty) {
+        final ingList = ingredients.map((i) => i.toJson()).toList();
+        if (imageFile != null) {
+          mapData['ingredients'] = jsonEncode(ingList);
+        } else {
+          mapData['ingredients'] = ingList;
+        }
+      }
+
+      dynamic payloadData;
+      if (imageFile != null && imageFile.existsSync()) {
+        mapData['image'] = await dio.MultipartFile.fromFile(
+          imageFile.path,
+          filename: imageFile.path.split(Platform.pathSeparator).last,
+        );
+        payloadData = dio.FormData.fromMap(mapData);
+      } else {
+        payloadData = mapData;
+      }
+
+      final response = await _apiProvider.post(
+        ApiConstants.adminProducts,
+        data: payloadData,
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        AppSnackbar.success('Berhasil', response.data['message'] ?? 'Menu berhasil ditambahkan.');
+        await fetchAdminProducts(showLoader: false);
+        await fetchAdminProductCategories();
+        fetchHppSummary(showLoader: false);
+        return true;
+      } else {
+        AppSnackbar.warning('Perhatian', response.data?['message'] ?? 'Gagal menambahkan menu.');
+        return false;
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Menyimpan Menu', ApiProvider.getErrorMessage(e));
+      return false;
+    } finally {
+      isSubmittingProduct.value = false;
+    }
+  }
+
+  Future<bool> updateProduct(
+    int id, {
+    required String name,
+    required int categoryId,
+    required double price,
+    String? sku,
+    String? barcode,
+    String? description,
+    bool isActive = true,
+    double? hargaBeli,
+    double? operationalCost,
+    List<ProductIngredientModel>? ingredients,
+    String modeAlokasiOps = 'manual',
+    int targetPenjualanBulanan = 3000,
+    double kenaikanPersen = 0.0,
+    String? selectedTier,
+    File? imageFile,
+  }) async {
+    isSubmittingProduct.value = true;
+    try {
+      final mapData = <String, dynamic>{
+        'name': name.trim(),
+        'category_id': categoryId,
+        'price': price,
+        if (sku != null && sku.trim().isNotEmpty) 'sku': sku.trim(),
+        if (barcode != null && barcode.trim().isNotEmpty) 'barcode': barcode.trim(),
+        if (description != null && description.trim().isNotEmpty) 'description': description.trim(),
+        'is_active': isActive ? 1 : 0,
+        if (hargaBeli != null) 'harga_beli': hargaBeli,
+        if (operationalCost != null) 'operational_cost': operationalCost,
+        'mode_alokasi_ops': modeAlokasiOps,
+        'target_penjualan_bulanan': targetPenjualanBulanan,
+        'kenaikan_persen': kenaikanPersen,
+        if (selectedTier != null) 'selected_tier': selectedTier,
+      };
+
+      if (ingredients != null) {
+        final ingList = ingredients.map((i) => i.toJson()).toList();
+        if (imageFile != null) {
+          mapData['ingredients'] = jsonEncode(ingList);
+        } else {
+          mapData['ingredients'] = ingList;
+        }
+      }
+
+      dynamic payloadData;
+      if (imageFile != null && imageFile.existsSync()) {
+        mapData['image'] = await dio.MultipartFile.fromFile(
+          imageFile.path,
+          filename: imageFile.path.split(Platform.pathSeparator).last,
+        );
+        payloadData = dio.FormData.fromMap(mapData);
+      } else {
+        payloadData = mapData;
+      }
+
+      final response = await _apiProvider.post(
+        ApiConstants.adminProductDetail(id),
+        data: payloadData,
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        AppSnackbar.success('Berhasil', response.data['message'] ?? 'Menu berhasil diperbarui.');
+        await fetchAdminProducts(showLoader: false);
+        await fetchAdminProductCategories();
+        fetchHppSummary(showLoader: false);
+        return true;
+      } else {
+        AppSnackbar.warning('Perhatian', response.data?['message'] ?? 'Gagal memperbarui menu.');
+        return false;
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Memperbarui Menu', ApiProvider.getErrorMessage(e));
+      return false;
+    } finally {
+      isSubmittingProduct.value = false;
+    }
+  }
+
+  Future<bool> deleteProduct(int id) async {
+    isDeletingProduct.value = true;
+    try {
+      final response = await _apiProvider.delete(ApiConstants.adminProductDetail(id));
+      if (response.data != null && response.data['success'] == true) {
+        AppSnackbar.success('Berhasil', response.data['message'] ?? 'Menu berhasil dihapus.');
+        products.removeWhere((p) => p.id == id);
+        fetchHppSummary(showLoader: false);
+        return true;
+      } else {
+        AppSnackbar.warning('Perhatian', response.data?['message'] ?? 'Gagal menghapus menu.');
+        return false;
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Menghapus Menu', ApiProvider.getErrorMessage(e));
+      return false;
+    } finally {
+      isDeletingProduct.value = false;
+    }
+  }
+
+  Future<void> toggleProductStatus(AdminProductModel product) async {
+    final newStatus = !product.isActive;
+    try {
+      final response = await _apiProvider.post(
+        ApiConstants.adminProductDetail(product.id),
+        data: {
+          'name': product.name,
+          'category_id': product.categoryId,
+          'price': product.price,
+          'is_active': newStatus ? 1 : 0,
+        },
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        final idx = products.indexWhere((p) => p.id == product.id);
+        if (idx != -1) {
+          products[idx] = product.copyWith(isActive: newStatus);
+        }
+        AppSnackbar.success(
+          'Status Diperbarui',
+          "Menu '${product.name}' ${newStatus ? 'diaktifkan' : 'dinonaktifkan'}.",
+        );
+        fetchHppSummary(showLoader: false);
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Mengubah Status', ApiProvider.getErrorMessage(e));
+    }
+  }
+
+  Future<void> toggleArchiveProduct(AdminProductModel product) async {
+    final willArchive = !product.isArchived;
+    try {
+      if (willArchive) {
+        // Soft delete the product to archive it
+        final response = await _apiProvider.delete(ApiConstants.adminProductDetail(product.id));
+        if (response.data != null && response.data['success'] == true) {
+          if (selectedProductStatus.value == 'archived') {
+            final idx = products.indexWhere((p) => p.id == product.id);
+            if (idx != -1) products[idx] = product.copyWith(isArchived: true);
+          } else {
+            products.removeWhere((p) => p.id == product.id);
+          }
+          AppSnackbar.success(
+            'Menu Diarsipkan',
+            response.data['message'] ?? "Menu '${product.name}' berhasil diarsipkan.",
+          );
+          fetchHppSummary(showLoader: false);
+        } else {
+          AppSnackbar.warning('Perhatian', response.data?['message'] ?? 'Gagal mengarsipkan menu.');
+        }
+      } else {
+        // Restore product from archive
+        final response = await _apiProvider.post(ApiConstants.adminProductRestore(product.id));
+        if (response.data != null && response.data['success'] == true) {
+          if (selectedProductStatus.value == 'archived') {
+            products.removeWhere((p) => p.id == product.id);
+          } else {
+            final idx = products.indexWhere((p) => p.id == product.id);
+            if (idx != -1) products[idx] = product.copyWith(isArchived: false);
+          }
+          AppSnackbar.success(
+            'Menu Dipulihkan',
+            response.data['message'] ?? "Menu '${product.name}' berhasil dipulihkan dari arsip.",
+          );
+          fetchHppSummary(showLoader: false);
+        } else {
+          AppSnackbar.warning('Perhatian', response.data?['message'] ?? 'Gagal memulihkan menu dari arsip.');
+        }
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Memperbarui Status Arsip', ApiProvider.getErrorMessage(e));
+    }
+  }
+
+  // ==========================================
+  // 8. HPP, HEALTH CHECK & RECIPE STRATEGY LOGIC
+  // ==========================================
+
+  Future<void> fetchHppSummary({bool showLoader = true}) async {
+    if (showLoader) isLoadingHppSummary.value = true;
+    try {
+      final response = await _apiProvider.get(ApiConstants.adminHppSummary);
+      if (response.data != null && response.data['success'] == true) {
+        final data = response.data['data'];
+        if (data is Map) {
+          hppSummary.value = HppSummaryModel.fromJson(Map<String, dynamic>.from(data));
+        }
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Memuat Ringkasan HPP', ApiProvider.getErrorMessage(e));
+    } finally {
+      isLoadingHppSummary.value = false;
+    }
+  }
+
+  Future<HppCalculationModel?> calculateHppSimulation({
+    List<ProductIngredientModel>? ingredients,
+    double? sellingPrice,
+    double? operationalCost,
+    double? kenaikanPersen,
+    int? targetMonthlyUnits,
+    double? targetMonthlyProfit,
+    int? operationalDays,
+    String modeAlokasiOps = 'manual',
+    List<Map<String, dynamic>>? biayaTetapItems,
+  }) async {
+    isCalculatingHpp.value = true;
+    final targetIngredients = ingredients ?? simulationIngredients;
+    final price = sellingPrice ?? simulationSellingPrice.value;
+    final opsCost = operationalCost ?? simulationOperationalCost.value;
+    final markup = kenaikanPersen ?? simulationKenaikanPersen.value;
+    final units = targetMonthlyUnits ?? simulationTargetMonthlyUnits.value;
+    final targetProfit = targetMonthlyProfit ?? simulationTargetMonthlyProfit.value;
+    final days = operationalDays ?? simulationOperationalDays.value;
+
+    try {
+      final payload = {
+        'ingredients': targetIngredients.map((i) => i.toJson()).toList(),
+        'selling_price': price,
+        'operational_cost': opsCost,
+        'kenaikan_persen': markup,
+        'target_penjualan_bulanan': units,
+        'target_laba_bulanan': targetProfit,
+        'hari_operasional_sebulan': days,
+        'mode_alokasi_ops': modeAlokasiOps,
+        if (biayaTetapItems != null) 'biaya_tetap_items': biayaTetapItems,
+      };
+
+      final response = await _apiProvider.post(
+        ApiConstants.adminHppCalculate,
+        data: payload,
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        final data = response.data['data'];
+        if (data is Map) {
+          final result = HppCalculationModel.fromJson(Map<String, dynamic>.from(data));
+          simulationCalculationResult.value = result;
+          return result;
+        }
+      }
+    } catch (e) {
+      AppSnackbar.danger('Kalkulasi HPP Gagal', ApiProvider.getErrorMessage(e));
+    } finally {
+      isCalculatingHpp.value = false;
+    }
+    return null;
+  }
+
+  Future<bool> generateAiRecipe(String productName) async {
+    final cleanName = productName.trim();
+    if (cleanName.length < 3) {
+      AppSnackbar.warning('Nama Terlalu Pendek', 'Masukkan nama menu minimal 3 karakter.');
+      return false;
+    }
+
+    isGeneratingAiRecipe.value = true;
+    try {
+      final response = await _apiProvider.post(
+        ApiConstants.adminHppAiRecipe,
+        data: {'product_name': cleanName},
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        final data = response.data['data'];
+        if (data is Map) {
+          final rawIngredients = data['ingredients'];
+          if (rawIngredients is List) {
+            final parsed = rawIngredients
+                .whereType<Map>()
+                .map((i) => ProductIngredientModel.fromJson(Map<String, dynamic>.from(i)))
+                .toList();
+
+            simulationProductName.value = cleanName;
+            simulationIngredients.value = parsed;
+
+            // Jika ada summary & pricing tiers langsung terisi
+            if (data['summary'] is Map) {
+              final calcResult = HppCalculationModel.fromJson(Map<String, dynamic>.from(data));
+              simulationCalculationResult.value = calcResult;
+              if (calcResult.pricingTiers['standar'] != null) {
+                simulationSellingPrice.value = calcResult.pricingTiers['standar']!.harga;
+              }
+            } else {
+              await calculateHppSimulation(ingredients: parsed);
+            }
+
+            AppSnackbar.success(
+              'Estimasi Resep Selesai',
+              "Formulasi takaran bahan baku untuk '$cleanName' berhasil dibuat.",
+            );
+            return true;
+          }
+        }
+      } else {
+        AppSnackbar.warning('Perhatian', response.data?['message'] ?? 'Gagal membuat estimasi resep.');
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Estimasi Resep', ApiProvider.getErrorMessage(e));
+    } finally {
+      isGeneratingAiRecipe.value = false;
+    }
+    return false;
+  }
+
+  void resetSimulation() {
+    simulationProductName.value = '';
+    simulationIngredients.clear();
+    simulationSellingPrice.value = 0.0;
+    simulationOperationalCost.value = 1000.0;
+    simulationKenaikanPersen.value = 0.0;
+    simulationCalculationResult.value = null;
+  }
+
   Future<void> logout() async {
     final storageService = Get.find<StorageService>();
     try {

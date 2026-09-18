@@ -39,7 +39,8 @@ class AdminMobileBottomNavBar extends StatelessWidget {
           final isSubTabActive = currentTab == 2 ||
               currentTab == 3 ||
               currentTab == 5 ||
-              currentTab == 6;
+              currentTab == 6 ||
+              currentTab == 7;
 
           return SizedBox(
             height: 58,

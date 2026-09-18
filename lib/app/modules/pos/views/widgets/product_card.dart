@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/widgets/app_cached_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -6,7 +6,6 @@ import '../../../../data/models/product_model.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/app_snackbar.dart';
-import '../../../../core/widgets/app_shimmer.dart';
 import '../../controllers/cart_controller.dart';
 import 'product_customization_sheet.dart';
 
@@ -133,21 +132,13 @@ class _ProductCardState extends State<ProductCard> with SingleTickerProviderStat
                               color: isAvailable ? AppColors.primarySoft : AppColors.lightBackground,
                             ),
                             child: (widget.product.imageUrl != null && widget.product.imageUrl!.isNotEmpty)
-                                ? CachedNetworkImage(
-                                    imageUrl: widget.product.imageUrl!,
+                                ? AppCachedImage(
+                                    imageUrl: widget.product.imageUrl,
                                     fit: BoxFit.cover,
                                     width: double.infinity,
                                     height: double.infinity,
-                                    httpHeaders: const {'ngrok-skip-browser-warning': 'true'},
-                                    fadeInDuration: const Duration(milliseconds: 180),
-                                    placeholder: (context, url) => AppShimmer(
-                                      child: Container(
-                                        width: double.infinity,
-                                        height: double.infinity,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    errorWidget: (_, __, ___) => _buildInitialsPlaceholder(),
+                                    borderRadius: 0,
+                                    errorWidget: _buildInitialsPlaceholder(),
                                   )
                                 : _buildInitialsPlaceholder(),
                           ),

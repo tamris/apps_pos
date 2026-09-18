@@ -75,4 +75,16 @@ class ApiConstants {
   static String adminCashFlowDetail(int id) => '/admin/cash-flow/$id';
   static const String adminExpenseCategories = '/admin/expense-categories';
   static String adminExpenseCategoryDetail(int id) => '/admin/expense-categories/$id';
+
+  // Admin Products & Recipe Management
+  static const String adminProducts = '/admin/products';
+  static String adminProductDetail(int id) => '/admin/products/$id';
+  static String adminProductRestore(int id) => '/admin/products/$id/restore';
+  static const String adminCategories = '/admin/categories';
+
+  // Admin HPP, Recipe AI & Pricing Strategy
+  static const String adminHppSummary = '/admin/hpp/summary';
+  static const String adminHppCalculate = '/admin/hpp/calculate';
+  static const String adminHppAiRecipe = '/admin/hpp/ai-recipe';
 }
+
