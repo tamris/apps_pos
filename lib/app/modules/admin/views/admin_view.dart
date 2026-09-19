@@ -12,6 +12,7 @@ import 'tabs/admin_shifts_tab.dart';
 import 'tabs/admin_open_bills_tab.dart';
 import 'tabs/admin_cash_flow_tab.dart';
 import 'tabs/admin_products_tab.dart';
+import 'tabs/admin_ingredients_tab.dart';
 import 'widgets/common/admin_date_range_dialog.dart';
 import 'widgets/navigation/admin_mobile_bottom_nav_bar.dart';
 
@@ -189,6 +190,9 @@ class AdminView extends GetView<AdminController> {
                           break;
                         case 7:
                           tabTitle = 'Pengaturan Toko';
+                          break;
+                        case 8:
+                          tabTitle = 'Bahan Baku & Stok';
                           break;
                         default:
                           tabTitle = 'Portal Admin';
@@ -551,6 +555,12 @@ class AdminView extends GetView<AdminController> {
                     ),
                     const SizedBox(height: 3),
                     _buildExpandedNavItem(
+                      index: 8,
+                      icon: Icons.kitchen_rounded,
+                      label: 'Bahan Baku & Stok',
+                    ),
+                    const SizedBox(height: 3),
+                    _buildExpandedNavItem(
                       index: 5,
                       icon: Icons.account_balance_wallet_rounded,
                       label: 'Arus Kas & Beban',
@@ -678,6 +688,12 @@ class AdminView extends GetView<AdminController> {
                       index: 6,
                       icon: Icons.inventory_2_rounded,
                       label: 'Produk & HPP',
+                    ),
+                    const SizedBox(height: 4),
+                    _buildCollapsedNavItem(
+                      index: 8,
+                      icon: Icons.kitchen_rounded,
+                      label: 'Bahan Baku & Stok',
                     ),
                     const SizedBox(height: 4),
                     _buildCollapsedNavItem(
@@ -1007,10 +1023,10 @@ class AdminView extends GetView<AdminController> {
                   title = 'Master Produk & Resep Menu';
                   break;
                 case 7:
-                  title = 'Kalkulator & Analisis HPP';
+                  title = 'Pengaturan Sistem';
                   break;
                 case 8:
-                  title = 'Pengaturan Sistem';
+                  title = 'Bahan Baku & Stok Opname';
                   break;
                 default:
                   title = 'Portal Manajemen';
@@ -1197,6 +1213,8 @@ class AdminView extends GetView<AdminController> {
         return const AdminProductsTab();
       case 7:
         return _buildSettingsPlaceholder();
+      case 8:
+        return const AdminIngredientsTab();
       default:
         return const AdminDashboardTab();
     }

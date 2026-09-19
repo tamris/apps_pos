@@ -345,6 +345,19 @@ class AdminMenuHubBottomSheet extends StatelessWidget {
                             isSelected:
                                 controller.selectedTabIndex.value == 6,
                           )),
+                      const SizedBox(height: 8),
+                      Obx(() => _buildHubItem(
+                            context: context,
+                            index: 8,
+                            icon: Icons.kitchen_rounded,
+                            iconColor: const Color(0xFF0D9488),
+                            iconBgColor: const Color(0xFFCCFBF1),
+                            title: 'Bahan Baku & Stok Opname',
+                            subtitle:
+                                'Inventaris bahan, restock, opname & mutasi stok',
+                            isSelected:
+                                controller.selectedTabIndex.value == 8,
+                          )),
                       const SizedBox(height: 18),
 
                       // Section 3: LAPORAN & ANALITIK

@@ -18,6 +18,8 @@ import '../../../data/models/product_ingredient_model.dart';
 import '../../../data/models/hpp_calculation_model.dart';
 import '../../../data/models/hpp_summary_model.dart';
 import '../../../data/models/admin_category_model.dart';
+import '../../../data/models/admin_ingredient_model.dart';
+import '../../../data/models/admin_stock_mutation_model.dart';
 import '../../../data/providers/api_provider.dart';
 import '../../../data/services/storage_service.dart';
 import '../../../core/constants/api_constants.dart';
@@ -364,6 +366,82 @@ class AdminController extends GetxController {
   final RxInt simulationOperationalDays = 30.obs;
   final Rx<HppCalculationModel?> simulationCalculationResult = Rx<HppCalculationModel?>(null);
 
+  // --- TAB: INGREDIENTS & STOCK INVENTORY ---
+  final RxList<AdminIngredientModel> ingredients = <AdminIngredientModel>[].obs;
+  final Rx<AdminIngredientSummaryModel> ingredientSummary = AdminIngredientSummaryModel.empty().obs;
+  final RxBool isLoadingIngredients = false.obs;
+  final RxBool isLoadingMoreIngredients = false.obs;
+  final RxBool hasMoreIngredients = false.obs;
+  int ingredientCurrentPage = 1;
+  final ScrollController ingredientScrollController = ScrollController();
+  final TextEditingController ingredientSearchController = TextEditingController();
+  final RxString ingredientSearchQuery = ''.obs;
+  final RxBool hasIngredientSearch = false.obs;
+  final RxString selectedIngredientStatus = 'all'.obs; // 'all', 'safe', 'low_stock', 'out_of_stock'
+  final RxString selectedIngredientSort = 'name'.obs; // 'name', 'stock_asc', 'stock_desc', 'value_desc'
+  Timer? _ingredientSearchDebounce;
+
+  List<AdminIngredientModel> get filteredIngredients {
+    final query = ingredientSearchQuery.value.trim().toLowerCase();
+    final status = selectedIngredientStatus.value;
+    final sort = selectedIngredientSort.value;
+
+    var list = ingredients.where((ing) {
+      if (status == 'safe' && !ing.isSafe) return false;
+      if (status == 'low_stock' && !ing.isLowStock) return false;
+      if (status == 'out_of_stock' && !ing.isOutOfStock) return false;
+
+      if (query.isNotEmpty) {
+        final matchesName = ing.name.toLowerCase().contains(query);
+        final matchesSku = ing.sku.toLowerCase().contains(query);
+        final matchesCategory = ing.category.toLowerCase().contains(query);
+        if (!matchesName && !matchesSku && !matchesCategory) return false;
+      }
+      return true;
+    }).toList();
+
+    switch (sort) {
+      case 'stock_asc':
+        list.sort((a, b) => a.stock.compareTo(b.stock));
+        break;
+      case 'stock_desc':
+        list.sort((a, b) => b.stock.compareTo(a.stock));
+        break;
+      case 'value_desc':
+        list.sort((a, b) => b.totalInventoryValue.compareTo(a.totalInventoryValue));
+        break;
+      case 'name':
+      default:
+        list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+        break;
+    }
+    return list;
+  }
+
+  void onIngredientSearchChanged(String val) {
+    hasIngredientSearch.value = val.isNotEmpty;
+    _ingredientSearchDebounce?.cancel();
+    _ingredientSearchDebounce = Timer(const Duration(milliseconds: 250), () {
+      ingredientSearchQuery.value = val;
+      fetchIngredients(showLoader: false);
+    });
+  }
+
+  void clearIngredientSearch() {
+    _ingredientSearchDebounce?.cancel();
+    ingredientSearchController.clear();
+    hasIngredientSearch.value = false;
+    ingredientSearchQuery.value = '';
+    fetchIngredients(showLoader: false);
+  }
+
+  void clearIngredientFilters() {
+    clearIngredientSearch();
+    selectedIngredientStatus.value = 'all';
+    selectedIngredientSort.value = 'name';
+    fetchIngredients(showLoader: false);
+  }
+
   // --- SEARCH DEBOUNCERS & INSTANT INDICATORS ---
   Timer? _cashFlowSearchDebounce;
   Timer? _trxSearchDebounce;
@@ -516,6 +594,7 @@ class AdminController extends GetxController {
     shiftScrollController.addListener(_onShiftScroll);
     cashFlowScrollController.addListener(_onCashFlowScroll);
     menuScrollController.addListener(_onMenuScroll);
+    ingredientScrollController.addListener(_onIngredientScroll);
 
     fetchDashboard();
     fetchTransactions();
@@ -525,6 +604,18 @@ class AdminController extends GetxController {
     ever(selectedProductStatus, (_) {
       if (selectedTabIndex.value == 6) {
         fetchAdminProducts(showLoader: false);
+      }
+    });
+
+    // Auto re-fetch ingredients when status or sort changes
+    ever(selectedIngredientStatus, (_) {
+      if (selectedTabIndex.value == 8) {
+        fetchIngredients(showLoader: false);
+      }
+    });
+    ever(selectedIngredientSort, (_) {
+      if (selectedTabIndex.value == 8) {
+        fetchIngredients(showLoader: false);
       }
     });
   }
@@ -541,6 +632,8 @@ class AdminController extends GetxController {
     cashFlowScrollController.dispose();
     menuScrollController.removeListener(_onMenuScroll);
     menuScrollController.dispose();
+    ingredientScrollController.removeListener(_onIngredientScroll);
+    ingredientScrollController.dispose();
 
     _cashFlowSearchDebounce?.cancel();
     _trxSearchDebounce?.cancel();
@@ -548,13 +641,26 @@ class AdminController extends GetxController {
     _menuSearchDebounce?.cancel();
     _openBillSearchDebounce?.cancel();
     _productSearchDebounce?.cancel();
+    _ingredientSearchDebounce?.cancel();
     menuSearchController.dispose();
     trxSearchController.dispose();
     shiftSearchController.dispose();
     openBillSearchController.dispose();
     cashFlowSearchController.dispose();
     productSearchController.dispose();
+    ingredientSearchController.dispose();
     super.onClose();
+  }
+
+  void _onIngredientScroll() {
+    if (!ingredientScrollController.hasClients) return;
+    final maxScroll = ingredientScrollController.position.maxScrollExtent;
+    final currentScroll = ingredientScrollController.position.pixels;
+    if (currentScroll >= (maxScroll - 300)) {
+      if (!isLoadingIngredients.value && !isLoadingMoreIngredients.value && hasMoreIngredients.value) {
+        loadMoreIngredients();
+      }
+    }
   }
 
   void _onTrxScroll() {
@@ -643,6 +749,9 @@ class AdminController extends GetxController {
         break;
       case 7:
         // Tab Pengaturan
+        break;
+      case 8:
+        fetchIngredients();
         break;
     }
   }
@@ -1467,6 +1576,9 @@ class AdminController extends GetxController {
         break;
       case 7:
         // Tab Pengaturan
+        break;
+      case 8:
+        await fetchIngredients(showLoader: false);
         break;
     }
   }
@@ -2367,6 +2479,356 @@ class AdminController extends GetxController {
     simulationOperationalCost.value = 1000.0;
     simulationKenaikanPersen.value = 0.0;
     simulationCalculationResult.value = null;
+  }
+
+  // ==========================================
+  // 8. INGREDIENTS & INVENTORY MANAGEMENT LOGIC
+  // ==========================================
+  Future<void> fetchIngredients({bool showLoader = true}) async {
+    if (showLoader) {
+      isLoadingIngredients.value = true;
+    }
+    ingredientCurrentPage = 1;
+
+    try {
+      final queryParams = <String, dynamic>{
+        'page': 1,
+        'per_page': 50,
+      };
+
+      if (ingredientSearchQuery.value.trim().isNotEmpty) {
+        queryParams['search'] = ingredientSearchQuery.value.trim();
+      }
+
+      if (selectedIngredientStatus.value != 'all') {
+        queryParams['status'] = selectedIngredientStatus.value;
+      }
+
+      if (selectedIngredientSort.value != 'name') {
+        queryParams['sort'] = selectedIngredientSort.value;
+      }
+
+      final response = await _apiProvider.get(
+        ApiConstants.adminIngredients,
+        queryParameters: queryParams,
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final resData = response.data;
+
+        // 1. Parse Summary KPI
+        if (resData['summary'] != null && resData['summary'] is Map) {
+          ingredientSummary.value = AdminIngredientSummaryModel.fromJson(
+            Map<String, dynamic>.from(resData['summary']),
+          );
+        }
+
+        // 2. Parse Items
+        final dynamic rawList = resData['data'];
+        List<dynamic> itemsList = [];
+        if (rawList is List) {
+          itemsList = rawList;
+          hasMoreIngredients.value = false;
+        } else if (rawList is Map && rawList['data'] is List) {
+          itemsList = rawList['data'];
+          final currentPage = rawList['current_page'] ?? 1;
+          final lastPage = rawList['last_page'] ?? 1;
+          hasMoreIngredients.value = currentPage < lastPage;
+        }
+
+        ingredients.assignAll(
+          itemsList.map((e) => AdminIngredientModel.fromJson(Map<String, dynamic>.from(e))).toList(),
+        );
+
+        // Fallback: If summary was empty or all 0, compute from ingredients
+        if (ingredientSummary.value.totalIngredients == 0 && ingredients.isNotEmpty) {
+          double totalVal = 0;
+          int lowCount = 0;
+          int outCount = 0;
+          for (final ing in ingredients) {
+            totalVal += ing.totalInventoryValue;
+            if (ing.isOutOfStock) {
+              outCount++;
+            } else if (ing.isLowStock) {
+              lowCount++;
+            }
+          }
+          ingredientSummary.value = AdminIngredientSummaryModel(
+            totalIngredients: ingredients.length,
+            lowStockCount: lowCount,
+            outOfStockCount: outCount,
+            totalInventoryValue: totalVal,
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('[AdminController] Error fetchIngredients: $e');
+      AppSnackbar.danger('Gagal Memuat Bahan Baku', ApiProvider.getErrorMessage(e));
+    } finally {
+      isLoadingIngredients.value = false;
+    }
+  }
+
+  Future<void> loadMoreIngredients() async {
+    if (isLoadingMoreIngredients.value || !hasMoreIngredients.value) return;
+
+    isLoadingMoreIngredients.value = true;
+    final nextPage = ingredientCurrentPage + 1;
+
+    try {
+      final queryParams = <String, dynamic>{
+        'page': nextPage,
+        'per_page': 50,
+      };
+
+      if (ingredientSearchQuery.value.trim().isNotEmpty) {
+        queryParams['search'] = ingredientSearchQuery.value.trim();
+      }
+      if (selectedIngredientStatus.value != 'all') {
+        queryParams['status'] = selectedIngredientStatus.value;
+      }
+      if (selectedIngredientSort.value != 'name') {
+        queryParams['sort'] = selectedIngredientSort.value;
+      }
+
+      final response = await _apiProvider.get(
+        ApiConstants.adminIngredients,
+        queryParameters: queryParams,
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final resData = response.data;
+        final dynamic rawList = resData['data'];
+        List<dynamic> itemsList = [];
+
+        if (rawList is Map && rawList['data'] is List) {
+          itemsList = rawList['data'];
+          final lastPage = rawList['last_page'] ?? nextPage;
+          hasMoreIngredients.value = nextPage < lastPage;
+          ingredientCurrentPage = nextPage;
+        }
+
+        final newItems = itemsList
+            .map((e) => AdminIngredientModel.fromJson(Map<String, dynamic>.from(e)))
+            .toList();
+
+        ingredients.addAll(newItems);
+      }
+    } catch (e) {
+      debugPrint('[AdminController] Error loadMoreIngredients: $e');
+    } finally {
+      isLoadingMoreIngredients.value = false;
+    }
+  }
+
+  Future<bool> createIngredient(Map<String, dynamic> data) async {
+    try {
+      final response = await _apiProvider.post(
+        ApiConstants.adminIngredients,
+        data: data,
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        AppSnackbar.success('Berhasil', 'Bahan baku berhasil ditambahkan');
+        await fetchIngredients(showLoader: false);
+        return true;
+      } else {
+        AppSnackbar.warning('Perhatian', response.data?['message'] ?? 'Gagal menambah bahan baku');
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Tambah Bahan', ApiProvider.getErrorMessage(e));
+    }
+    return false;
+  }
+
+  Future<bool> updateIngredient(int id, Map<String, dynamic> data) async {
+    try {
+      final response = await _apiProvider.put(
+        ApiConstants.adminIngredientDetail(id),
+        data: data,
+      );
+
+      if (response.statusCode == 200) {
+        AppSnackbar.success('Berhasil', 'Data bahan baku berhasil diperbarui');
+        await fetchIngredients(showLoader: false);
+        return true;
+      } else {
+        AppSnackbar.warning('Perhatian', response.data?['message'] ?? 'Gagal memperbarui bahan');
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Perbarui Bahan', ApiProvider.getErrorMessage(e));
+    }
+    return false;
+  }
+
+  Future<bool> deleteIngredient(int id) async {
+    try {
+      final response = await _apiProvider.delete(
+        ApiConstants.adminIngredientDetail(id),
+      );
+
+      if (response.statusCode == 200) {
+        AppSnackbar.success('Berhasil', 'Bahan baku berhasil dihapus');
+        ingredients.removeWhere((item) => item.id == id);
+        await fetchIngredients(showLoader: false);
+        return true;
+      } else {
+        AppSnackbar.warning('Perhatian', response.data?['message'] ?? 'Gagal menghapus bahan');
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Hapus Bahan', ApiProvider.getErrorMessage(e));
+    }
+    return false;
+  }
+
+  Future<bool> restockIngredient(
+    int id, {
+    required double amount,
+    required double totalCost,
+    String notes = '',
+    bool recordToExpense = false,
+  }) async {
+    try {
+      final response = await _apiProvider.post(
+        ApiConstants.adminIngredientRestock(id),
+        data: {
+          'amount': amount,
+          'total_cost': totalCost,
+          'notes': notes,
+          'record_to_expense': recordToExpense,
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        AppSnackbar.success('Restock Berhasil', 'Stok bahan berhasil ditambahkan ke inventaris');
+        await fetchIngredients(showLoader: false);
+        return true;
+      } else {
+        AppSnackbar.warning('Perhatian', response.data?['message'] ?? 'Gagal melakukan restock');
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Restock', ApiProvider.getErrorMessage(e));
+    }
+    return false;
+  }
+
+  Future<bool> opnameIngredient({
+    required int id,
+    required double actualStock,
+    required String reason,
+    String notes = '',
+  }) async {
+    try {
+      final response = await _apiProvider.post(
+        ApiConstants.adminIngredientOpname,
+        data: {
+          'notes': notes,
+          'items': [
+            {
+              'ingredient_id': id,
+              'actual_stock': actualStock,
+              'reason': reason,
+            }
+          ],
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        AppSnackbar.success('Opname Selesai', 'Penyesuaian stok fisik berhasil dicatat');
+        await fetchIngredients(showLoader: false);
+        return true;
+      } else {
+        AppSnackbar.warning('Perhatian', response.data?['message'] ?? 'Gagal mencatat opname');
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Opname', ApiProvider.getErrorMessage(e));
+    }
+    return false;
+  }
+
+  Future<List<AdminStockMutationModel>> fetchIngredientMutations(int ingredientId) async {
+    try {
+      final response = await _apiProvider.get(
+        ApiConstants.adminIngredientMutations,
+        queryParameters: {'ingredient_id': ingredientId},
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final dynamic raw = response.data['data'];
+        List<dynamic> items = [];
+        if (raw is List) {
+          items = raw;
+        } else if (raw is Map && raw['data'] is List) {
+          items = raw['data'];
+        }
+        return items
+            .map((e) => AdminStockMutationModel.fromJson(Map<String, dynamic>.from(e)))
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('[AdminController] Error fetchIngredientMutations: $e');
+      AppSnackbar.danger('Gagal Memuat Mutasi', ApiProvider.getErrorMessage(e));
+    }
+    return [];
+  }
+
+  Future<bool> attachIngredientToProduct({
+    required int ingredientId,
+    required int productId,
+    required double amount,
+    String? unit,
+  }) async {
+    try {
+      final response = await _apiProvider.post(
+        ApiConstants.adminIngredientAttachProduct(ingredientId),
+        data: {
+          'product_id': productId,
+          'amount': amount,
+          if (unit != null) 'unit': unit,
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        AppSnackbar.success('Berhasil Ditautkan', response.data?['message'] ?? 'Bahan baku berhasil ditautkan ke resep menu');
+        await Future.wait([
+          fetchIngredients(showLoader: false),
+          fetchAdminProducts(showLoader: false),
+          fetchHppSummary(showLoader: false),
+        ]);
+        return true;
+      } else {
+        AppSnackbar.warning('Perhatian', response.data?['message'] ?? 'Gagal menautkan bahan baku');
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Menautkan', ApiProvider.getErrorMessage(e));
+    }
+    return false;
+  }
+
+  Future<bool> detachIngredientFromProduct({
+    required int ingredientId,
+    required int productId,
+  }) async {
+    try {
+      final response = await _apiProvider.delete(
+        ApiConstants.adminIngredientDetachProduct(ingredientId, productId),
+      );
+
+      if (response.statusCode == 200) {
+        AppSnackbar.success('Berhasil Dihapus', response.data?['message'] ?? 'Bahan baku berhasil dihapus dari resep menu');
+        await Future.wait([
+          fetchIngredients(showLoader: false),
+          fetchAdminProducts(showLoader: false),
+          fetchHppSummary(showLoader: false),
+        ]);
+        return true;
+      } else {
+        AppSnackbar.warning('Perhatian', response.data?['message'] ?? 'Gagal menghapus tautan');
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Menghapus Tautan', ApiProvider.getErrorMessage(e));
+    }
+    return false;
   }
 
   Future<void> logout() async {

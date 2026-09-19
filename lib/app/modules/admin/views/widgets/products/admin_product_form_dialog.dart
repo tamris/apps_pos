@@ -10,6 +10,7 @@ import 'package:noli_apps/app/core/utils/currency_formatter.dart';
 import 'package:noli_apps/app/core/widgets/app_cached_image.dart';
 import 'package:noli_apps/app/data/models/admin_product_model.dart';
 import 'package:noli_apps/app/data/models/product_ingredient_model.dart';
+import 'package:noli_apps/app/data/models/admin_ingredient_model.dart';
 import 'package:noli_apps/app/modules/admin/controllers/admin_controller.dart';
 
 class AdminProductFormDialog {
@@ -1851,6 +1852,301 @@ class _ProductFormContentState extends State<_ProductFormContent> {
   }
 
   // ---------------------------------------------------------------------------
+  // SEARCH INGREDIENT PICKER MODAL (Master Gudang)
+  // ---------------------------------------------------------------------------
+  Future<void> _openSearchIngredientPickerModal(
+    BuildContext parentContext,
+    int? currentIngredientId,
+    ValueChanged<AdminIngredientModel?> onSelected,
+  ) async {
+    String query = '';
+    await showDialog(
+      context: parentContext,
+      builder: (modalCtx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final allIngredients = controller.ingredients;
+            final filtered = allIngredients.where((i) {
+              if (query.trim().isEmpty) return true;
+              final q = query.trim().toLowerCase();
+              return i.name.toLowerCase().contains(q) ||
+                  i.unit.toLowerCase().contains(q) ||
+                  i.category.toLowerCase().contains(q);
+            }).toList();
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              titlePadding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+              contentPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEEF2FF),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.inventory_2_rounded,
+                      color: Color(0xFF4F46E5),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Cari Bahan Baku Master',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'Pilih bahan gudang untuk dimasukkan ke resep',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(modalCtx).pop(),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      size: 20,
+                      color: Color(0xFF94A3B8),
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 460,
+                height: 400,
+                child: Column(
+                  children: [
+                    TextField(
+                      autofocus: true,
+                      onChanged: (val) {
+                        setModalState(() {
+                          query = val;
+                        });
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Ketik nama bahan baku...',
+                        prefixIcon: const Icon(Icons.search_rounded, size: 18),
+                        suffixIcon: query.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear_rounded, size: 18),
+                                onPressed: () {
+                                  setModalState(() {
+                                    query = '';
+                                  });
+                                },
+                              )
+                            : null,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFCBD5E1),
+                          ),
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                      ),
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    const SizedBox(height: 10),
+                    // Opsi Input Manual / Kosongkan
+                    InkWell(
+                      onTap: () {
+                        onSelected(null);
+                        Navigator.of(modalCtx).pop();
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 9,
+                        ),
+                        decoration: BoxDecoration(
+                          color: currentIngredientId == null
+                              ? const Color(0xFFF1F5F9)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(
+                              Icons.edit_note_rounded,
+                              size: 16,
+                              color: Color(0xFF64748B),
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '-- Input Manual / Bahan Baru (Tanpa Link Gudang) --',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontStyle: FontStyle.italic,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Expanded(
+                      child: filtered.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.inventory_2_outlined,
+                                    size: 36,
+                                    color: Color(0xFFCBD5E1),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    query.isEmpty
+                                        ? 'Belum ada data bahan di master gudang'
+                                        : 'Bahan "$query" tidak ditemukan',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF94A3B8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.separated(
+                              itemCount: filtered.length,
+                              separatorBuilder: (_, __) => const Divider(
+                                height: 1,
+                                color: Color(0xFFF1F5F9),
+                              ),
+                              itemBuilder: (ctx, i) {
+                                final item = filtered[i];
+                                final isSelected =
+                                    item.id == currentIngredientId;
+                                return InkWell(
+                                  onTap: () {
+                                    onSelected(item);
+                                    Navigator.of(modalCtx).pop();
+                                  },
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 9,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? const Color(0xFFEEF2FF)
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                item.name,
+                                                style: TextStyle(
+                                                  fontSize: 12.5,
+                                                  fontWeight: isSelected
+                                                      ? FontWeight.w700
+                                                      : FontWeight.w600,
+                                                  color: isSelected
+                                                      ? const Color(0xFF4F46E5)
+                                                      : const Color(0xFF1E293B),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                'Beli: ${CurrencyFormatter.format(item.buyPrice)} / ${item.buyAmount % 1 == 0 ? item.buyAmount.toInt() : item.buyAmount} ${item.buyUnit}',
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color: Color(0xFF64748B),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 7,
+                                            vertical: 3,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: item.isOutOfStock
+                                                ? const Color(0xFFFEE2E2)
+                                                : (item.isLowStock
+                                                    ? const Color(0xFFFEF3C7)
+                                                    : const Color(0xFFDCFCE7)),
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            'Stok: ${item.formattedStock} ${item.unit}',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: item.isOutOfStock
+                                                  ? const Color(0xFFDC2626)
+                                                  : (item.isLowStock
+                                                      ? const Color(0xFFD97706)
+                                                      : const Color(
+                                                          0xFF16A34A,
+                                                        )),
+                                            ),
+                                          ),
+                                        ),
+                                        if (isSelected) ...[
+                                          const SizedBox(width: 8),
+                                          const Icon(
+                                            Icons.check_circle_rounded,
+                                            size: 18,
+                                            color: Color(0xFF4F46E5),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ---------------------------------------------------------------------------
   // ADD & EDIT INGREDIENT DIALOG
   // ---------------------------------------------------------------------------
   void _addIngredientDialog() => _showIngredientDialog();
@@ -1882,6 +2178,15 @@ class _ProductFormContentState extends State<_ProductFormContent> {
           : '1',
     );
     String buyUnit = existing?.buyUnit ?? 'kg';
+    int? ingredientId = existing?.ingredientId;
+    if (ingredientId == null && existing != null && controller.ingredients.isNotEmpty) {
+      final matched = controller.ingredients.firstWhereOrNull(
+        (i) => i.name.trim().toLowerCase() == existing.name.trim().toLowerCase(),
+      );
+      if (matched != null) {
+        ingredientId = matched.id;
+      }
+    }
 
     showDialog(
       context: context,
@@ -1940,6 +2245,182 @@ class _ProductFormContentState extends State<_ProductFormContent> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Quick Pick dari Master Bahan Baku Gudang
+                    if (controller.ingredients.isNotEmpty) ...[
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 14),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFCBD5E1)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.inventory_2_outlined, size: 14, color: Color(0xFF4F46E5)),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Pilih dari Master Bahan Baku (Gudang):',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF334155),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Builder(
+                              builder: (ctx) {
+                                final selectedIng = ingredientId != null
+                                    ? controller.ingredients.firstWhereOrNull((i) => i.id == ingredientId)
+                                    : null;
+
+                                void applyPicked(AdminIngredientModel? picked) {
+                                  setDlgState(() {
+                                    if (picked != null) {
+                                      ingredientId = picked.id;
+                                      nameCtrl.text = picked.name;
+                                      final pickedUnit = ['gram', 'ml', 'pcs', 'sachet', 'kg', 'liter'].contains(picked.unit.toLowerCase())
+                                          ? picked.unit.toLowerCase()
+                                          : 'gram';
+                                      unit = pickedUnit;
+                                      // Smart auto-set default amount based on picked unit
+                                      if (amountCtrl.text == '15' || amountCtrl.text == '1' || amountCtrl.text.isEmpty) {
+                                        amountCtrl.text = (pickedUnit == 'pcs' || pickedUnit == 'sachet')
+                                            ? '1'
+                                            : (pickedUnit == 'ml' ? '30' : '15');
+                                      }
+                                      buyPriceCtrl.text = CurrencyFormatter.formatWithoutSymbol(picked.buyPrice);
+                                      buyAmountCtrl.text = picked.buyAmount % 1 == 0
+                                          ? picked.buyAmount.toInt().toString()
+                                          : picked.buyAmount.toString();
+                                      buyUnit = ['kg', 'liter', 'pcs', 'gram', 'ml', 'sachet'].contains(picked.buyUnit.toLowerCase())
+                                          ? picked.buyUnit.toLowerCase()
+                                          : 'kg';
+                                    } else {
+                                      ingredientId = null;
+                                    }
+                                  });
+                                }
+
+                                return InkWell(
+                                  onTap: () {
+                                    _openSearchIngredientPickerModal(
+                                      context,
+                                      ingredientId,
+                                      (picked) => applyPicked(picked),
+                                    );
+                                  },
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: selectedIng != null
+                                            ? const Color(0xFF818CF8)
+                                            : const Color(0xFFCBD5E1),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          selectedIng != null
+                                              ? Icons.inventory_2_rounded
+                                              : Icons.search_rounded,
+                                          size: 16,
+                                          color: selectedIng != null
+                                              ? const Color(0xFF4F46E5)
+                                              : const Color(0xFF94A3B8),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: selectedIng != null
+                                              ? Row(
+                                                  children: [
+                                                    Flexible(
+                                                      child: Text(
+                                                        selectedIng.name,
+                                                        style: const TextStyle(
+                                                          fontSize: 12.5,
+                                                          fontWeight: FontWeight.w600,
+                                                          color: Color(0xFF0F172A),
+                                                        ),
+                                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(
+                                                        horizontal: 6,
+                                                        vertical: 2,
+                                                      ),
+                                                      decoration: BoxDecoration(
+                                                        color: selectedIng.isOutOfStock
+                                                            ? const Color(0xFFFEE2E2)
+                                                            : (selectedIng.isLowStock
+                                                                ? const Color(0xFFFEF3C7)
+                                                                : const Color(0xFFDCFCE7)),
+                                                        borderRadius: BorderRadius.circular(4),
+                                                      ),
+                                                      child: Text(
+                                                        'Stok: ${selectedIng.formattedStock} ${selectedIng.unit}',
+                                                        style: TextStyle(
+                                                          fontSize: 10.5,
+                                                          fontWeight: FontWeight.w700,
+                                                          color: selectedIng.isOutOfStock
+                                                              ? const Color(0xFFDC2626)
+                                                              : (selectedIng.isLowStock
+                                                                  ? const Color(0xFFD97706)
+                                                                  : const Color(0xFF16A34A)),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                )
+                                              : const Text(
+                                                  '-- Cari / Pilih Bahan Baku Gudang --',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Color(0xFF94A3B8),
+                                                  ),
+                                                ),
+                                        ),
+                                        if (selectedIng != null) ...[
+                                          InkWell(
+                                            onTap: () => applyPicked(null),
+                                            borderRadius: BorderRadius.circular(12),
+                                            child: const Padding(
+                                              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                              child: Icon(
+                                                Icons.cancel_rounded,
+                                                size: 16,
+                                                color: Color(0xFF94A3B8),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 2),
+                                        ],
+                                        const Icon(
+                                          Icons.keyboard_arrow_down_rounded,
+                                          size: 20,
+                                          color: Color(0xFF64748B),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     TextField(
                       controller: nameCtrl,
                       decoration: const InputDecoration(
@@ -1972,6 +2453,7 @@ class _ProductFormContentState extends State<_ProductFormContent> {
                         Expanded(
                           flex: 2,
                           child: DropdownButtonFormField<String>(
+                            key: ValueKey('recipe_unit_$unit'),
                             initialValue:
                                 [
                                   'gram',
@@ -1983,6 +2465,9 @@ class _ProductFormContentState extends State<_ProductFormContent> {
                                 ].contains(unit)
                                 ? unit
                                 : 'gram',
+                            menuMaxHeight: 220,
+                            borderRadius: BorderRadius.circular(8),
+                            dropdownColor: Colors.white,
                             decoration: const InputDecoration(
                               labelText: 'Satuan',
                             ),
@@ -2001,7 +2486,43 @@ class _ProductFormContentState extends State<_ProductFormContent> {
                                     )
                                     .toList(),
                             onChanged: (val) {
-                              if (val != null) setDlgState(() => unit = val);
+                              if (val != null) {
+                                setDlgState(() {
+                                  unit = val;
+                                  // Smart defaults when unit changes
+                                  if (val == 'pcs' || val == 'sachet') {
+                                    if (amountCtrl.text == '15' || amountCtrl.text.isEmpty) {
+                                      amountCtrl.text = '1';
+                                    }
+                                    if (buyUnit == 'kg' || buyUnit == 'liter') {
+                                      buyUnit = 'pcs';
+                                      if (buyPriceCtrl.text == '100.000') {
+                                        buyPriceCtrl.text = '1.000';
+                                      }
+                                    }
+                                  } else if (val == 'gram') {
+                                    if (amountCtrl.text == '1' || amountCtrl.text.isEmpty) {
+                                      amountCtrl.text = '15';
+                                    }
+                                    if (buyUnit == 'pcs' || buyUnit == 'liter') {
+                                      buyUnit = 'kg';
+                                      if (buyPriceCtrl.text == '1.000') {
+                                        buyPriceCtrl.text = '100.000';
+                                      }
+                                    }
+                                  } else if (val == 'ml') {
+                                    if (amountCtrl.text == '15' || amountCtrl.text == '1' || amountCtrl.text.isEmpty) {
+                                      amountCtrl.text = '30';
+                                    }
+                                    if (buyUnit == 'pcs' || buyUnit == 'kg') {
+                                      buyUnit = 'liter';
+                                      if (buyPriceCtrl.text == '1.000') {
+                                        buyPriceCtrl.text = '25.000';
+                                      }
+                                    }
+                                  }
+                                });
+                              }
                             },
                           ),
                         ),
@@ -2050,6 +2571,7 @@ class _ProductFormContentState extends State<_ProductFormContent> {
                         Expanded(
                           flex: 2,
                           child: DropdownButtonFormField<String>(
+                            key: ValueKey('recipe_buy_unit_$buyUnit'),
                             initialValue:
                                 [
                                   'kg',
@@ -2061,6 +2583,9 @@ class _ProductFormContentState extends State<_ProductFormContent> {
                                 ].contains(buyUnit)
                                 ? buyUnit
                                 : 'kg',
+                            menuMaxHeight: 220,
+                            borderRadius: BorderRadius.circular(8),
+                            dropdownColor: Colors.white,
                             decoration: const InputDecoration(
                               labelText: 'Satuan Beli',
                             ),
@@ -2086,6 +2611,47 @@ class _ProductFormContentState extends State<_ProductFormContent> {
                       ],
                     ),
                     const SizedBox(height: 14),
+                    // Unit Mismatch Warning
+                    Builder(
+                      builder: (context) {
+                        final isCount = (unit == 'pcs' || unit == 'sachet');
+                        final isWeight = (unit == 'gram' || unit == 'kg');
+                        final isVolume = (unit == 'ml' || unit == 'liter');
+
+                        final isBuyCount = (buyUnit == 'pcs' || buyUnit == 'sachet');
+                        final isBuyWeight = (buyUnit == 'kg' || buyUnit == 'gram');
+                        final isBuyVolume = (buyUnit == 'liter' || buyUnit == 'ml');
+
+                        final isMismatch = (isCount && !isBuyCount) ||
+                            (isWeight && !isBuyWeight) ||
+                            (isVolume && !isBuyVolume);
+
+                        if (!isMismatch) return const SizedBox.shrink();
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFFBEB),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFFDE68A)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.warning_amber_rounded, size: 16, color: Color(0xFFD97706)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Satuan resep ($unit) berbeda jenis dengan satuan beli ($buyUnit). Sesuaikan Satuan Beli ke ${isCount ? 'pcs' : (isWeight ? 'kg' : 'liter')} agar HPP akurat.',
+                                  style: const TextStyle(fontSize: 11, color: Color(0xFF92400E), height: 1.3),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                     // Live Calculation Banner
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -2169,6 +2735,7 @@ class _ProductFormContentState extends State<_ProductFormContent> {
                   final newIng = ProductIngredientModel(
                     id: existing?.id,
                     productId: existing?.productId,
+                    ingredientId: ingredientId,
                     name: name,
                     amount: amount,
                     unit: unit,

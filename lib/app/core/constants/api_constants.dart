@@ -86,5 +86,15 @@ class ApiConstants {
   static const String adminHppSummary = '/admin/hpp/summary';
   static const String adminHppCalculate = '/admin/hpp/calculate';
   static const String adminHppAiRecipe = '/admin/hpp/ai-recipe';
+
+  // Admin Ingredients & Stock Inventory Management
+  static const String adminIngredients = '/admin/ingredients';
+  static String adminIngredientDetail(int id) => '/admin/ingredients/$id';
+  static String adminIngredientRestock(int id) => '/admin/ingredients/$id/restock';
+  static const String adminIngredientOpname = '/admin/ingredients/opname';
+  static const String adminIngredientMutations = '/admin/ingredients/mutations';
+  static String adminIngredientAttachProduct(int id) => '/admin/ingredients/$id/attach-product';
+  static String adminIngredientDetachProduct(int id, int productId) => '/admin/ingredients/$id/detach-product/$productId';
 }
+
 

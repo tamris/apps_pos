@@ -1,6 +1,7 @@
 class ProductIngredientModel {
   final int? id;
   final int? productId;
+  final int? ingredientId;
   final String name;
   final double amount;
   final String unit;
@@ -12,6 +13,7 @@ class ProductIngredientModel {
   ProductIngredientModel({
     this.id,
     this.productId,
+    this.ingredientId,
     required this.name,
     required this.amount,
     required this.unit,
@@ -37,6 +39,7 @@ class ProductIngredientModel {
     return ProductIngredientModel(
       id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? ''),
       productId: json['product_id'] is int ? json['product_id'] : int.tryParse(json['product_id']?.toString() ?? ''),
+      ingredientId: json['ingredient_id'] is int ? json['ingredient_id'] : int.tryParse(json['ingredient_id']?.toString() ?? ''),
       name: (json['name'] ?? json['nama'] ?? '').toString(),
       amount: amountVal,
       unit: unitVal,
@@ -51,6 +54,7 @@ class ProductIngredientModel {
     return {
       if (id != null) 'id': id,
       if (productId != null) 'product_id': productId,
+      if (ingredientId != null) 'ingredient_id': ingredientId,
       'name': name,
       'amount': amount,
       'unit': unit,
@@ -64,6 +68,7 @@ class ProductIngredientModel {
   ProductIngredientModel copyWith({
     int? id,
     int? productId,
+    int? ingredientId,
     String? name,
     double? amount,
     String? unit,
@@ -81,6 +86,7 @@ class ProductIngredientModel {
     return ProductIngredientModel(
       id: id ?? this.id,
       productId: productId ?? this.productId,
+      ingredientId: ingredientId ?? this.ingredientId,
       name: name ?? this.name,
       amount: newAmount,
       unit: newUnit,
