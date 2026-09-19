@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import 'package:noli_apps/app/core/theme/app_colors.dart';
 import 'package:noli_apps/app/core/utils/currency_formatter.dart';
 import 'package:noli_apps/app/data/models/admin_ingredient_model.dart';
@@ -1584,23 +1585,196 @@ class AdminIngredientMutationsDialog extends StatefulWidget {
 
 class _AdminIngredientMutationsDialogState extends State<AdminIngredientMutationsDialog> {
   final _controller = Get.find<AdminController>();
+  final ScrollController _scrollController = ScrollController();
   List<AdminStockMutationModel> _mutations = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = false;
+  int _currentPage = 1;
+  int _totalRecords = 0;
+  double _serverTotalIn = 0.0;
+  double _serverTotalOut = 0.0;
+  double _serverNetChange = 0.0;
+
+  String _selectedPeriod = '7d'; // '7d', '30d', 'all'
+  String _selectedType = 'all'; // 'all', 'restock', 'pos', 'opname', 'waste'
+
+  String? get _startDate {
+    final now = DateTime.now();
+    if (_selectedPeriod == '7d') {
+      return DateFormat('yyyy-MM-dd').format(now.subtract(const Duration(days: 7)));
+    } else if (_selectedPeriod == '30d') {
+      return DateFormat('yyyy-MM-dd').format(now.subtract(const Duration(days: 30)));
+    }
+    return null;
+  }
+
+  String? get _endDate {
+    if (_selectedPeriod == 'all') return null;
+    return DateFormat('yyyy-MM-dd').format(DateTime.now());
+  }
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _loadMutations();
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    if (currentScroll >= maxScroll - 50) {
+      _loadMore();
+    }
+  }
+
   Future<void> _loadMutations() async {
-    final list = await _controller.fetchIngredientMutations(widget.ingredient.id);
+    setState(() {
+      _isLoading = true;
+      _currentPage = 1;
+      _hasMore = false;
+      _serverTotalIn = 0.0;
+      _serverTotalOut = 0.0;
+      _serverNetChange = 0.0;
+      _mutations.clear();
+    });
+
+    final res = await _controller.fetchIngredientMutationsPaginated(
+      widget.ingredient.id,
+      type: _selectedType == 'all' ? null : _selectedType,
+      startDate: _startDate,
+      endDate: _endDate,
+      page: 1,
+      perPage: 20,
+    );
+
     if (mounted) {
       setState(() {
-        _mutations = list;
+        _mutations = res.items;
+        _currentPage = res.currentPage;
+        _hasMore = res.hasMore;
+        _totalRecords = res.total;
+        _serverTotalIn = res.totalIn;
+        _serverTotalOut = res.totalOut;
+        _serverNetChange = res.netChange;
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoadingMore || !_hasMore) return;
+
+    setState(() => _isLoadingMore = true);
+
+    final res = await _controller.fetchIngredientMutationsPaginated(
+      widget.ingredient.id,
+      type: _selectedType == 'all' ? null : _selectedType,
+      startDate: _startDate,
+      endDate: _endDate,
+      page: _currentPage + 1,
+      perPage: 20,
+    );
+
+    if (mounted) {
+      setState(() {
+        _mutations.addAll(res.items);
+        _currentPage = res.currentPage;
+        _hasMore = res.hasMore;
+        _totalRecords = res.total;
+        _isLoadingMore = false;
+      });
+    }
+  }
+
+  Widget _buildPeriodTab(String label, String value) {
+    final isSelected = _selectedPeriod == value;
+    return InkWell(
+      onTap: () {
+        if (_selectedPeriod != value) {
+          setState(() => _selectedPeriod = value);
+          _loadMutations();
+        }
+      },
+      borderRadius: BorderRadius.circular(6),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF0F172A) : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: isSelected
+              ? const [
+                  BoxShadow(
+                    color: Color(0x1A000000),
+                    blurRadius: 4,
+                    offset: Offset(0, 1),
+                  )
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 10.5,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+            color: isSelected ? Colors.white : const Color(0xFF64748B),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTypeChip(String label, String value, IconData icon) {
+    final isSelected = _selectedType == value;
+    return InkWell(
+      onTap: () {
+        if (_selectedType != value) {
+          setState(() => _selectedType = value);
+          _loadMutations();
+        }
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFEEF2FF) : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF6366F1) : const Color(0xFFE2E8F0),
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 12,
+              color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFF64748B),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? const Color(0xFF4338CA) : const Color(0xFF475569),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -1609,35 +1783,39 @@ class _AdminIngredientMutationsDialogState extends State<AdminIngredientMutation
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 580, maxHeight: 600),
+          constraints: const BoxConstraints(
+            maxWidth: 620,
+            maxHeight: 720,
+          ),
           child: Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(20),
               boxShadow: const [
                 BoxShadow(
-                  color: Color(0x1E000000),
-                  blurRadius: 30,
+                  color: Color(0x22000000),
+                  blurRadius: 32,
                   offset: Offset(0, 12),
                 ),
               ],
             ),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Header
                 Row(
                   children: [
                     Container(
-                      width: 44,
-                      height: 44,
+                      width: 42,
+                      height: 42,
                       decoration: BoxDecoration(
                         color: const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Icon(
                         Icons.history_rounded,
@@ -1645,27 +1823,49 @@ class _AdminIngredientMutationsDialogState extends State<AdminIngredientMutation
                         size: 22,
                       ),
                     ),
-                    const SizedBox(width: 14),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Riwayat Mutasi: ${ing.name}',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF0F172A),
-                              letterSpacing: -0.2,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  'Riwayat Mutasi: ${ing.name}',
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF0F172A),
+                                    letterSpacing: -0.2,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEEF2FF),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'Stok: ${ing.formattedStock} ${ing.unit}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF4F46E5),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 2),
-                          Text(
-                            'Stok saat ini: ${ing.formattedStock} ${ing.unit} • Audit log lengkap',
-                            style: const TextStyle(
-                              fontSize: 11.5,
+                          const Text(
+                            'Catatan riwayat keluar-masuk & koreksi stok bahan',
+                            style: TextStyle(
+                              fontSize: 11,
                               color: Color(0xFF64748B),
                             ),
                           ),
@@ -1674,125 +1874,439 @@ class _AdminIngredientMutationsDialogState extends State<AdminIngredientMutation
                     ),
                     IconButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close_rounded, size: 20, color: Color(0xFF64748B)),
+                      icon: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF64748B)),
                       style: IconButton.styleFrom(
                         backgroundColor: const Color(0xFFF1F5F9),
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(6),
+                        minimumSize: const Size(32, 32),
                       ),
                     ),
                   ],
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 const Divider(height: 1, color: Color(0xFFE2E8F0)),
                 const SizedBox(height: 12),
 
-                // Content
-                Expanded(
+                // 1. Unified Filter Row: Type Filters (Left) + Period Segmented Bar (Right)
+                Row(
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          children: [
+                            _buildTypeChip('Semua Tipe', 'all', Icons.all_inclusive_rounded),
+                            const SizedBox(width: 6),
+                            _buildTypeChip('Restock', 'restock', Icons.add_shopping_cart_rounded),
+                            const SizedBox(width: 6),
+                            _buildTypeChip('Kasir POS', 'pos', Icons.point_of_sale_rounded),
+                            const SizedBox(width: 6),
+                            _buildTypeChip('Opname', 'opname', Icons.fact_check_outlined),
+                            const SizedBox(width: 6),
+                            _buildTypeChip('Rusak', 'waste', Icons.delete_outline_rounded),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildPeriodTab('7 Hari', '7d'),
+                          _buildPeriodTab('30 Hari', '30d'),
+                          _buildPeriodTab('Semua', 'all'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 10),
+
+                // 2. 3-Column Balanced Metrics Strip (Filling 100% width with 0 empty gaps)
+                Builder(builder: (_) {
+                  final totalIn = _serverTotalIn != 0.0 || _serverTotalOut != 0.0
+                      ? _serverTotalIn
+                      : _mutations.where((m) => m.isIncrease).fold(0.0, (s, m) => s + m.amount);
+                  final totalOut = _serverTotalIn != 0.0 || _serverTotalOut != 0.0
+                      ? _serverTotalOut
+                      : _mutations.where((m) => !m.isIncrease).fold(0.0, (s, m) => s + m.amount.abs());
+                  final netChange = _serverTotalIn != 0.0 || _serverTotalOut != 0.0
+                      ? _serverNetChange
+                      : totalIn - totalOut;
+
+                  String fmt(double val) =>
+                      val % 1 == 0 ? val.toInt().toString() : val.toStringAsFixed(1);
+
+                  Widget buildSummaryCard({
+                    required String title,
+                    required String value,
+                    required String unit,
+                    required IconData icon,
+                    required Color bg,
+                    required Color border,
+                    required Color iconBg,
+                    required Color iconColor,
+                    required Color titleColor,
+                    required Color valueColor,
+                  }) {
+                    return Expanded(
+                      child: Container(
+                        height: 60,
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: bg,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: border),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: BoxDecoration(
+                                    color: iconBg,
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                  child: Icon(icon, size: 11, color: iconColor),
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    title,
+                                    style: TextStyle(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: titleColor,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.baseline,
+                                textBaseline: TextBaseline.alphabetic,
+                                children: [
+                                  Text(
+                                    value,
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: valueColor,
+                                      letterSpacing: -0.2,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 2.5),
+                                  Text(
+                                    unit,
+                                    style: TextStyle(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: valueColor.withValues(alpha: 0.8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      // Total Masuk
+                      buildSummaryCard(
+                        title: 'Total Masuk',
+                        value: '+${fmt(totalIn)}',
+                        unit: ing.unit,
+                        icon: Icons.arrow_upward_rounded,
+                        bg: const Color(0xFFF0FDF4),
+                        border: const Color(0xFFBBF7D0),
+                        iconBg: const Color(0xFFDCFCE7),
+                        iconColor: const Color(0xFF16A34A),
+                        titleColor: const Color(0xFF15803D),
+                        valueColor: const Color(0xFF16A34A),
+                      ),
+                      const SizedBox(width: 6),
+                      // Total Keluar
+                      buildSummaryCard(
+                        title: 'Total Keluar',
+                        value: '-${fmt(totalOut)}',
+                        unit: ing.unit,
+                        icon: Icons.arrow_downward_rounded,
+                        bg: const Color(0xFFFEF2F2),
+                        border: const Color(0xFFFECACA),
+                        iconBg: const Color(0xFFFEE2E2),
+                        iconColor: const Color(0xFFDC2626),
+                        titleColor: const Color(0xFFB91C1C),
+                        valueColor: const Color(0xFFDC2626),
+                      ),
+                      const SizedBox(width: 6),
+                      // Mutasi / Netto
+                      buildSummaryCard(
+                        title: 'Mutasi (${_totalRecords > 0 ? _totalRecords : _mutations.length})',
+                        value: '${netChange >= 0 ? '+' : ''}${fmt(netChange)}',
+                        unit: ing.unit,
+                        icon: Icons.swap_vert_rounded,
+                        bg: const Color(0xFFF8FAFC),
+                        border: const Color(0xFFE2E8F0),
+                        iconBg: const Color(0xFFE2E8F0),
+                        iconColor: const Color(0xFF475569),
+                        titleColor: const Color(0xFF64748B),
+                        valueColor: netChange > 0
+                            ? const Color(0xFF16A34A)
+                            : netChange < 0
+                                ? const Color(0xFFDC2626)
+                                : const Color(0xFF475569),
+                      ),
+                    ],
+                  );
+                }),
+
+                const SizedBox(height: 10),
+
+                // 3. Content Area: Flexible so if 3 items, it snugly wraps with NO empty white space at the bottom!
+                Flexible(
+                  fit: FlexFit.loose,
                   child: _isLoading
-                      ? const Center(child: CircularProgressIndicator(color: AppColors.secondary))
+                      ? const SizedBox(
+                          height: 445,
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                  width: 26,
+                                  height: 26,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: AppColors.secondary,
+                                  ),
+                                ),
+                                SizedBox(height: 12),
+                                Text(
+                                  'Memuat riwayat mutasi...',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF64748B),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
                       : _mutations.isEmpty
-                          ? const Center(
-                              child: Text(
-                                'Belum ada riwayat mutasi untuk bahan ini.',
-                                style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                          ? Container(
+                              width: double.infinity,
+                              height: 180,
+                              margin: const EdgeInsets.only(top: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: const Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.inbox_outlined, size: 34, color: Color(0xFF94A3B8)),
+                                    SizedBox(height: 8),
+                                    Text(
+                                      'Belum ada riwayat mutasi pada filter ini',
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             )
-                          : ListView.separated(
-                              physics: const BouncingScrollPhysics(),
-                              itemCount: _mutations.length,
-                              separatorBuilder: (_, __) => const SizedBox(height: 10),
-                              itemBuilder: (context, index) {
-                                final mut = _mutations[index];
-                                final isPlus = mut.isIncrease;
-
-                                return Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF8FAFC),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      // Indicator Icon
-                                      Container(
-                                        width: 36,
-                                        height: 36,
-                                        decoration: BoxDecoration(
-                                          color: isPlus ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Icon(
-                                          isPlus ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
-                                          color: isPlus ? const Color(0xFF059669) : const Color(0xFFDC2626),
-                                          size: 18,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                              children: [
-                                                Text(
-                                                  mut.typeLabel,
-                                                  style: const TextStyle(
-                                                    fontSize: 13,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: Color(0xFF0F172A),
+                          : ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                maxHeight: 455,
+                              ),
+                              child: ListView.separated(
+                                controller: _scrollController,
+                                shrinkWrap: true,
+                                physics: const BouncingScrollPhysics(),
+                                padding: const EdgeInsets.only(top: 2, bottom: 4),
+                                itemCount: _mutations.length + (_hasMore || _isLoadingMore ? 1 : 0),
+                                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                                itemBuilder: (context, index) {
+                                  if (index == _mutations.length) {
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 10),
+                                      child: Center(
+                                        child: _isLoadingMore
+                                            ? const Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  SizedBox(
+                                                    width: 14,
+                                                    height: 14,
+                                                    child: CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      color: AppColors.secondary,
+                                                    ),
                                                   ),
-                                                ),
-                                                Text(
-                                                  '${isPlus ? '+' : ''}${mut.amount % 1 == 0 ? mut.amount.toInt() : mut.amount.toStringAsFixed(1)} ${ing.unit}',
-                                                  style: TextStyle(
-                                                    fontSize: 13,
-                                                    fontWeight: FontWeight.w800,
-                                                    color: isPlus ? const Color(0xFF059669) : const Color(0xFFDC2626),
+                                                  SizedBox(width: 8),
+                                                  Text(
+                                                    'Memuat mutasi berikutnya...',
+                                                    style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                                                   ),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 3),
-                                            Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                              children: [
-                                                Text(
-                                                  'Sebelum: ${mut.stockBefore % 1 == 0 ? mut.stockBefore.toInt() : mut.stockBefore.toStringAsFixed(1)} ➔ Sesudah: ${mut.stockAfter % 1 == 0 ? mut.stockAfter.toInt() : mut.stockAfter.toStringAsFixed(1)}',
-                                                  style: const TextStyle(
-                                                    fontSize: 11,
-                                                    color: Color(0xFF64748B),
+                                                ],
+                                              )
+                                            : InkWell(
+                                                onTap: _loadMore,
+                                                borderRadius: BorderRadius.circular(8),
+                                                child: Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xFFF1F5F9),
+                                                    borderRadius: BorderRadius.circular(8),
                                                   ),
-                                                ),
-                                                Text(
-                                                  mut.formattedDateTime,
-                                                  style: const TextStyle(
-                                                    fontSize: 10,
-                                                    color: Color(0xFF94A3B8),
+                                                  child: const Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Icon(Icons.expand_more_rounded, size: 16, color: Color(0xFF475569)),
+                                                      SizedBox(width: 4),
+                                                      Text(
+                                                        'Muat riwayat lebih banyak...',
+                                                        style: TextStyle(
+                                                          fontSize: 11,
+                                                          fontWeight: FontWeight.w600,
+                                                          color: Color(0xFF475569),
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
-                                                ),
-                                              ],
-                                            ),
-                                            if (mut.notes.isNotEmpty) ...[
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                'Catatan: ${mut.notes} • Oleh: ${mut.userName}',
-                                                style: const TextStyle(
-                                                  fontSize: 10.5,
-                                                  fontStyle: FontStyle.italic,
-                                                  color: Color(0xFF475569),
                                                 ),
                                               ),
-                                            ],
-                                          ],
-                                        ),
                                       ),
-                                    ],
-                                  ),
-                                );
-                              },
+                                    );
+                                  }
+
+                                  final mut = _mutations[index];
+                                  final isPlus = mut.isIncrease;
+
+                                  return Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF8FAFC),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        // Indicator Icon
+                                        Container(
+                                          width: 36,
+                                          height: 36,
+                                          decoration: BoxDecoration(
+                                            color: isPlus ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Icon(
+                                            isPlus ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+                                            color: isPlus ? const Color(0xFF059669) : const Color(0xFFDC2626),
+                                            size: 18,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      mut.typeLabel,
+                                                      style: const TextStyle(
+                                                        fontSize: 13,
+                                                        fontWeight: FontWeight.w700,
+                                                        color: Color(0xFF0F172A),
+                                                      ),
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    '${isPlus ? '+' : ''}${mut.amount % 1 == 0 ? mut.amount.toInt() : mut.amount.toStringAsFixed(1)} ${ing.unit}',
+                                                    style: TextStyle(
+                                                      fontSize: 13,
+                                                      fontWeight: FontWeight.w800,
+                                                      color: isPlus ? const Color(0xFF059669) : const Color(0xFFDC2626),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 3),
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      'Sebelum: ${mut.stockBefore % 1 == 0 ? mut.stockBefore.toInt() : mut.stockBefore.toStringAsFixed(1)} ➔ Sesudah: ${mut.stockAfter % 1 == 0 ? mut.stockAfter.toInt() : mut.stockAfter.toStringAsFixed(1)}',
+                                                      style: const TextStyle(
+                                                        fontSize: 11,
+                                                        color: Color(0xFF64748B),
+                                                      ),
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    mut.formattedDateTime,
+                                                    style: const TextStyle(
+                                                      fontSize: 10,
+                                                      color: Color(0xFF94A3B8),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              if (mut.notes.isNotEmpty) ...[
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  'Catatan: ${mut.notes} • Oleh: ${mut.userName}',
+                                                  style: const TextStyle(
+                                                    fontSize: 10.5,
+                                                    fontStyle: FontStyle.italic,
+                                                    color: Color(0xFF475569),
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
                 ),
               ],

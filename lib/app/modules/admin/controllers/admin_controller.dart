@@ -2746,30 +2746,110 @@ class AdminController extends GetxController {
     return false;
   }
 
-  Future<List<AdminStockMutationModel>> fetchIngredientMutations(int ingredientId) async {
+  Future<AdminStockMutationPaginatedResult> fetchIngredientMutationsPaginated(
+    int ingredientId, {
+    String? type,
+    String? startDate,
+    String? endDate,
+    int page = 1,
+    int perPage = 20,
+  }) async {
     try {
+      final Map<String, dynamic> params = {
+        'ingredient_id': ingredientId,
+        'per_page': perPage,
+        'page': page,
+      };
+      if (type != null && type.isNotEmpty && type != 'all') {
+        params['type'] = type;
+      }
+      if (startDate != null && startDate.isNotEmpty) {
+        params['start_date'] = startDate;
+      }
+      if (endDate != null && endDate.isNotEmpty) {
+        params['end_date'] = endDate;
+      }
+
       final response = await _apiProvider.get(
         ApiConstants.adminIngredientMutations,
-        queryParameters: {'ingredient_id': ingredientId},
+        queryParameters: params,
       );
 
       if (response.statusCode == 200 && response.data != null) {
         final dynamic raw = response.data['data'];
         List<dynamic> items = [];
+        int currentPage = 1;
+        int lastPage = 1;
+        int total = 0;
+
         if (raw is List) {
           items = raw;
-        } else if (raw is Map && raw['data'] is List) {
-          items = raw['data'];
+          total = items.length;
+        } else if (raw is Map) {
+          if (raw['data'] is List) {
+            items = raw['data'];
+          }
+          currentPage = (raw['current_page'] as num?)?.toInt() ?? 1;
+          lastPage = (raw['last_page'] as num?)?.toInt() ?? 1;
+          total = (raw['total'] as num?)?.toInt() ?? items.length;
         }
-        return items
+
+        final list = items
             .map((e) => AdminStockMutationModel.fromJson(Map<String, dynamic>.from(e)))
             .toList();
+
+        double totalIn = 0.0;
+        double totalOut = 0.0;
+        double netChange = 0.0;
+
+        if (response.data['summary'] != null && response.data['summary'] is Map) {
+          final s = response.data['summary'];
+          totalIn = (s['total_in'] as num?)?.toDouble() ?? 0.0;
+          totalOut = (s['total_out'] as num?)?.toDouble() ?? 0.0;
+          netChange = (s['net_change'] as num?)?.toDouble() ?? (totalIn - totalOut);
+        }
+
+        return AdminStockMutationPaginatedResult(
+          items: list,
+          currentPage: currentPage,
+          lastPage: lastPage,
+          total: total,
+          hasMore: currentPage < lastPage,
+          totalIn: totalIn,
+          totalOut: totalOut,
+          netChange: netChange,
+        );
       }
     } catch (e) {
       debugPrint('[AdminController] Error fetchIngredientMutations: $e');
       AppSnackbar.danger('Gagal Memuat Mutasi', ApiProvider.getErrorMessage(e));
     }
-    return [];
+    return const AdminStockMutationPaginatedResult(
+      items: [],
+      currentPage: 1,
+      lastPage: 1,
+      total: 0,
+      hasMore: false,
+    );
+  }
+
+  Future<List<AdminStockMutationModel>> fetchIngredientMutations(
+    int ingredientId, {
+    String? type,
+    String? startDate,
+    String? endDate,
+    int page = 1,
+    int perPage = 50,
+  }) async {
+    final result = await fetchIngredientMutationsPaginated(
+      ingredientId,
+      type: type,
+      startDate: startDate,
+      endDate: endDate,
+      page: page,
+      perPage: perPage,
+    );
+    return result.items;
   }
 
   Future<bool> attachIngredientToProduct({

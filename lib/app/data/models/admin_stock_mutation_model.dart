@@ -111,3 +111,26 @@ class AdminStockMutationModel {
     );
   }
 }
+
+class AdminStockMutationPaginatedResult {
+  final List<AdminStockMutationModel> items;
+  final int currentPage;
+  final int lastPage;
+  final int total;
+  final bool hasMore;
+  final double totalIn;
+  final double totalOut;
+  final double netChange;
+
+  const AdminStockMutationPaginatedResult({
+    required this.items,
+    required this.currentPage,
+    required this.lastPage,
+    required this.total,
+    required this.hasMore,
+    this.totalIn = 0.0,
+    this.totalOut = 0.0,
+    this.netChange = 0.0,
+  });
+}
+

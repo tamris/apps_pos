@@ -91,8 +91,9 @@ class CartBottomSheet extends StatelessWidget {
 
           // Active Open Bill Banner (jika sedang mengedit bill terbuka)
           Obx(() {
-            if (cartController.activeOpenBillId.value == null)
+            if (cartController.activeOpenBillId.value == null) {
               return const SizedBox.shrink();
+            }
             return Container(
               margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
