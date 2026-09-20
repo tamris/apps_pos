@@ -26,6 +26,8 @@ class AdminProductModel {
   final Map<String, dynamic>? pricingMetadata;
   final List<ProductIngredientModel> ingredients;
   final HppCalculationModel? hppAnalysis;
+  final int? estimatedStock;
+  final String? bottleneckIngredient;
 
   AdminProductModel({
     required this.id,
@@ -52,6 +54,8 @@ class AdminProductModel {
     this.pricingMetadata,
     this.ingredients = const [],
     this.hppAnalysis,
+    this.estimatedStock,
+    this.bottleneckIngredient,
   });
 
   factory AdminProductModel.fromJson(Map<String, dynamic> json) {
@@ -114,6 +118,10 @@ class AdminProductModel {
       pricingMetadata: json['pricing_metadata'] is Map ? Map<String, dynamic>.from(json['pricing_metadata']) : null,
       ingredients: parsedIngredients,
       hppAnalysis: parsedHppAnalysis,
+      estimatedStock: json['estimated_stock'] != null
+          ? (double.tryParse(json['estimated_stock'].toString())?.toInt())
+          : null,
+      bottleneckIngredient: json['bottleneck_ingredient']?.toString(),
     );
   }
 
@@ -138,6 +146,8 @@ class AdminProductModel {
       'image': image,
       'image_url': imageUrl,
       'ingredients_count': ingredientsCount,
+      'estimated_stock': estimatedStock,
+      'bottleneck_ingredient': bottleneckIngredient,
       'created_at': createdAt,
       'updated_at': updatedAt,
       'pricing_metadata': pricingMetadata,
@@ -171,6 +181,8 @@ class AdminProductModel {
     Map<String, dynamic>? pricingMetadata,
     List<ProductIngredientModel>? ingredients,
     HppCalculationModel? hppAnalysis,
+    int? estimatedStock,
+    String? bottleneckIngredient,
   }) {
     return AdminProductModel(
       id: id ?? this.id,
@@ -197,6 +209,8 @@ class AdminProductModel {
       pricingMetadata: pricingMetadata ?? this.pricingMetadata,
       ingredients: ingredients ?? this.ingredients,
       hppAnalysis: hppAnalysis ?? this.hppAnalysis,
+      estimatedStock: estimatedStock ?? this.estimatedStock,
+      bottleneckIngredient: bottleneckIngredient ?? this.bottleneckIngredient,
     );
   }
 }

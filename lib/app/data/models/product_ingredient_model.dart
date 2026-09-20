@@ -9,6 +9,9 @@ class ProductIngredientModel {
   final double buyAmount;
   final String buyUnit;
   final double subtotal;
+  final double? currentStock;
+  final String? stockUnit;
+  final int? maxCups;
 
   ProductIngredientModel({
     this.id,
@@ -21,6 +24,9 @@ class ProductIngredientModel {
     this.buyAmount = 1.0,
     required this.buyUnit,
     double? subtotal,
+    this.currentStock,
+    this.stockUnit,
+    this.maxCups,
   }) : subtotal = (subtotal != null && subtotal > 0)
             ? subtotal
             : calculateLocalSubtotal(amount, unit, buyPrice, buyAmount, buyUnit);
@@ -47,6 +53,13 @@ class ProductIngredientModel {
       buyAmount: buyAmountVal,
       buyUnit: buyUnitVal,
       subtotal: subtotalVal,
+      currentStock: json['current_stock'] != null
+          ? double.tryParse(json['current_stock'].toString())
+          : null,
+      stockUnit: json['stock_unit']?.toString(),
+      maxCups: json['max_cups'] != null
+          ? (double.tryParse(json['max_cups'].toString())?.toInt())
+          : null,
     );
   }
 
@@ -62,6 +75,9 @@ class ProductIngredientModel {
       'buy_amount': buyAmount,
       'buy_unit': buyUnit,
       'subtotal': subtotal,
+      if (currentStock != null) 'current_stock': currentStock,
+      if (stockUnit != null) 'stock_unit': stockUnit,
+      if (maxCups != null) 'max_cups': maxCups,
     };
   }
 
@@ -76,6 +92,9 @@ class ProductIngredientModel {
     double? buyAmount,
     String? buyUnit,
     double? subtotal,
+    double? currentStock,
+    String? stockUnit,
+    int? maxCups,
   }) {
     final newAmount = amount ?? this.amount;
     final newUnit = unit ?? this.unit;
@@ -94,6 +113,9 @@ class ProductIngredientModel {
       buyAmount: newBuyAmount,
       buyUnit: newBuyUnit,
       subtotal: subtotal ?? calculateLocalSubtotal(newAmount, newUnit, newBuyPrice, newBuyAmount, newBuyUnit),
+      currentStock: currentStock ?? this.currentStock,
+      stockUnit: stockUnit ?? this.stockUnit,
+      maxCups: maxCups ?? this.maxCups,
     );
   }
 

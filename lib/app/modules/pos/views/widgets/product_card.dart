@@ -7,6 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/app_snackbar.dart';
 import '../../controllers/cart_controller.dart';
+import '../../controllers/pos_controller.dart';
 import 'product_customization_sheet.dart';
 
 class ProductCard extends StatefulWidget {
@@ -62,6 +63,7 @@ class _ProductCardState extends State<ProductCard> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     final cartController = Get.find<CartController>();
+    final hasRecipe = widget.product.estimatedStock != null;
     final isAvailable = widget.product.isActive;
 
     return AnimatedBuilder(
@@ -99,17 +101,17 @@ class _ProductCardState extends State<ProductCard> with SingleTickerProviderStat
                 onTapUp: _onTapUp,
                 onTapCancel: _onTapCancel,
                 onTap: () {
-                  if (!isAvailable) {
+                  if (!widget.product.isActive) {
                     HapticFeedback.vibrate();
                     AppSnackbar.warning(
-                      'Menu Habis',
+                      'Menu Dinonaktifkan',
                       'Menu "${widget.product.name}" sedang dinonaktifkan / tidak tersedia.',
                     );
                     return;
                   }
                   // Haptic feedback sentuhan responsif kasir
                   HapticFeedback.lightImpact();
-                  // 1-Tap Quick Add: Langsung masukkan menu ke keranjang kasir
+                  // 1-Tap Quick Add: Langsung masukkan menu ke keranjang kasir (bisa transaksi walau stok habis / hutang stok)
                   cartController.addItem(widget.product);
                 },
                 onLongPress: isAvailable
@@ -143,8 +145,8 @@ class _ProductCardState extends State<ProductCard> with SingleTickerProviderStat
                                 : _buildInitialsPlaceholder(),
                           ),
 
-                          // Overlay "HABIS" jika produk tidak aktif
-                          if (!isAvailable)
+                          // Overlay "NONAKTIF" hanya jika produk dinonaktifkan dari admin
+                          if (!widget.product.isActive)
                             Positioned.fill(
                               child: Container(
                                 decoration: BoxDecoration(
@@ -165,7 +167,7 @@ class _ProductCardState extends State<ProductCard> with SingleTickerProviderStat
                                       ],
                                     ),
                                     child: const Text(
-                                      'HABIS',
+                                      'NONAKTIF',
                                       style: TextStyle(
                                         fontSize: 10,
                                         fontWeight: FontWeight.w900,
@@ -176,6 +178,22 @@ class _ProductCardState extends State<ProductCard> with SingleTickerProviderStat
                                   ),
                                 ),
                               ),
+                            ),
+
+                          // Capacity / Estimasi Stok Cup Badge (Pojok Kiri Atas - dikontrol via Pengaturan POS)
+                          if (hasRecipe && widget.product.isActive)
+                            Positioned(
+                              top: 6,
+                              left: 6,
+                              child: Obx(() {
+                                final posCtrl = Get.isRegistered<PosController>()
+                                    ? Get.find<PosController>()
+                                    : null;
+                                if (posCtrl != null && !posCtrl.showCupCapacity.value) {
+                                  return const SizedBox.shrink();
+                                }
+                                return _buildCapacityBadge(widget.product.estimatedStock!);
+                              }),
                             ),
 
                           // Cart Quantity Badge (Pojok Kanan Atas - beranimasi saat bertambah)
@@ -328,6 +346,68 @@ class _ProductCardState extends State<ProductCard> with SingleTickerProviderStat
             letterSpacing: 1.0,
           ),
         ),
+      ),
+    );
+  }
+
+  /// Badge indikator estimasi kapasitas cup bahan baku (pojok kiri atas foto produk)
+  Widget _buildCapacityBadge(int cups) {
+    Color bg;
+    Color border;
+    String label;
+    IconData icon;
+
+    if (cups <= 0) {
+      bg = const Color(0xFFEF4444).withValues(alpha: 0.92);
+      border = const Color(0xFFDC2626);
+      label = '0 cup';
+      icon = Icons.inventory_2_outlined;
+    } else if (cups <= 10) {
+      bg = const Color(0xFFF97316).withValues(alpha: 0.92);
+      border = const Color(0xFFEA580C);
+      label = 'Sisa $cups cup';
+      icon = Icons.coffee_rounded;
+    } else if (cups <= 30) {
+      bg = const Color(0xFFD97706).withValues(alpha: 0.92);
+      border = const Color(0xFFB45309);
+      label = '~$cups cup';
+      icon = Icons.coffee_rounded;
+    } else {
+      bg = const Color(0xFF059669).withValues(alpha: 0.92);
+      border = const Color(0xFF047857);
+      label = '~$cups cup';
+      icon = Icons.coffee_rounded;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: border, width: 0.8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.22),
+            blurRadius: 4,
+            offset: const Offset(0, 1.5),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 9.5, color: Colors.white),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ],
       ),
     );
   }

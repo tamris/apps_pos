@@ -2911,6 +2911,40 @@ class AdminController extends GetxController {
     return false;
   }
 
+  Future<bool> detachIngredientFromAllProducts({
+    required int ingredientId,
+  }) async {
+    try {
+      final response = await _apiProvider.delete(
+        ApiConstants.adminIngredientDetachAllProducts(ingredientId),
+      );
+
+      if (response.statusCode == 200) {
+        AppSnackbar.success(
+          'Berhasil Diputuskan',
+          response.data?['message'] ?? 'Kaitan bahan baku dengan semua menu berhasil diputuskan.',
+        );
+        await Future.wait([
+          fetchIngredients(showLoader: false),
+          fetchAdminProducts(showLoader: false),
+          fetchHppSummary(showLoader: false),
+        ]);
+        return true;
+      } else {
+        AppSnackbar.warning(
+          'Perhatian',
+          response.data?['message'] ?? 'Gagal memutuskan kaitan menu.',
+        );
+      }
+    } catch (e) {
+      AppSnackbar.danger(
+        'Gagal Memutuskan Kaitan',
+        ApiProvider.getErrorMessage(e),
+      );
+    }
+    return false;
+  }
+
   Future<void> logout() async {
     final storageService = Get.find<StorageService>();
     try {

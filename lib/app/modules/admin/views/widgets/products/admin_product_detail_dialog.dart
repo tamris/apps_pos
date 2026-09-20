@@ -328,6 +328,12 @@ class _ProductDetailContentState extends State<_ProductDetailContent> {
                 ),
                 const SizedBox(height: 20),
 
+                // Estimasi Kapasitas Stok Berbasis Resep
+                if (p.ingredients.isNotEmpty) ...[
+                  _buildCapacityCard(p),
+                  const SizedBox(height: 18),
+                ],
+
                 // Recipe & Ingredients Breakdown
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -364,12 +370,18 @@ class _ProductDetailContentState extends State<_ProductDetailContent> {
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (context, i) {
                       final ing = p.ingredients[i];
+                      final isBottleneck = ing.maxCups != null &&
+                          p.estimatedStock != null &&
+                          ing.maxCups == p.estimatedStock;
+
                       return Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
+                          color: isBottleneck ? const Color(0xFFFFF7ED) : const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          border: Border.all(
+                            color: isBottleneck ? const Color(0xFFFED7AA) : const Color(0xFFE2E8F0),
+                          ),
                         ),
                         child: Row(
                           children: [
@@ -379,12 +391,18 @@ class _ProductDetailContentState extends State<_ProductDetailContent> {
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                                border: Border.all(
+                                  color: isBottleneck ? const Color(0xFFFDBA74) : const Color(0xFFE2E8F0),
+                                ),
                               ),
                               alignment: Alignment.center,
                               child: Text(
                                 '${i + 1}',
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: isBottleneck ? const Color(0xFFEA580C) : const Color(0xFF475569),
+                                ),
                               ),
                             ),
                             const SizedBox(width: 10),
@@ -392,11 +410,53 @@ class _ProductDetailContentState extends State<_ProductDetailContent> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(ing.name, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          ing.name,
+                                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      if (isBottleneck) ...[
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFEE2E2),
+                                            borderRadius: BorderRadius.circular(4),
+                                            border: Border.all(color: const Color(0xFFFECACA)),
+                                          ),
+                                          child: const Text(
+                                            'Faktor Pembatas',
+                                            style: TextStyle(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFFDC2626),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
                                   Text(
                                     'Takaran: ${ing.amount % 1 == 0 ? ing.amount.toInt() : ing.amount} ${ing.unit} • Beli: ${_currencyFormat.format(ing.buyPrice)} / ${ing.buyAmount % 1 == 0 ? ing.buyAmount.toInt() : ing.buyAmount} ${ing.buyUnit}',
                                     style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
                                   ),
+                                  if (ing.maxCups != null) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Stok fisik: ${ing.currentStock != null ? (ing.currentStock! % 1 == 0 ? ing.currentStock!.toInt() : ing.currentStock) : '-'} ${ing.stockUnit ?? ing.unit} (cukup untuk ~${ing.maxCups} cup)',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: isBottleneck ? FontWeight.bold : FontWeight.w500,
+                                        color: isBottleneck ? const Color(0xFFDC2626) : const Color(0xFF475569),
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -454,6 +514,137 @@ class _ProductDetailContentState extends State<_ProductDetailContent> {
           ),
         ),
       ],
+    );
+  }
+
+  /// Kartu analitik estimasi kapasitas stok menu berbasis bahan baku pembatas (The Bottleneck)
+  Widget _buildCapacityCard(AdminProductModel p) {
+    final cups = p.estimatedStock ?? 0;
+    final isOut = cups <= 0;
+    final isCritical = cups > 0 && cups <= 10;
+    final isWarning = cups > 10 && cups <= 30;
+
+    final Color statusColor = isOut
+        ? const Color(0xFFDC2626)
+        : isCritical
+            ? const Color(0xFFEA580C)
+            : isWarning
+                ? const Color(0xFFD97706)
+                : const Color(0xFF059669);
+
+    final Color statusBg = isOut
+        ? const Color(0xFFFEF2F2)
+        : isCritical
+            ? const Color(0xFFFFF7ED)
+            : isWarning
+                ? const Color(0xFFFFFBEB)
+                : const Color(0xFFF0FDF4);
+
+    final Color statusBorder = isOut
+        ? const Color(0xFFFECACA)
+        : isCritical
+            ? const Color(0xFFFED7AA)
+            : isWarning
+                ? const Color(0xFFFDE68A)
+                : const Color(0xFFBBF7D0);
+
+    final String statusLabel = isOut
+        ? 'Stok Habis'
+        : isCritical
+            ? 'Kritis (Segera Restock)'
+            : isWarning
+                ? 'Stok Menipis'
+                : 'Stok Aman';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: statusBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: statusBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: statusBorder),
+                    ),
+                    child: Icon(Icons.coffee_rounded, size: 20, color: statusColor),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Prediksi Kapasitas Stok Menu',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        '~$cups Cup Siap Jual',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                          color: statusColor,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  statusLabel,
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+          if (p.bottleneckIngredient != null && p.bottleneckIngredient!.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.88),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: statusBorder.withValues(alpha: 0.8)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.report_problem_rounded, size: 14, color: statusColor),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Faktor Pembatas: ${p.bottleneckIngredient}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: statusColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

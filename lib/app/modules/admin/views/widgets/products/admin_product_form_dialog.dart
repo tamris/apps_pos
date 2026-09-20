@@ -12,6 +12,7 @@ import 'package:noli_apps/app/data/models/admin_product_model.dart';
 import 'package:noli_apps/app/data/models/product_ingredient_model.dart';
 import 'package:noli_apps/app/data/models/admin_ingredient_model.dart';
 import 'package:noli_apps/app/modules/admin/controllers/admin_controller.dart';
+import 'package:noli_apps/app/core/utils/recipe_stock_calculator.dart';
 
 class AdminProductFormDialog {
   static Future<bool?> show(
@@ -182,6 +183,11 @@ class _ProductFormContentState extends State<_ProductFormContent> {
     // Jika sedang edit dan ada detail lengkap di server, muat resep aslinya
     if (p != null && p.ingredients.isEmpty && p.ingredientsCount > 0) {
       _fetchFullDetail(p.id);
+    }
+
+    // Pastikan master bahan baku termuat untuk kalkulasi kapasitas porsi live
+    if (controller.ingredients.isEmpty) {
+      controller.fetchIngredients(showLoader: false);
     }
   }
 
@@ -1042,6 +1048,118 @@ class _ProductFormContentState extends State<_ProductFormContent> {
   // ---------------------------------------------------------------------------
   // TAB 2: RESEP BAHAN & HPP
   // ---------------------------------------------------------------------------
+  Widget _buildLiveCapacityBanner() {
+    return Obx(() {
+      final capacity = RecipeStockCalculator.calculate(
+        recipeIngredients: _ingredients,
+        stockIngredients: controller.ingredients,
+      );
+
+      final isOutOfStock = capacity.isOutOfStock;
+      final isCritical = capacity.isCritical;
+      final isWarning = capacity.isWarning;
+
+      final Color bgColor;
+      final Color borderColor;
+      final Color iconColor;
+      final Color textColor;
+      final IconData statusIcon;
+
+      if (isOutOfStock) {
+        bgColor = const Color(0xFFFEF2F2);
+        borderColor = const Color(0xFFFECACA);
+        iconColor = const Color(0xFFEF4444);
+        textColor = const Color(0xFF991B1B);
+        statusIcon = Icons.cancel_outlined;
+      } else if (isCritical) {
+        bgColor = const Color(0xFFFFF7ED);
+        borderColor = const Color(0xFFFED7AA);
+        iconColor = const Color(0xFFF97316);
+        textColor = const Color(0xFF9A3412);
+        statusIcon = Icons.warning_amber_rounded;
+      } else if (isWarning) {
+        bgColor = const Color(0xFFFEFCE8);
+        borderColor = const Color(0xFFFEF08A);
+        iconColor = const Color(0xFFEAB308);
+        textColor = const Color(0xFF854D0E);
+        statusIcon = Icons.info_outline_rounded;
+      } else {
+        bgColor = const Color(0xFFF0FDF4);
+        borderColor = const Color(0xFFBBF7D0);
+        iconColor = const Color(0xFF16A34A);
+        textColor = const Color(0xFF166534);
+        statusIcon = Icons.local_cafe_rounded;
+      }
+
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: borderColor),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.8),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(statusIcon, color: iconColor, size: 18),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Kapasitas Porsi Real-Time: ',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: textColor,
+                        ),
+                      ),
+                      Text(
+                        capacity.formattedCups,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                          color: textColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isOutOfStock
+                        ? (capacity.bottleneckDetails != null
+                            ? 'Bahan habis / minus: ${capacity.bottleneckDetails}'
+                            : 'Stok bahan baku tidak mencukupi untuk membuat 1 porsi.')
+                        : (capacity.bottleneckDetails != null
+                            ? 'Dibatasi oleh stok ${capacity.bottleneckDetails}'
+                            : 'Berdasarkan ketersediaan bahan baku di gudang saat ini.'),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: textColor.withValues(alpha: 0.85),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
   Widget _buildRecipeTab() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1229,6 +1347,12 @@ class _ProductFormContentState extends State<_ProductFormContent> {
             ],
           ),
           const SizedBox(height: 12),
+
+          // Live Stock Capacity Preview
+          if (_ingredients.isNotEmpty) ...[
+            _buildLiveCapacityBanner(),
+            const SizedBox(height: 12),
+          ],
 
           // Table / List of Ingredients
           if (_ingredients.isEmpty)

@@ -262,7 +262,13 @@ class _ProductCardState extends State<ProductCard> {
                         ),
                       ),
 
-                      // 3. Margin Badge
+                      // 3. Cup Capacity Badge (Jika ada resep)
+                      if (product.estimatedStock != null) ...[
+                        _buildCupCapacityBadge(product.estimatedStock!),
+                        const SizedBox(width: 6),
+                      ],
+
+                      // 4. Margin Badge
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                         decoration: BoxDecoration(
@@ -640,6 +646,59 @@ class _ProductCardState extends State<ProductCard> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             child: const Text('Arsipkan Menu', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCupCapacityBadge(int cups) {
+    Color bg;
+    Color border;
+    Color textColor;
+    String label;
+
+    if (cups <= 0) {
+      bg = const Color(0xFFFEF2F2);
+      border = const Color(0xFFFECACA);
+      textColor = const Color(0xFFDC2626);
+      label = '0 Cup';
+    } else if (cups <= 10) {
+      bg = const Color(0xFFFFF7ED);
+      border = const Color(0xFFFED7AA);
+      textColor = const Color(0xFFEA580C);
+      label = 'Sisa $cups cup';
+    } else if (cups <= 30) {
+      bg = const Color(0xFFFFFBEB);
+      border = const Color(0xFFFDE68A);
+      textColor = const Color(0xFFD97706);
+      label = '~$cups cup';
+    } else {
+      bg = const Color(0xFFF0FDF4);
+      border = const Color(0xFFBBF7D0);
+      textColor = const Color(0xFF059669);
+      label = '~$cups cup';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.coffee_rounded, size: 11, color: textColor),
+          const SizedBox(width: 3.5),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: textColor,
+            ),
           ),
         ],
       ),

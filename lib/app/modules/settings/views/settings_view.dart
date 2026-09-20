@@ -27,15 +27,19 @@ class SettingsView extends GetView<SettingsController> {
           _buildPrinterSection(context),
           const SizedBox(height: 16),
 
-          // Section 3: Suara Notifikasi Pesanan (Audio Kustom / Bawaan)
+          // Section 3: Tampilan Menu & Kasir (Estimasi Sisa Porsi Menu)
+          _buildPosDisplaySection(context),
+          const SizedBox(height: 16),
+
+          // Section 4: Suara Notifikasi Pesanan (Audio Kustom / Bawaan)
           _buildSoundSection(context),
           const SizedBox(height: 16),
 
-          // Section 4: URL Server Backend
+          // Section 5: URL Server Backend
           _buildServerConfigSection(context),
           const SizedBox(height: 16),
 
-          // Section 5: Offline Sync
+          // Section 6: Offline Sync
           _buildOfflineSyncSection(context),
           const SizedBox(height: 24),
         ],
@@ -275,6 +279,307 @@ class SettingsView extends GetView<SettingsController> {
         ),
       ),
     );
+  }
+
+  /// Section: Tampilan Menu & Kasir (Estimasi Sisa Porsi Menu)
+  /// Diletakkan tepat di bawah pengaturan printer dengan desain modern, clean, dan interaktif
+  Widget _buildPosDisplaySection(BuildContext context) {
+    return Obx(() {
+      final isEnabled = controller.showCupCapacity.value;
+
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isEnabled
+                ? AppColors.primary.withValues(alpha: 0.35)
+                : AppColors.lightBorder,
+            width: isEnabled ? 1.4 : 1.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isEnabled
+                  ? AppColors.primary.withValues(alpha: 0.05)
+                  : Colors.black.withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => controller.setShowCupCapacity(!isEnabled),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Modern squircle icon container
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: isEnabled
+                              ? AppColors.primarySoft
+                              : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isEnabled
+                                ? AppColors.primary.withValues(alpha: 0.2)
+                                : const Color(0xFFE2E8F0),
+                            width: 1,
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.coffee_rounded,
+                          color: isEnabled
+                              ? AppColors.primary
+                              : const Color(0xFF94A3B8),
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+
+                      // Title & Status Badge
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Text(
+                                  'Estimasi Sisa Porsi Menu',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                    letterSpacing: -0.2,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2.5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isEnabled
+                                        ? const Color(0xFFDCFCE7)
+                                        : const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: isEnabled
+                                          ? const Color(0xFF86EFAC)
+                                          : const Color(0xFFCBD5E1),
+                                      width: 0.8,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 5,
+                                        height: 5,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: isEnabled
+                                              ? const Color(0xFF16A34A)
+                                              : const Color(0xFF94A3B8),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        isEnabled ? 'Aktif' : 'Mati',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          color: isEnabled
+                                              ? const Color(0xFF15803D)
+                                              : const Color(0xFF64748B),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              isEnabled
+                                  ? 'Menampilkan badge sisa porsi cup di kartu kasir'
+                                  : 'Badge porsi disembunyikan untuk tampilan kasir minimalis',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: isEnabled
+                                    ? AppColors.textSecondary
+                                    : AppColors.textMuted,
+                                height: 1.25,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+
+                      // Ultra-modern custom animated pill switch
+                      GestureDetector(
+                        onTap: () => controller.setShowCupCapacity(!isEnabled),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeInOutCubic,
+                          width: 48,
+                          height: 28,
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            color: isEnabled
+                                ? AppColors.primary
+                                : const Color(0xFFCBD5E1),
+                          ),
+                          child: AnimatedAlign(
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeInOutCubic,
+                            alignment: isEnabled
+                                ? Alignment.centerRight
+                                : Alignment.centerLeft,
+                            child: Container(
+                              width: 22,
+                              height: 22,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black12,
+                                    blurRadius: 4,
+                                    offset: Offset(0, 1.5),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Animated preview banner depending on toggle state
+                  AnimatedCrossFade(
+                    duration: const Duration(milliseconds: 200),
+                    crossFadeState: isEnabled
+                        ? CrossFadeState.showFirst
+                        : CrossFadeState.showSecond,
+                    firstChild: Container(
+                      margin: const EdgeInsets.only(top: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primarySoft.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppColors.primaryLight.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.coffee_rounded,
+                            size: 14,
+                            color: AppColors.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          const Expanded(
+                            child: Text(
+                              'Badge porsi akan tampil di foto kartu menu kasir:',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.primaryDark,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF059669),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.coffee_rounded,
+                                  size: 9,
+                                  color: Colors.white,
+                                ),
+                                SizedBox(width: 3),
+                                Text(
+                                  '~55 cup',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    secondChild: Container(
+                      margin: const EdgeInsets.only(top: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(
+                            Icons.visibility_off_outlined,
+                            size: 14,
+                            color: AppColors.textMuted,
+                          ),
+                          SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Badge porsi disembunyikan. Kasir melihat foto & nama menu saja.',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    });
   }
 
   Widget _buildServerConfigSection(BuildContext context) {

@@ -14,6 +14,8 @@ class ProductModel {
   final bool isActive;
   final int totalSold;
   final List<AddonModel> availableAddons;
+  final int? estimatedStock;
+  final String? bottleneckIngredient;
 
   ProductModel({
     required this.id,
@@ -29,6 +31,8 @@ class ProductModel {
     this.isActive = true,
     this.totalSold = 0,
     this.availableAddons = const [],
+    this.estimatedStock,
+    this.bottleneckIngredient,
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
@@ -65,6 +69,10 @@ class ProductModel {
               .map((i) => AddonModel.fromJson(Map<String, dynamic>.from(i)))
               .toList()
           : const [],
+      estimatedStock: json['estimated_stock'] != null
+          ? (double.tryParse(json['estimated_stock'].toString())?.toInt())
+          : null,
+      bottleneckIngredient: json['bottleneck_ingredient']?.toString(),
     );
   }
 
@@ -83,6 +91,8 @@ class ProductModel {
       'is_active': isActive,
       'total_sold': totalSold,
       'available_addons': availableAddons.map((a) => a.toJson()).toList(),
+      'estimated_stock': estimatedStock,
+      'bottleneck_ingredient': bottleneckIngredient,
     };
   }
 
@@ -100,6 +110,8 @@ class ProductModel {
     bool? isActive,
     int? totalSold,
     List<AddonModel>? availableAddons,
+    int? estimatedStock,
+    String? bottleneckIngredient,
   }) {
     return ProductModel(
       id: id ?? this.id,
@@ -115,6 +127,8 @@ class ProductModel {
       isActive: isActive ?? this.isActive,
       totalSold: totalSold ?? this.totalSold,
       availableAddons: availableAddons ?? this.availableAddons,
+      estimatedStock: estimatedStock ?? this.estimatedStock,
+      bottleneckIngredient: bottleneckIngredient ?? this.bottleneckIngredient,
     );
   }
 }

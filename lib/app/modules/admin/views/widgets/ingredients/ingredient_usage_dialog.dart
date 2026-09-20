@@ -100,21 +100,42 @@ class AdminIngredientUsageDialog extends StatelessWidget {
                 ),
               ),
 
-              // 2. Action Bar: "+ Tautkan ke Menu Baru"
+              // 2. Action Bar: "+ Tautkan ke Menu Baru" & "Putuskan Semua"
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 color: const Color(0xFFF8FAFC),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Daftar Resep Terkait:',
-                      style: TextStyle(
+                    Text(
+                      'Daftar Resep Terkait${usages.isNotEmpty ? " (${usages.length})" : ""}:',
+                      style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: Color(0xFF475569),
                       ),
                     ),
+                    const Spacer(),
+                    if (usages.isNotEmpty) ...[
+                      OutlinedButton.icon(
+                        onPressed: () => _confirmDetachAll(context, controller, currentIng, usages),
+                        icon: const Icon(Icons.link_off_rounded, size: 15),
+                        label: Text(
+                          'Putuskan Semua (${usages.length})',
+                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFDC2626),
+                          backgroundColor: const Color(0xFFFEF2F2),
+                          side: const BorderSide(color: Color(0xFFFCA5A5), width: 1),
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                     ElevatedButton.icon(
                       onPressed: () => AdminAttachIngredientDialog.show(context, ingredient: currentIng),
                       icon: const Icon(Icons.add_link_rounded, size: 16),
@@ -351,6 +372,116 @@ class AdminIngredientUsageDialog extends StatelessWidget {
         ),
       );
     });
+  }
+
+  Future<void> _confirmDetachAll(
+    BuildContext context,
+    AdminController controller,
+    AdminIngredientModel currentIng,
+    List<dynamic> usages,
+  ) async {
+    final menuNames = usages.map((u) => u.productName).take(4).join(', ');
+    final extraCount = usages.length > 4 ? ' dan ${usages.length - 4} menu lainnya' : '';
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEE2E2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.warning_amber_rounded,
+                color: Color(0xFFEF4444),
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                'Putuskan Semua Menu?',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 13, color: Color(0xFF475569), height: 1.4),
+                children: [
+                  const TextSpan(text: 'Anda akan memutuskan kaitan bahan baku '),
+                  TextSpan(
+                    text: "'${currentIng.name}'",
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                  ),
+                  TextSpan(
+                    text: " dari seluruh ${usages.length} menu ($menuNames$extraCount).",
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFBEB),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFFDE68A)),
+              ),
+              child: const Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFFD97706)),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Menu tidak akan terhapus dari katalog toko. Namun penjualan menu tersebut tidak akan lagi memotong stok bahan ini dan HPP akan disesuaikan.',
+                      style: TextStyle(fontSize: 11.5, color: Color(0xFF92400E), height: 1.3),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Batal', style: TextStyle(color: Color(0xFF64748B))),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              'Ya, Putuskan Semua (${usages.length})',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await controller.detachIngredientFromAllProducts(
+        ingredientId: currentIng.id,
+      );
+    }
   }
 }
 

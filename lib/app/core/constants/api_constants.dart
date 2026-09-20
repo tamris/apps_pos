@@ -95,6 +95,7 @@ class ApiConstants {
   static const String adminIngredientMutations = '/admin/ingredients/mutations';
   static String adminIngredientAttachProduct(int id) => '/admin/ingredients/$id/attach-product';
   static String adminIngredientDetachProduct(int id, int productId) => '/admin/ingredients/$id/detach-product/$productId';
+  static String adminIngredientDetachAllProducts(int id) => '/admin/ingredients/$id/detach-all-products';
 }
 
 
