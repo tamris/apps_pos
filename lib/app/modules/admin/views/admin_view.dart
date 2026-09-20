@@ -84,17 +84,9 @@ class AdminView extends GetView<AdminController> {
                 child: Scaffold(
                   resizeToAvoidBottomInset: false,
                   backgroundColor: const Color(0xFFF8FAFC),
-                  appBar: AppBar(
-                    backgroundColor: Colors.white,
-                    elevation: 0,
-                    scrolledUnderElevation: 0,
-                    automaticallyImplyLeading: false,
-                    toolbarHeight: 52,
-                    titleSpacing: 12,
-                    shape: const Border(
-                      bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
-                    ),
-                    leading: Obx(() {
+                  appBar: PreferredSize(
+                    preferredSize: const Size.fromHeight(52),
+                    child: Obx(() {
                       final tabIndex = controller.selectedTabIndex.value;
                       final isSubTab = tabIndex == 2 ||
                           tabIndex == 3 ||
@@ -103,194 +95,200 @@ class AdminView extends GetView<AdminController> {
                           tabIndex == 7 ||
                           tabIndex == 8;
 
-                      if (!isSubTab) return const SizedBox.shrink();
-
-                      return Center(
-                        child: InkWell(
-                          onTap: () => controller.switchTab(0),
-                          borderRadius: BorderRadius.circular(20),
-                          child: Container(
-                            padding: const EdgeInsets.all(5),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFF1F5F9),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.arrow_back_rounded,
-                              size: 17,
-                              color: Color(0xFF334155),
-                            ),
-                          ),
+                      return AppBar(
+                        backgroundColor: Colors.white,
+                        elevation: 0,
+                        scrolledUnderElevation: 0,
+                        automaticallyImplyLeading: false,
+                        toolbarHeight: 52,
+                        shape: const Border(
+                          bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
                         ),
-                      );
-                    }),
-                    leadingWidth: 44,
-                    title: Obx(() {
-                      final tabIndex = controller.selectedTabIndex.value;
-                      final isSubTab = tabIndex == 2 ||
-                          tabIndex == 3 ||
-                          tabIndex == 5 ||
-                          tabIndex == 6 ||
-                          tabIndex == 7 ||
-                          tabIndex == 8;
-
-                      if (tabIndex == 0) {
-                        return Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 30,
-                              height: 30,
-                              decoration: BoxDecoration(
-                                color: AppColors.secondarySoft,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: AppColors.secondaryLight.withValues(
-                                    alpha: 0.3,
+                        leadingWidth: isSubTab ? 48 : 0,
+                        leading: isSubTab
+                            ? Padding(
+                                padding: const EdgeInsets.only(left: 12.0),
+                                child: Center(
+                                  child: InkWell(
+                                    onTap: () => controller.switchTab(0),
+                                    borderRadius: BorderRadius.circular(20),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(5),
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFFF1F5F9),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.arrow_back_rounded,
+                                        size: 17,
+                                        color: Color(0xFF334155),
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                              child: ClipOval(
-                                child: Image.asset(
-                                  'assets/icons/app_icon.png',
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (_, __, ___) => const Icon(
-                                    Icons.point_of_sale_rounded,
-                                    color: AppColors.secondary,
-                                    size: 15,
+                              )
+                            : null,
+                        titleSpacing: isSubTab ? 6 : 16,
+                        title: tabIndex == 0
+                            ? Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 30,
+                                    height: 30,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.secondarySoft,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: AppColors.secondaryLight.withValues(
+                                          alpha: 0.3,
+                                        ),
+                                      ),
+                                    ),
+                                    child: ClipOval(
+                                      child: Image.asset(
+                                        'assets/icons/app_icon.png',
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (_, __, ___) => const Icon(
+                                          Icons.point_of_sale_rounded,
+                                          color: AppColors.secondary,
+                                          size: 15,
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Flexible(
-                              child: Text(
-                                'Noli Coffee',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF0F172A),
-                                  letterSpacing: -0.2,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.secondarySoft,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                user?.role.toUpperCase() == 'OWNER'
-                                    ? 'Owner'
-                                    : 'Admin',
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.secondary,
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      }
+                                  const SizedBox(width: 8),
+                                  const Flexible(
+                                    child: Text(
+                                      'Noli Coffee',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF0F172A),
+                                        letterSpacing: -0.2,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.secondarySoft,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      user?.role.toUpperCase() == 'OWNER'
+                                          ? 'Owner'
+                                          : 'Admin',
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.secondary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Builder(
+                                builder: (context) {
+                                  final String tabTitle;
+                                  switch (tabIndex) {
+                                    case 1:
+                                      tabTitle = 'Riwayat Transaksi';
+                                      break;
+                                    case 2:
+                                      tabTitle = 'Laporan Menu';
+                                      break;
+                                    case 3:
+                                      tabTitle = 'Audit Shift Kasir';
+                                      break;
+                                    case 4:
+                                      tabTitle = 'Pesanan & Meja';
+                                      break;
+                                    case 5:
+                                      tabTitle = 'Arus Kas & Beban';
+                                      break;
+                                    case 6:
+                                      tabTitle = 'Produk & Resep HPP';
+                                      break;
+                                    case 7:
+                                      tabTitle = 'Pengaturan Toko';
+                                      break;
+                                    case 8:
+                                      tabTitle = 'Bahan Baku & Stok';
+                                      break;
+                                    default:
+                                      tabTitle = 'Portal Admin';
+                                  }
 
-                      final String tabTitle;
-                      switch (tabIndex) {
-                        case 1:
-                          tabTitle = 'Riwayat Transaksi';
-                          break;
-                        case 2:
-                          tabTitle = 'Laporan Menu';
-                          break;
-                        case 3:
-                          tabTitle = 'Audit Shift Kasir';
-                          break;
-                        case 4:
-                          tabTitle = 'Pesanan & Meja';
-                          break;
-                        case 5:
-                          tabTitle = 'Arus Kas & Beban';
-                          break;
-                        case 6:
-                          tabTitle = 'Produk & Resep HPP';
-                          break;
-                        case 7:
-                          tabTitle = 'Pengaturan Toko';
-                          break;
-                        case 8:
-                          tabTitle = 'Bahan Baku & Stok';
-                          break;
-                        default:
-                          tabTitle = 'Portal Admin';
-                      }
-
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            tabTitle,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF0F172A),
-                              letterSpacing: -0.2,
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        tabTitle,
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF0F172A),
+                                          letterSpacing: -0.2,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      if (isSubTab)
+                                        const Text(
+                                          'Menu Hub • Ketuk panah untuk ke Dashboard',
+                                          style: TextStyle(
+                                            fontSize: 9.5,
+                                            color: Color(0xFF94A3B8),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                    ],
+                                  );
+                                },
+                              ),
+                        actions: [
+                          IconButton(
+                            tooltip: 'Segarkan Data',
+                            icon: const Icon(
+                              Icons.refresh_rounded,
+                              color: Color(0xFF64748B),
+                              size: 19,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            onPressed: () => controller.refreshCurrentTab(),
+                            constraints: const BoxConstraints(
+                              minWidth: 36,
+                              minHeight: 36,
+                            ),
+                            padding: EdgeInsets.zero,
                           ),
-                          if (isSubTab)
-                            const Text(
-                              'Menu Hub • Ketuk panah untuk ke Dashboard',
-                              style: TextStyle(
-                                fontSize: 9.5,
-                                color: Color(0xFF94A3B8),
-                                fontWeight: FontWeight.w500,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                          IconButton(
+                            tooltip: 'Keluar Akun',
+                            icon: const Icon(
+                              Icons.logout_rounded,
+                              color: AppColors.danger,
+                              size: 19,
                             ),
+                            onPressed: () => _confirmLogout(context),
+                            constraints: const BoxConstraints(
+                              minWidth: 36,
+                              minHeight: 36,
+                            ),
+                            padding: EdgeInsets.zero,
+                          ),
+                          const SizedBox(width: 8),
                         ],
                       );
                     }),
-                    actions: [
-                      IconButton(
-                        tooltip: 'Segarkan Data',
-                        icon: const Icon(
-                          Icons.refresh_rounded,
-                          color: Color(0xFF64748B),
-                          size: 19,
-                        ),
-                        onPressed: () => controller.refreshCurrentTab(),
-                        constraints: const BoxConstraints(
-                          minWidth: 36,
-                          minHeight: 36,
-                        ),
-                        padding: EdgeInsets.zero,
-                      ),
-                      IconButton(
-                        tooltip: 'Keluar Akun',
-                        icon: const Icon(
-                          Icons.logout_rounded,
-                          color: AppColors.danger,
-                          size: 19,
-                        ),
-                        onPressed: () => _confirmLogout(context),
-                        constraints: const BoxConstraints(
-                          minWidth: 36,
-                          minHeight: 36,
-                        ),
-                        padding: EdgeInsets.zero,
-                      ),
-                      const SizedBox(width: 6),
-                    ],
                   ),
                   body: Obx(
                     () => _buildActiveTab(controller.selectedTabIndex.value),
