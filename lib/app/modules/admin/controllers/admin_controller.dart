@@ -369,6 +369,7 @@ class AdminController extends GetxController {
   // --- TAB: INGREDIENTS & STOCK INVENTORY ---
   final RxList<AdminIngredientModel> ingredients = <AdminIngredientModel>[].obs;
   final Rx<AdminIngredientSummaryModel> ingredientSummary = AdminIngredientSummaryModel.empty().obs;
+  final RxBool hasServerIngredientSummary = false.obs;
   final RxBool isLoadingIngredients = false.obs;
   final RxBool isLoadingMoreIngredients = false.obs;
   final RxBool hasMoreIngredients = false.obs;
@@ -377,20 +378,36 @@ class AdminController extends GetxController {
   final TextEditingController ingredientSearchController = TextEditingController();
   final RxString ingredientSearchQuery = ''.obs;
   final RxBool hasIngredientSearch = false.obs;
+  final RxString selectedIngredientLifecycle = 'all'.obs; // 'all', 'active', 'inactive', 'archived'
   final RxString selectedIngredientStatus = 'all'.obs; // 'all', 'safe', 'low_stock', 'out_of_stock'
   final RxString selectedIngredientSort = 'name'.obs; // 'name', 'stock_asc', 'stock_desc', 'value_desc'
   Timer? _ingredientSearchDebounce;
 
   List<AdminIngredientModel> get filteredIngredients {
     final query = ingredientSearchQuery.value.trim().toLowerCase();
+    final lifecycle = selectedIngredientLifecycle.value;
     final status = selectedIngredientStatus.value;
     final sort = selectedIngredientSort.value;
 
     var list = ingredients.where((ing) {
+      // 1. Lifecycle filter (Aktif, Nonaktif, Terarsip)
+      if (lifecycle == 'active') {
+        if (!ing.isActive || ing.isArchived) return false;
+      } else if (lifecycle == 'inactive') {
+        if (ing.isActive || ing.isArchived) return false;
+      } else if (lifecycle == 'archived') {
+        if (!ing.isArchived) return false;
+      } else {
+        // 'all': Default view displays non-archived items (active & inactive)
+        if (ing.isArchived) return false;
+      }
+
+      // 2. Stock level status filter
       if (status == 'safe' && !ing.isSafe) return false;
       if (status == 'low_stock' && !ing.isLowStock) return false;
       if (status == 'out_of_stock' && !ing.isOutOfStock) return false;
 
+      // 3. Search query
       if (query.isNotEmpty) {
         final matchesName = ing.name.toLowerCase().contains(query);
         final matchesSku = ing.sku.toLowerCase().contains(query);
@@ -423,7 +440,7 @@ class AdminController extends GetxController {
     _ingredientSearchDebounce?.cancel();
     _ingredientSearchDebounce = Timer(const Duration(milliseconds: 250), () {
       ingredientSearchQuery.value = val;
-      fetchIngredients(showLoader: false);
+      fetchIngredients(showLoader: true);
     });
   }
 
@@ -432,14 +449,18 @@ class AdminController extends GetxController {
     ingredientSearchController.clear();
     hasIngredientSearch.value = false;
     ingredientSearchQuery.value = '';
-    fetchIngredients(showLoader: false);
+    fetchIngredients(showLoader: true);
   }
 
   void clearIngredientFilters() {
-    clearIngredientSearch();
+    _ingredientSearchDebounce?.cancel();
+    ingredientSearchController.clear();
+    hasIngredientSearch.value = false;
+    ingredientSearchQuery.value = '';
+    selectedIngredientLifecycle.value = 'all';
     selectedIngredientStatus.value = 'all';
     selectedIngredientSort.value = 'name';
-    fetchIngredients(showLoader: false);
+    fetchIngredients(showLoader: true);
   }
 
   // --- SEARCH DEBOUNCERS & INSTANT INDICATORS ---
@@ -569,6 +590,7 @@ class AdminController extends GetxController {
     _productSearchDebounce?.cancel();
     _productSearchDebounce = Timer(const Duration(milliseconds: 250), () {
       productSearchQuery.value = val;
+      fetchAdminProducts(showLoader: true);
     });
   }
 
@@ -577,13 +599,30 @@ class AdminController extends GetxController {
     productSearchController.clear();
     hasProductSearch.value = false;
     productSearchQuery.value = '';
+    fetchAdminProducts(showLoader: true);
+  }
+
+  void onProductStatusFilterChanged(String val) {
+    if (selectedProductStatus.value == val) return;
+    selectedProductStatus.value = val;
+    fetchAdminProducts(showLoader: true);
+  }
+
+  void onProductCategoryFilterChanged(int? catId) {
+    if (selectedProductCategoryId.value == catId) return;
+    selectedProductCategoryId.value = catId;
+    fetchAdminProducts(showLoader: true);
   }
 
   void clearProductFilters() {
-    clearProductSearch();
+    _productSearchDebounce?.cancel();
+    productSearchController.clear();
+    hasProductSearch.value = false;
+    productSearchQuery.value = '';
     selectedProductCategoryId.value = null;
     selectedProductStatus.value = 'all';
     selectedProductSort.value = 'name';
+    fetchAdminProducts(showLoader: true);
   }
 
   @override
@@ -599,25 +638,6 @@ class AdminController extends GetxController {
     fetchDashboard();
     fetchTransactions();
     fetchOpenBills();
-
-    // Auto re-fetch products when status filter changes (e.g. switching to Arsip)
-    ever(selectedProductStatus, (_) {
-      if (selectedTabIndex.value == 6) {
-        fetchAdminProducts(showLoader: false);
-      }
-    });
-
-    // Auto re-fetch ingredients when status or sort changes
-    ever(selectedIngredientStatus, (_) {
-      if (selectedTabIndex.value == 8) {
-        fetchIngredients(showLoader: false);
-      }
-    });
-    ever(selectedIngredientSort, (_) {
-      if (selectedTabIndex.value == 8) {
-        fetchIngredients(showLoader: false);
-      }
-    });
   }
 
   @override
@@ -2500,8 +2520,14 @@ class AdminController extends GetxController {
         queryParams['search'] = ingredientSearchQuery.value.trim();
       }
 
+      if (selectedIngredientLifecycle.value == 'archived') {
+        queryParams['status'] = 'archived';
+      } else if (selectedIngredientLifecycle.value != 'all') {
+        queryParams['lifecycle'] = selectedIngredientLifecycle.value;
+      }
+
       if (selectedIngredientStatus.value != 'all') {
-        queryParams['status'] = selectedIngredientStatus.value;
+        queryParams['stock_status'] = selectedIngredientStatus.value;
       }
 
       if (selectedIngredientSort.value != 'name') {
@@ -2516,11 +2542,14 @@ class AdminController extends GetxController {
       if (response.statusCode == 200 && response.data != null) {
         final resData = response.data;
 
-        // 1. Parse Summary KPI
+        // 1. Parse Summary KPI (Aggregated across entire database)
         if (resData['summary'] != null && resData['summary'] is Map) {
           ingredientSummary.value = AdminIngredientSummaryModel.fromJson(
             Map<String, dynamic>.from(resData['summary']),
           );
+          hasServerIngredientSummary.value = true;
+        } else {
+          hasServerIngredientSummary.value = false;
         }
 
         // 2. Parse Items
@@ -2540,23 +2569,30 @@ class AdminController extends GetxController {
           itemsList.map((e) => AdminIngredientModel.fromJson(Map<String, dynamic>.from(e))).toList(),
         );
 
-        // Fallback: If summary was empty or all 0, compute from ingredients
-        if (ingredientSummary.value.totalIngredients == 0 && ingredients.isNotEmpty) {
+        // Fallback: If backend does not provide summary, compute locally from loaded items
+        if (!hasServerIngredientSummary.value && ingredients.isNotEmpty) {
           double totalVal = 0;
           int lowCount = 0;
           int outCount = 0;
+          int debtCount = 0;
+          int safeCount = 0;
           for (final ing in ingredients) {
             totalVal += ing.totalInventoryValue;
+            if (ing.isDebtStock) debtCount++;
             if (ing.isOutOfStock) {
               outCount++;
             } else if (ing.isLowStock) {
               lowCount++;
+            } else if (ing.isSafe) {
+              safeCount++;
             }
           }
           ingredientSummary.value = AdminIngredientSummaryModel(
             totalIngredients: ingredients.length,
             lowStockCount: lowCount,
             outOfStockCount: outCount,
+            debtCount: debtCount,
+            safeStockCount: safeCount,
             totalInventoryValue: totalVal,
           );
         }
@@ -2584,9 +2620,16 @@ class AdminController extends GetxController {
       if (ingredientSearchQuery.value.trim().isNotEmpty) {
         queryParams['search'] = ingredientSearchQuery.value.trim();
       }
-      if (selectedIngredientStatus.value != 'all') {
-        queryParams['status'] = selectedIngredientStatus.value;
+      if (selectedIngredientLifecycle.value == 'archived') {
+        queryParams['status'] = 'archived';
+      } else if (selectedIngredientLifecycle.value != 'all') {
+        queryParams['lifecycle'] = selectedIngredientLifecycle.value;
       }
+
+      if (selectedIngredientStatus.value != 'all') {
+        queryParams['stock_status'] = selectedIngredientStatus.value;
+      }
+
       if (selectedIngredientSort.value != 'name') {
         queryParams['sort'] = selectedIngredientSort.value;
       }
@@ -2668,15 +2711,123 @@ class AdminController extends GetxController {
       );
 
       if (response.statusCode == 200) {
-        AppSnackbar.success('Berhasil', 'Bahan baku berhasil dihapus');
+        AppSnackbar.success('Bahan Diarsipkan', response.data?['message'] ?? 'Bahan baku berhasil diarsipkan');
         ingredients.removeWhere((item) => item.id == id);
         await fetchIngredients(showLoader: false);
+        fetchHppSummary(showLoader: false);
         return true;
       } else {
         AppSnackbar.warning('Perhatian', response.data?['message'] ?? 'Gagal menghapus bahan');
       }
     } catch (e) {
       AppSnackbar.danger('Gagal Hapus Bahan', ApiProvider.getErrorMessage(e));
+    }
+    return false;
+  }
+
+  Future<bool> toggleIngredientActive(AdminIngredientModel ingredient) async {
+    final willActive = !ingredient.isActive;
+    try {
+      final response = await _apiProvider.put(
+        ApiConstants.adminIngredientToggleActive(ingredient.id),
+      );
+
+      if (response.statusCode == 200) {
+        final idx = ingredients.indexWhere((item) => item.id == ingredient.id);
+        if (idx != -1) {
+          ingredients[idx] = ingredient.copyWith(isActive: willActive);
+        }
+        AppSnackbar.success(
+          willActive ? 'Bahan Diaktifkan' : 'Bahan Dinonaktifkan',
+          response.data?['message'] ?? "Status bahan baku '${ingredient.name}' berhasil diperbarui.",
+        );
+        fetchHppSummary(showLoader: false);
+        return true;
+      } else {
+        AppSnackbar.warning('Perhatian', response.data?['message'] ?? 'Gagal mengubah status bahan');
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Ubah Status', ApiProvider.getErrorMessage(e));
+    }
+    return false;
+  }
+
+  Future<bool> toggleArchiveIngredient(AdminIngredientModel ingredient) async {
+    final willArchive = !ingredient.isArchived;
+    try {
+      if (willArchive) {
+        // Archive ingredient: soft delete & automatic unlink from all recipes
+        final response = await _apiProvider.delete(
+          ApiConstants.adminIngredientDetail(ingredient.id),
+        );
+
+        if (response.statusCode == 200) {
+          if (selectedIngredientLifecycle.value == 'archived') {
+            final idx = ingredients.indexWhere((item) => item.id == ingredient.id);
+            if (idx != -1) ingredients[idx] = ingredient.copyWith(isArchived: true);
+          } else {
+            ingredients.removeWhere((item) => item.id == ingredient.id);
+          }
+          AppSnackbar.success(
+            'Bahan Diarsipkan',
+            response.data?['message'] ?? "Bahan '${ingredient.name}' berhasil diarsipkan dan kaitan resep telah diputuskan.",
+          );
+          await fetchIngredients(showLoader: false);
+          fetchHppSummary(showLoader: false);
+          return true;
+        } else {
+          AppSnackbar.warning('Perhatian', response.data?['message'] ?? 'Gagal mengarsipkan bahan');
+        }
+      } else {
+        // Restore ingredient from archive
+        final response = await _apiProvider.post(
+          ApiConstants.adminIngredientRestore(ingredient.id),
+        );
+
+        if (response.statusCode == 200) {
+          if (selectedIngredientLifecycle.value == 'archived') {
+            ingredients.removeWhere((item) => item.id == ingredient.id);
+          } else {
+            final idx = ingredients.indexWhere((item) => item.id == ingredient.id);
+            if (idx != -1) ingredients[idx] = ingredient.copyWith(isArchived: false);
+          }
+          AppSnackbar.success(
+            'Bahan Dipulihkan',
+            response.data?['message'] ?? "Bahan '${ingredient.name}' berhasil dipulihkan dari arsip.",
+          );
+          await fetchIngredients(showLoader: false);
+          fetchHppSummary(showLoader: false);
+          return true;
+        } else {
+          AppSnackbar.warning('Perhatian', response.data?['message'] ?? 'Gagal memulihkan bahan');
+        }
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Memperbarui Status Arsip', ApiProvider.getErrorMessage(e));
+    }
+    return false;
+  }
+
+  Future<bool> forceDeleteIngredient(int id) async {
+    try {
+      final response = await _apiProvider.delete(
+        ApiConstants.adminIngredientForceDelete(id),
+      );
+
+      if (response.statusCode == 200) {
+        AppSnackbar.success(
+          'Dihapus Permanen',
+          response.data?['message'] ?? 'Bahan baku berhasil dihapus permanen dari sistem.',
+        );
+        ingredients.removeWhere((item) => item.id == id);
+        await fetchIngredients(showLoader: false);
+        fetchHppSummary(showLoader: false);
+        return true;
+      } else {
+        AppSnackbar.warning('Perhatian', response.data?['message'] ?? 'Gagal menghapus permanen');
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Hapus Permanen', ApiProvider.getErrorMessage(e));
     }
     return false;
   }

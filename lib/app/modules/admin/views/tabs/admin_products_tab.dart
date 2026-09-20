@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:noli_apps/app/core/theme/app_colors.dart';
-import 'package:noli_apps/app/core/widgets/skeletons/list_item_skeleton.dart';
 import 'package:noli_apps/app/modules/admin/controllers/admin_controller.dart';
 import '../widgets/products/admin_product_form_dialog.dart';
 import '../widgets/products/product_metrics_strip.dart';
 import '../widgets/products/product_filter_bar.dart';
+import '../widgets/products/product_skeleton.dart';
 import '../widgets/products/product_card.dart';
 import '../widgets/common/admin_load_more_footer.dart';
 import 'admin_hpp_tab.dart';
@@ -235,8 +235,8 @@ class AdminProductsTab extends GetView<AdminController> {
         // 3. Responsive Data Grid / List
         Expanded(
           child: Obx(() {
-            if (controller.isLoadingProducts.value && controller.products.isEmpty) {
-              return const ListItemSkeleton();
+            if (controller.isLoadingProducts.value) {
+              return const ProductGridSkeleton();
             }
 
             final products = controller.filteredProducts;

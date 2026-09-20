@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:noli_apps/app/core/theme/app_colors.dart';
 import 'package:noli_apps/app/core/utils/currency_formatter.dart';
 import 'package:noli_apps/app/modules/admin/controllers/admin_controller.dart';
+import 'ingredient_skeleton.dart';
 
 class IngredientMetricsStrip extends StatelessWidget {
   final AdminController controller;
@@ -18,26 +19,55 @@ class IngredientMetricsStrip extends StatelessWidget {
         border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
       ),
       child: Obx(() {
+        if (controller.isLoadingIngredients.value && controller.ingredients.isEmpty) {
+          return const IngredientMetricsSkeleton();
+        }
+
         final summary = controller.ingredientSummary.value;
-        final hasLoadedIngredients = controller.ingredients.isNotEmpty;
-        final totalIngredients = hasLoadedIngredients
-            ? controller.ingredients.length
-            : (summary.totalIngredients > 0 ? summary.totalIngredients : 0);
-        final lowStock = hasLoadedIngredients
-            ? controller.ingredients.where((i) => i.isLowStock).length
-            : summary.lowStockCount;
-        final outOfStock = hasLoadedIngredients
-            ? controller.ingredients.where((i) => i.isOutOfStock).length
-            : summary.outOfStockCount;
-        final debtCount = hasLoadedIngredients
-            ? controller.ingredients.where((i) => i.isDebtStock).length
-            : 0;
-        final safeCount = hasLoadedIngredients
-            ? controller.ingredients.where((i) => i.isSafe).length
-            : summary.safeStockCount;
-        final totalValue = hasLoadedIngredients
-            ? controller.ingredients.fold(0.0, (sum, i) => sum + i.totalInventoryValue)
-            : summary.totalInventoryValue;
+        final hasServerSummary = controller.hasServerIngredientSummary.value;
+        final isFilterActive = controller.selectedIngredientLifecycle.value != 'all' ||
+            controller.selectedIngredientStatus.value != 'all' ||
+            controller.hasIngredientSearch.value;
+
+        // activeList digunakan sebagai fallback lokal jika server summary tidak tersedia
+        final activeList = controller.filteredIngredients;
+
+        final int totalIngredients;
+        final int lowStock;
+        final int outOfStock;
+        final int debtCount;
+        final int safeCount;
+        final double totalValue;
+
+        if (hasServerSummary) {
+          // Ketika server summary tersedia, gunakan data agregat database langsung.
+          // Ini memastikan bahwa meskipun ada ratusan data di database dan baru di-load page 1 (50 item),
+          // kartu di atas langsung menampilkan grand total yang akurat dari seluruh database!
+          // Begitu juga saat filter aktif, backend sudah menghitung agregat khusus filter tersebut di DB.
+          totalIngredients = summary.totalIngredients;
+          lowStock = summary.lowStockCount;
+          outOfStock = summary.outOfStockCount;
+          debtCount = summary.debtCount;
+          safeCount = summary.safeStockCount;
+          totalValue = summary.totalInventoryValue;
+        } else if (isFilterActive) {
+          // Fallback lokal jika backend summary tidak ada: gunakan item yang terfilter di frontend
+          totalIngredients = activeList.length;
+          lowStock = activeList.where((i) => i.isLowStock).length;
+          outOfStock = activeList.where((i) => i.isOutOfStock).length;
+          debtCount = activeList.where((i) => i.isDebtStock).length;
+          safeCount = activeList.where((i) => i.isSafe).length;
+          totalValue = activeList.fold(0.0, (sum, i) => sum + i.totalInventoryValue);
+        } else {
+          // Fallback lokal jika tidak ada filter & tidak ada server summary
+          final list = controller.ingredients;
+          totalIngredients = list.length;
+          lowStock = list.where((i) => i.isLowStock).length;
+          outOfStock = list.where((i) => i.isOutOfStock).length;
+          debtCount = list.where((i) => i.isDebtStock).length;
+          safeCount = list.where((i) => i.isSafe).length;
+          totalValue = list.fold(0.0, (sum, i) => sum + i.totalInventoryValue);
+        }
 
         return LayoutBuilder(
           builder: (context, constraints) {
@@ -46,7 +76,11 @@ class IngredientMetricsStrip extends StatelessWidget {
             final card1 = _buildMetricCard(
               label: 'Valuasi Inventaris',
               value: CurrencyFormatter.format(totalValue),
-              subtitle: 'Total aset bahan baku',
+              subtitle: isFilterActive
+                  ? (totalIngredients > 0
+                      ? 'Total aset ($totalIngredients item terfilter)'
+                      : '0 bahan sesuai filter aktif')
+                  : 'Total aset bahan baku',
               icon: Icons.account_balance_wallet_outlined,
               color: const Color(0xFF4F46E5),
               bgColor: const Color(0xFFEEF2FF),
@@ -56,7 +90,11 @@ class IngredientMetricsStrip extends StatelessWidget {
             final card2 = _buildMetricCard(
               label: 'Total Bahan Baku',
               value: '$totalIngredients Item',
-              subtitle: '$safeCount stok dalam batas aman',
+              subtitle: isFilterActive
+                  ? (totalIngredients > 0
+                      ? '$safeCount stok dalam batas aman'
+                      : 'Tidak ada bahan di filter ini')
+                  : '$safeCount stok dalam batas aman',
               icon: Icons.inventory_2_outlined,
               color: const Color(0xFF334155),
               bgColor: const Color(0xFFF1F5F9),
@@ -66,7 +104,11 @@ class IngredientMetricsStrip extends StatelessWidget {
             final card3 = _buildMetricCard(
               label: 'Stok Menipis',
               value: '$lowStock Bahan',
-              subtitle: lowStock > 0 ? 'Perlu segera restock' : 'Semua stok tercukupi',
+              subtitle: lowStock > 0
+                  ? 'Perlu segera restock'
+                  : (isFilterActive
+                      ? 'Tidak ada stok menipis'
+                      : 'Semua stok tercukupi'),
               icon: lowStock > 0 ? Icons.warning_amber_rounded : Icons.check_circle_outline_rounded,
               color: lowStock > 0 ? const Color(0xFFD97706) : const Color(0xFF059669),
               bgColor: lowStock > 0 ? const Color(0xFFFFFBEB) : const Color(0xFFECFDF5),
@@ -78,7 +120,11 @@ class IngredientMetricsStrip extends StatelessWidget {
               value: '$outOfStock Bahan',
               subtitle: debtCount > 0
                   ? '$debtCount bahan hutang restock'
-                  : (outOfStock > 0 ? 'Habis / out of stock' : 'Tidak ada bahan habis'),
+                  : (outOfStock > 0
+                      ? 'Habis / out of stock'
+                      : (isFilterActive
+                          ? 'Tidak ada stok habis'
+                          : 'Tidak ada bahan habis')),
               icon: debtCount > 0
                   ? Icons.assignment_late_outlined
                   : (outOfStock > 0 ? Icons.error_outline_rounded : Icons.verified_outlined),

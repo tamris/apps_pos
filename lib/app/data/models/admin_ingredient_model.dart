@@ -51,6 +51,8 @@ class AdminIngredientModel {
   final double buyAmount;
   final String buyUnit;
   final bool isActive;
+  final bool isArchived;
+  final String? deletedAt;
   final int productsCount;
   final List<IngredientUsageModel> usedInProducts;
   final String? createdAt;
@@ -69,6 +71,8 @@ class AdminIngredientModel {
     this.buyAmount = 1.0,
     this.buyUnit = 'gram',
     this.isActive = true,
+    this.isArchived = false,
+    this.deletedAt,
     this.productsCount = 0,
     this.usedInProducts = const [],
     this.createdAt,
@@ -80,6 +84,8 @@ class AdminIngredientModel {
   bool get isOutOfStock => stock <= 0;
   bool get isLowStock => stock > 0 && stock <= minStock;
   bool get isSafe => stock > minStock;
+  bool get isInactive => !isActive && !isArchived;
+  bool get isAvailable => isActive && !isArchived;
   double get debtAmount => stock < 0 ? stock.abs() : 0.0;
 
   bool get isPerishable {
@@ -183,6 +189,8 @@ class AdminIngredientModel {
       buyAmount: parsedBuyAmount > 0 ? parsedBuyAmount : 1.0,
       buyUnit: (json['buy_unit'] ?? json['satuan_beli'] ?? json['unit'] ?? 'gram').toString(),
       isActive: json['is_active'] == true || json['is_active'] == 1 || json['status'] == 'active' || json['is_active'] == null,
+      isArchived: json['is_archived'] == true || json['deleted_at'] != null,
+      deletedAt: json['deleted_at']?.toString(),
       productsCount: pCount,
       usedInProducts: parsedUsedIn,
       createdAt: json['created_at']?.toString(),
@@ -204,6 +212,8 @@ class AdminIngredientModel {
       'buy_amount': buyAmount,
       'buy_unit': buyUnit,
       'is_active': isActive ? 1 : 0,
+      'is_archived': isArchived,
+      'deleted_at': deletedAt,
       'products_count': productsCount,
       'used_in_products': usedInProducts.map((u) => u.toJson()).toList(),
     };
@@ -222,6 +232,8 @@ class AdminIngredientModel {
     double? buyAmount,
     String? buyUnit,
     bool? isActive,
+    bool? isArchived,
+    String? deletedAt,
     int? productsCount,
     List<IngredientUsageModel>? usedInProducts,
   }) {
@@ -238,6 +250,8 @@ class AdminIngredientModel {
       buyAmount: buyAmount ?? this.buyAmount,
       buyUnit: buyUnit ?? this.buyUnit,
       isActive: isActive ?? this.isActive,
+      isArchived: isArchived ?? this.isArchived,
+      deletedAt: deletedAt ?? this.deletedAt,
       productsCount: productsCount ?? this.productsCount,
       usedInProducts: usedInProducts ?? this.usedInProducts,
       createdAt: createdAt,
@@ -250,16 +264,21 @@ class AdminIngredientSummaryModel {
   final int totalIngredients;
   final int lowStockCount;
   final int outOfStockCount;
+  final int debtCount;
+  final int? _safeStockCount;
   final double totalInventoryValue;
 
   const AdminIngredientSummaryModel({
     required this.totalIngredients,
     required this.lowStockCount,
     required this.outOfStockCount,
+    this.debtCount = 0,
+    int? safeStockCount,
     required this.totalInventoryValue,
-  });
+  }) : _safeStockCount = safeStockCount;
 
   int get safeStockCount {
+    if (_safeStockCount != null) return _safeStockCount;
     final count = totalIngredients - lowStockCount - outOfStockCount;
     return count > 0 ? count : 0;
   }
@@ -269,16 +288,29 @@ class AdminIngredientSummaryModel {
       totalIngredients: 0,
       lowStockCount: 0,
       outOfStockCount: 0,
+      debtCount: 0,
+      safeStockCount: 0,
       totalInventoryValue: 0.0,
     );
   }
 
   factory AdminIngredientSummaryModel.fromJson(Map<String, dynamic> json) {
+    final total = int.tryParse(json['total_ingredients']?.toString() ?? '0') ?? 0;
+    final low = int.tryParse(json['low_stock_count']?.toString() ?? '0') ?? 0;
+    final out = int.tryParse(json['out_of_stock_count']?.toString() ?? '0') ?? 0;
+    final debt = int.tryParse(json['debt_count']?.toString() ?? '0') ?? 0;
+    final safe = json['safe_stock_count'] != null
+        ? int.tryParse(json['safe_stock_count']?.toString() ?? '')
+        : null;
+    final val = double.tryParse(json['total_inventory_value']?.toString() ?? '0') ?? 0.0;
+
     return AdminIngredientSummaryModel(
-      totalIngredients: int.tryParse(json['total_ingredients']?.toString() ?? '0') ?? 0,
-      lowStockCount: int.tryParse(json['low_stock_count']?.toString() ?? '0') ?? 0,
-      outOfStockCount: int.tryParse(json['out_of_stock_count']?.toString() ?? '0') ?? 0,
-      totalInventoryValue: double.tryParse(json['total_inventory_value']?.toString() ?? '0') ?? 0.0,
+      totalIngredients: total,
+      lowStockCount: low,
+      outOfStockCount: out,
+      debtCount: debt,
+      safeStockCount: safe,
+      totalInventoryValue: val,
     );
   }
 
@@ -287,6 +319,8 @@ class AdminIngredientSummaryModel {
       'total_ingredients': totalIngredients,
       'low_stock_count': lowStockCount,
       'out_of_stock_count': outOfStockCount,
+      'debt_count': debtCount,
+      'safe_stock_count': safeStockCount,
       'total_inventory_value': totalInventoryValue,
     };
   }

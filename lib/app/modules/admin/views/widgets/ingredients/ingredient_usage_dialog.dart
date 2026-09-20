@@ -35,35 +35,35 @@ class AdminIngredientUsageDialog extends StatelessWidget {
       return Dialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 540, maxHeight: 620),
+          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 680),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // 1. Header
               Container(
-                padding: const EdgeInsets.fromLTRB(20, 16, 16, 14),
+                padding: const EdgeInsets.fromLTRB(20, 18, 16, 16),
                 decoration: const BoxDecoration(
                   border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
                 ),
                 child: Row(
                   children: [
                     Container(
-                      width: 38,
-                      height: 38,
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
                         color: const Color(0xFFEEF2FF),
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(
                         Icons.restaurant_menu_rounded,
                         color: Color(0xFF4F46E5),
-                        size: 20,
+                        size: 24,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -71,7 +71,7 @@ class AdminIngredientUsageDialog extends StatelessWidget {
                           Text(
                             currentIng.name,
                             style: const TextStyle(
-                              fontSize: 16,
+                              fontSize: 17,
                               fontWeight: FontWeight.w700,
                               color: Color(0xFF0F172A),
                               letterSpacing: -0.2,
@@ -79,11 +79,11 @@ class AdminIngredientUsageDialog extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 2),
+                          const SizedBox(height: 3),
                           Text(
                             'Digunakan di ${usages.length} Racikan Resep Menu',
                             style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 12.5,
                               color: Color(0xFF64748B),
                             ),
                           ),
@@ -92,9 +92,9 @@ class AdminIngredientUsageDialog extends StatelessWidget {
                     ),
                     IconButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close_rounded, size: 20),
+                      icon: const Icon(Icons.close_rounded, size: 22),
                       color: const Color(0xFF64748B),
-                      splashRadius: 20,
+                      splashRadius: 22,
                     ),
                   ],
                 ),
@@ -102,58 +102,100 @@ class AdminIngredientUsageDialog extends StatelessWidget {
 
               // 2. Action Bar: "+ Tautkan ke Menu Baru" & "Putuskan Semua"
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                 color: const Color(0xFFF8FAFC),
-                child: Row(
-                  children: [
-                    Text(
-                      'Daftar Resep Terkait${usages.isNotEmpty ? " (${usages.length})" : ""}:',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF475569),
-                      ),
-                    ),
-                    const Spacer(),
-                    if (usages.isNotEmpty) ...[
-                      OutlinedButton.icon(
-                        onPressed: () => _confirmDetachAll(context, controller, currentIng, usages),
-                        icon: const Icon(Icons.link_off_rounded, size: 15),
-                        label: Text(
-                          'Putuskan Semua (${usages.length})',
-                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFFDC2626),
-                          backgroundColor: const Color(0xFFFEF2F2),
-                          side: const BorderSide(color: Color(0xFFFCA5A5), width: 1),
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                    ElevatedButton.icon(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isNarrow = constraints.maxWidth < 460;
+
+                    final detachButton = usages.isNotEmpty
+                        ? OutlinedButton.icon(
+                            onPressed: () => _confirmDetachAll(context, controller, currentIng, usages),
+                            icon: const Icon(Icons.link_off_rounded, size: 16),
+                            label: Text(
+                              'Putuskan Semua (${usages.length})',
+                              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFDC2626),
+                              backgroundColor: const Color(0xFFFEF2F2),
+                              side: const BorderSide(color: Color(0xFFFCA5A5), width: 1),
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(9),
+                              ),
+                            ),
+                          )
+                        : null;
+
+                    final attachButton = ElevatedButton.icon(
                       onPressed: () => AdminAttachIngredientDialog.show(context, ingredient: currentIng),
-                      icon: const Icon(Icons.add_link_rounded, size: 16),
+                      icon: const Icon(Icons.add_link_rounded, size: 17),
                       label: const Text(
                         'Tautkan ke Menu',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF4F46E5),
                         foregroundColor: Colors.white,
                         elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(9),
                         ),
                       ),
-                    ),
-                  ],
+                    );
+
+                    if (isNarrow) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Daftar Resep Terkait${usages.isNotEmpty ? " (${usages.length})" : ""}:',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF475569),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              if (detachButton != null) ...[
+                                Expanded(child: detachButton),
+                                const SizedBox(width: 8),
+                              ],
+                              Expanded(child: attachButton),
+                            ],
+                          ),
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      children: [
+                        Text(
+                          'Daftar Resep Terkait${usages.isNotEmpty ? " (${usages.length})" : ""}:',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF475569),
+                          ),
+                        ),
+                        const Spacer(),
+                        if (detachButton != null) ...[
+                          detachButton,
+                          const SizedBox(width: 10),
+                        ],
+                        attachButton,
+                      ],
+                    );
+                  },
                 ),
               ),
               const Divider(height: 1, color: Color(0xFFE2E8F0)),
@@ -167,8 +209,8 @@ class AdminIngredientUsageDialog extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Container(
-                              width: 56,
-                              height: 56,
+                              width: 60,
+                              height: 60,
                               decoration: const BoxDecoration(
                                 color: Color(0xFFF1F5F9),
                                 shape: BoxShape.circle,
@@ -176,14 +218,14 @@ class AdminIngredientUsageDialog extends StatelessWidget {
                               child: const Icon(
                                 Icons.link_off_rounded,
                                 color: Color(0xFF94A3B8),
-                                size: 28,
+                                size: 30,
                               ),
                             ),
                             const SizedBox(height: 14),
                             const Text(
                               'Belum Terhubung ke Resep Menu',
                               style: TextStyle(
-                                fontSize: 14,
+                                fontSize: 14.5,
                                 fontWeight: FontWeight.w700,
                                 color: Color(0xFF0F172A),
                               ),
@@ -193,7 +235,7 @@ class AdminIngredientUsageDialog extends StatelessWidget {
                               'Bahan baku ini belum ditambahkan ke racikan menu apa pun.\nKlik tombol "Tautkan ke Menu" di atas untuk menambahkan.',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 12.5,
                                 color: Color(0xFF64748B),
                                 height: 1.4,
                               ),
@@ -209,29 +251,29 @@ class AdminIngredientUsageDialog extends StatelessWidget {
                         itemBuilder: (context, index) {
                           final item = usages[index];
                           return Container(
-                            padding: const EdgeInsets.all(12),
+                            padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
                               color: const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: const Color(0xFFE2E8F0)),
                             ),
                             child: Row(
                               children: [
                                 Container(
-                                  width: 36,
-                                  height: 36,
+                                  width: 42,
+                                  height: 42,
                                   decoration: BoxDecoration(
                                     color: Colors.white,
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: BorderRadius.circular(10),
                                     border: Border.all(color: const Color(0xFFE2E8F0)),
                                   ),
                                   child: const Icon(
                                     Icons.coffee_rounded,
-                                    size: 18,
+                                    size: 22,
                                     color: Color(0xFF64748B),
                                   ),
                                 ),
-                                const SizedBox(width: 12),
+                                const SizedBox(width: 14),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -239,16 +281,16 @@ class AdminIngredientUsageDialog extends StatelessWidget {
                                       Text(
                                         item.productName,
                                         style: const TextStyle(
-                                          fontSize: 13.5,
+                                          fontSize: 14.5,
                                           fontWeight: FontWeight.w700,
                                           color: Color(0xFF0F172A),
                                         ),
                                       ),
-                                      const SizedBox(height: 2),
+                                      const SizedBox(height: 3),
                                       Text(
                                         item.categoryName,
                                         style: const TextStyle(
-                                          fontSize: 11,
+                                          fontSize: 12,
                                           color: Color(0xFF64748B),
                                         ),
                                       ),
@@ -259,36 +301,36 @@ class AdminIngredientUsageDialog extends StatelessWidget {
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                                       decoration: BoxDecoration(
                                         color: const Color(0xFFEEF2FF),
-                                        borderRadius: BorderRadius.circular(5),
+                                        borderRadius: BorderRadius.circular(6),
                                         border: Border.all(color: const Color(0xFFC7D2FE)),
                                       ),
                                       child: Text(
                                         '${item.amount % 1 == 0 ? item.amount.toInt() : item.amount} ${item.unit} / porsi',
                                         style: const TextStyle(
-                                          fontSize: 11,
+                                          fontSize: 12,
                                           fontWeight: FontWeight.w700,
                                           color: Color(0xFF4F46E5),
                                         ),
                                       ),
                                     ),
-                                    const SizedBox(height: 3),
+                                    const SizedBox(height: 4),
                                     Text(
                                       'Modal: ${CurrencyFormatter.format(item.subtotal)}',
                                       style: const TextStyle(
-                                        fontSize: 10.5,
+                                        fontSize: 11.5,
                                         fontWeight: FontWeight.w600,
                                         color: Color(0xFF64748B),
                                       ),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(width: 6),
+                                const SizedBox(width: 8),
                                 // Tombol Hapus Tautan
                                 IconButton(
-                                  icon: const Icon(Icons.link_off_rounded, size: 18, color: Color(0xFFEF4444)),
+                                  icon: const Icon(Icons.link_off_rounded, size: 20, color: Color(0xFFEF4444)),
                                   tooltip: 'Hapus dari resep ${item.productName}',
                                   splashRadius: 18,
                                   onPressed: () async {
@@ -346,22 +388,26 @@ class AdminIngredientUsageDialog extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Stok Gudang: ${currentIng.formattedStock} ${currentIng.unit}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF0F172A),
+                    Expanded(
+                      child: Text(
+                        'Stok Gudang: ${currentIng.formattedStock} ${currentIng.unit}',
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF0F172A),
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    const SizedBox(width: 8),
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(),
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       ),
                       child: const Text(
                         'Tutup',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                       ),
                     ),
                   ],
@@ -571,7 +617,7 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
                     child: const Icon(
                       Icons.local_cafe_rounded,
                       color: Color(0xFF4F46E5),
-                      size: 20,
+                      size: 22,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -582,14 +628,15 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
                         Text(
                           'Pilih Menu Produk',
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: 16.5,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                        SizedBox(height: 2),
                         Text(
                           'Pilih menu yang belum ditautkan dengan bahan ini',
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 12,
                             color: Color(0xFF64748B),
                           ),
                         ),
@@ -600,7 +647,7 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
                     onPressed: () => Navigator.of(modalCtx).pop(),
                     icon: const Icon(
                       Icons.close_rounded,
-                      size: 20,
+                      size: 22,
                       color: Color(0xFF94A3B8),
                     ),
                     padding: EdgeInsets.zero,
@@ -609,12 +656,12 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
                 ],
               ),
               content: SizedBox(
-                width: 440,
-                height: 380,
+                width: 460,
+                height: 400,
                 child: Column(
                   children: [
                     TextField(
-                      autofocus: true,
+                      autofocus: false,
                       onChanged: (val) {
                         setModalState(() {
                           query = val;
@@ -622,16 +669,17 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
                       },
                       decoration: InputDecoration(
                         hintText: 'Ketik nama menu produk...',
-                        prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF64748B)),
+                        hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                        prefixIcon: const Icon(Icons.search_rounded, size: 20, color: Color(0xFF64748B)),
                         suffixIcon: query.isNotEmpty
                             ? IconButton(
-                                icon: const Icon(Icons.clear_rounded, size: 16),
+                                icon: const Icon(Icons.clear_rounded, size: 18),
                                 onPressed: () => setModalState(() => query = ''),
                               )
                             : null,
                         contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
+                          horizontal: 14,
+                          vertical: 11,
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -642,7 +690,7 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
                         filled: true,
                         fillColor: const Color(0xFFF8FAFC),
                       ),
-                      style: const TextStyle(fontSize: 13),
+                      style: const TextStyle(fontSize: 13.5),
                     ),
                     const SizedBox(height: 10),
                     Expanded(
@@ -653,7 +701,7 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
                                 children: [
                                   const Icon(
                                     Icons.search_off_rounded,
-                                    size: 36,
+                                    size: 40,
                                     color: Color(0xFFCBD5E1),
                                   ),
                                   const SizedBox(height: 8),
@@ -662,7 +710,7 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
                                         ? 'Tidak ada menu tersedia'
                                         : 'Menu "$query" tidak ditemukan',
                                     style: const TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 13,
                                       color: Color(0xFF94A3B8),
                                     ),
                                   ),
@@ -707,7 +755,7 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
                                               Text(
                                                 item.name,
                                                 style: TextStyle(
-                                                  fontSize: 13,
+                                                  fontSize: 13.5,
                                                   fontWeight: isSelected
                                                       ? FontWeight.w700
                                                       : FontWeight.w600,
@@ -721,7 +769,7 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
                                                 Text(
                                                   item.categoryName,
                                                   style: const TextStyle(
-                                                    fontSize: 11,
+                                                    fontSize: 11.5,
                                                     color: Color(0xFF64748B),
                                                   ),
                                                 ),
@@ -732,7 +780,7 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
                                         Text(
                                           CurrencyFormatter.format(item.price),
                                           style: TextStyle(
-                                            fontSize: 12,
+                                            fontSize: 12.5,
                                             fontWeight: FontWeight.w600,
                                             color: isSelected
                                                 ? const Color(0xFF4F46E5)
@@ -789,19 +837,19 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
       title: Row(
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               color: const Color(0xFFEEF2FF),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(9),
             ),
-            child: const Icon(Icons.add_link_rounded, color: Color(0xFF4F46E5), size: 18),
+            child: const Icon(Icons.add_link_rounded, color: Color(0xFF4F46E5), size: 20),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               'Tautkan ${ing.name}',
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.bold),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -809,7 +857,7 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
         ],
       ),
       content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
+        constraints: const BoxConstraints(maxWidth: 460),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -817,22 +865,35 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
             children: [
               // Info Banner Bahan Baku
               Container(
+                width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(9),
                   border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Harga Modal: ${CurrencyFormatter.format(ing.buyPrice)} / ${ing.buyAmount % 1 == 0 ? ing.buyAmount.toInt() : ing.buyAmount} ${ing.buyUnit}',
-                      style: const TextStyle(fontSize: 11, color: Color(0xFF475569), fontWeight: FontWeight.w600),
+                    Expanded(
+                      child: Text(
+                        'Harga Modal: ${CurrencyFormatter.format(ing.buyPrice)} / ${ing.buyAmount % 1 == 0 ? ing.buyAmount.toInt() : ing.buyAmount} ${ing.buyUnit}',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF475569), fontWeight: FontWeight.w600),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    Text(
-                      'Satuan: ${ing.unit}',
-                      style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(5),
+                        border: Border.all(color: const Color(0xFFCBD5E1)),
+                      ),
+                      child: Text(
+                        'Satuan: ${ing.unit}',
+                        style: const TextStyle(fontSize: 11.5, color: Color(0xFF475569), fontWeight: FontWeight.w600),
+                      ),
                     ),
                   ],
                 ),
@@ -842,7 +903,7 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
               // Pilih Menu / Produk
               const Text(
                 'Pilih Menu Produk *',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
               ),
               const SizedBox(height: 6),
               if (availableProducts.isEmpty)
@@ -860,7 +921,7 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
                       Expanded(
                         child: Text(
                           'Semua menu produk saat ini sudah ditautkan dengan bahan baku ini.',
-                          style: TextStyle(fontSize: 12, color: Color(0xFF92400E), fontWeight: FontWeight.w600),
+                          style: TextStyle(fontSize: 12.5, color: Color(0xFF92400E), fontWeight: FontWeight.w600),
                         ),
                       ),
                     ],
@@ -871,12 +932,12 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
                   onTap: () {
                     _openSearchProductPickerModal(context, availableProducts);
                   },
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(9),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(9),
                       border: Border.all(
                         color: selectedProduct != null
                             ? const Color(0xFF818CF8)
@@ -889,7 +950,7 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
                           selectedProduct != null
                               ? Icons.local_cafe_rounded
                               : Icons.search_rounded,
-                          size: 16,
+                          size: 18,
                           color: selectedProduct != null
                               ? const Color(0xFF4F46E5)
                               : const Color(0xFF94A3B8),
@@ -904,7 +965,7 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
                                       child: Text(
                                         selectedProduct.name,
                                         style: const TextStyle(
-                                          fontSize: 12.5,
+                                          fontSize: 13,
                                           fontWeight: FontWeight.w600,
                                           color: Color(0xFF0F172A),
                                         ),
@@ -915,7 +976,7 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
                                     Text(
                                       CurrencyFormatter.format(selectedProduct.price),
                                       style: const TextStyle(
-                                        fontSize: 11.5,
+                                        fontSize: 12,
                                         color: Color(0xFF64748B),
                                         fontWeight: FontWeight.w500,
                                       ),
@@ -925,7 +986,7 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
                               : const Text(
                                   '-- Pilih / Cari Menu Produk --',
                                   style: TextStyle(
-                                    fontSize: 12,
+                                    fontSize: 12.5,
                                     color: Color(0xFF94A3B8),
                                   ),
                                 ),
@@ -945,7 +1006,7 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
               // Takaran per Porsi
               Text(
                 'Takaran per Porsi (${ing.unit}) *',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
               ),
               const SizedBox(height: 6),
               TextField(
@@ -954,11 +1015,12 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
                 onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
                   hintText: 'Contoh: 15',
+                  hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
                   suffixText: ing.unit,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(9)),
                 ),
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 14),
 
@@ -967,12 +1029,12 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: const Color(0xFFCBD5E1)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.calculate_rounded, size: 20, color: Color(0xFF0F172A)),
+                    const Icon(Icons.calculate_rounded, size: 22, color: Color(0xFF0F172A)),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
@@ -980,11 +1042,12 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
                         children: [
                           const Text(
                             'Kontribusi Modal HPP per Porsi:',
-                            style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+                            style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                           ),
+                          const SizedBox(height: 2),
                           Text(
                             CurrencyFormatter.format(subtotal),
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                            style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
                           ),
                         ],
                       ),
@@ -999,9 +1062,19 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
       actions: [
         TextButton(
           onPressed: _isLoading ? null : () => Navigator.of(context).pop(false),
-          child: const Text('Batal'),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          ),
+          child: const Text('Batal', style: TextStyle(fontSize: 13.5)),
         ),
         ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF4F46E5),
+            foregroundColor: Colors.white,
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+          ),
           onPressed: (_isLoading || availableProducts.isEmpty)
               ? null
               : () async {
@@ -1026,16 +1099,9 @@ class _AdminAttachIngredientDialogState extends State<AdminAttachIngredientDialo
                     nav.pop(true);
                   }
                 },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF4F46E5),
-            foregroundColor: Colors.white,
-            elevation: 0,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          ),
           child: _isLoading
               ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : const Text('Tautkan Sekarang', style: TextStyle(fontWeight: FontWeight.bold)),
+              : const Text('Tautkan Sekarang', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
         ),
       ],
     );

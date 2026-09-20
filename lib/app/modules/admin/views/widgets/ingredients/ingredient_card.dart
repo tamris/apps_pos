@@ -10,7 +10,10 @@ class IngredientCard extends StatefulWidget {
   final VoidCallback onOpname;
   final VoidCallback onEdit;
   final VoidCallback onHistory;
-  final VoidCallback onDelete;
+  final VoidCallback onToggleActive;
+  final VoidCallback onArchive;
+  final VoidCallback onRestore;
+  final VoidCallback onForceDelete;
 
   const IngredientCard({
     super.key,
@@ -19,7 +22,10 @@ class IngredientCard extends StatefulWidget {
     required this.onOpname,
     required this.onEdit,
     required this.onHistory,
-    required this.onDelete,
+    required this.onToggleActive,
+    required this.onArchive,
+    required this.onRestore,
+    required this.onForceDelete,
   });
 
   @override
@@ -39,9 +45,21 @@ class _IngredientCardState extends State<IngredientCard> {
     final Color statusBorderColor;
     final String statusLabel;
 
+    final bool isArchived = ing.isArchived;
+    final bool isInactive = ing.isInactive;
     final bool isDebt = ing.isDebtStock;
 
-    if (isDebt) {
+    if (isArchived) {
+      statusBg = const Color(0xFFF1F5F9);
+      statusTextColor = const Color(0xFF475569);
+      statusBorderColor = const Color(0xFFCBD5E1);
+      statusLabel = '📦 Terarsip';
+    } else if (isInactive) {
+      statusBg = const Color(0xFFFFFBEB);
+      statusTextColor = const Color(0xFFB45309);
+      statusBorderColor = const Color(0xFFFDE68A);
+      statusLabel = '⏸️ Nonaktif';
+    } else if (isDebt) {
       statusBg = const Color(0xFFFFF1F2);
       statusTextColor = const Color(0xFFE11D48);
       statusBorderColor = const Color(0xFFFDA4AF);
@@ -70,16 +88,20 @@ class _IngredientCardState extends State<IngredientCard> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isArchived ? const Color(0xFFFAFAFA) : Colors.white,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: _isHovered
                 ? AppColors.primary.withValues(alpha: 0.6)
-                : (isDebt
-                    ? const Color(0xFFFDA4AF)
-                    : (ing.isOutOfStock
-                        ? const Color(0xFFFECACA)
-                        : const Color(0xFFE2E8F0))),
+                : (isArchived
+                    ? const Color(0xFFCBD5E1)
+                    : (isInactive
+                        ? const Color(0xFFFDE68A)
+                        : (isDebt
+                            ? const Color(0xFFFDA4AF)
+                            : (ing.isOutOfStock
+                                ? const Color(0xFFFECACA)
+                                : const Color(0xFFE2E8F0))))),
             width: _isHovered ? 1.2 : 1.0,
           ),
           boxShadow: _isHovered
@@ -115,26 +137,38 @@ class _IngredientCardState extends State<IngredientCard> {
                       width: 38,
                       height: 38,
                       decoration: BoxDecoration(
-                        color: isDebt
-                            ? const Color(0xFFFFF1F2)
-                            : (ing.isOutOfStock
-                                ? const Color(0xFFFEF2F2)
-                                : (ing.isLowStock
-                                    ? const Color(0xFFFFFBEB)
-                                    : const Color(0xFFEEF2FF))),
+                        color: isArchived
+                            ? const Color(0xFFF1F5F9)
+                            : (isInactive
+                                ? const Color(0xFFFFFBEB)
+                                : (isDebt
+                                    ? const Color(0xFFFFF1F2)
+                                    : (ing.isOutOfStock
+                                        ? const Color(0xFFFEF2F2)
+                                        : (ing.isLowStock
+                                            ? const Color(0xFFFFFBEB)
+                                            : const Color(0xFFEEF2FF))))),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
-                        isDebt
-                            ? Icons.assignment_late_rounded
-                            : Icons.inventory_2_rounded,
-                        color: isDebt
-                            ? const Color(0xFFE11D48)
-                            : (ing.isOutOfStock
-                                ? const Color(0xFFDC2626)
-                                : (ing.isLowStock
-                                    ? const Color(0xFFD97706)
-                                    : const Color(0xFF4F46E5))),
+                        isArchived
+                            ? Icons.archive_outlined
+                            : (isInactive
+                                ? Icons.pause_circle_outline_rounded
+                                : (isDebt
+                                    ? Icons.assignment_late_rounded
+                                    : Icons.inventory_2_rounded)),
+                        color: isArchived
+                            ? const Color(0xFF64748B)
+                            : (isInactive
+                                ? const Color(0xFFD97706)
+                                : (isDebt
+                                    ? const Color(0xFFE11D48)
+                                    : (ing.isOutOfStock
+                                        ? const Color(0xFFDC2626)
+                                        : (ing.isLowStock
+                                            ? const Color(0xFFD97706)
+                                            : const Color(0xFF4F46E5))))),
                         size: 20,
                       ),
                     ),
@@ -200,7 +234,7 @@ class _IngredientCardState extends State<IngredientCard> {
                       onTap: () => AdminIngredientUsageDialog.show(context, ingredient: ing),
                       borderRadius: BorderRadius.circular(6),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
                         decoration: BoxDecoration(
                           color: ing.productsCount > 0 ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(6),
@@ -213,14 +247,14 @@ class _IngredientCardState extends State<IngredientCard> {
                           children: [
                             Icon(
                               ing.productsCount > 0 ? Icons.restaurant_menu_rounded : Icons.link_off_rounded,
-                              size: 11,
+                              size: 12,
                               color: ing.productsCount > 0 ? const Color(0xFF16A34A) : const Color(0xFF94A3B8),
                             ),
-                            const SizedBox(width: 3),
+                            const SizedBox(width: 4),
                             Text(
                               '${ing.productsCount} Menu',
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w700,
                                 color: ing.productsCount > 0 ? const Color(0xFF15803D) : const Color(0xFF64748B),
                               ),
@@ -229,11 +263,11 @@ class _IngredientCardState extends State<IngredientCard> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 5),
+                    const SizedBox(width: 6),
 
                     // Status Badge
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                       decoration: BoxDecoration(
                         color: statusBg,
                         borderRadius: BorderRadius.circular(6),
@@ -242,7 +276,7 @@ class _IngredientCardState extends State<IngredientCard> {
                       child: Text(
                         statusLabel,
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
                           color: statusTextColor,
                         ),
@@ -372,91 +406,129 @@ class _IngredientCardState extends State<IngredientCard> {
 
                 const SizedBox(height: 8),
 
-                // 3. Action Buttons Row (Restock, Opname, More Options)
+                // 3. Action Buttons Row (Restock, Opname / Pulihkan, More Options)
                 Row(
                   children: [
-                    // Tombol Restock
-                    Expanded(
-                      child: InkWell(
-                        onTap: widget.onRestock,
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: isDebt ? const Color(0xFFFFF1F2) : const Color(0xFFEEF2FF),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: isDebt ? const Color(0xFFFDA4AF) : const Color(0xFFC7D2FE),
+                    if (isArchived) ...[
+                      // If archived: show Pulihkan Bahan as full-width primary button
+                      Expanded(
+                        child: InkWell(
+                          onTap: widget.onRestore,
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFECFDF5),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFA7F3D0)),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.unarchive_rounded,
+                                  size: 15,
+                                  color: Color(0xFF059669),
+                                ),
+                                SizedBox(width: 5),
+                                Text(
+                                  'Pulihkan dari Arsip',
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF059669),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          alignment: Alignment.center,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.add_shopping_cart_rounded,
-                                size: 14,
-                                color: isDebt ? const Color(0xFFE11D48) : const Color(0xFF4F46E5),
+                        ),
+                      ),
+                    ] else ...[
+                      // Tombol Restock
+                      Expanded(
+                        child: InkWell(
+                          onTap: widget.onRestock,
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: isDebt ? const Color(0xFFFFF1F2) : const Color(0xFFEEF2FF),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isDebt ? const Color(0xFFFDA4AF) : const Color(0xFFC7D2FE),
                               ),
-                              const SizedBox(width: 5),
-                              Text(
-                                isDebt ? 'Restock Segera' : 'Restock',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
+                            ),
+                            alignment: Alignment.center,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.add_shopping_cart_rounded,
+                                  size: 15,
                                   color: isDebt ? const Color(0xFFE11D48) : const Color(0xFF4F46E5),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 5),
+                                Text(
+                                  isDebt ? 'Restock Segera' : 'Restock',
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDebt ? const Color(0xFFE11D48) : const Color(0xFF4F46E5),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
 
-                    const SizedBox(width: 8),
+                      const SizedBox(width: 8),
 
-                    // Tombol Opname Fisik
-                    Expanded(
-                      child: InkWell(
-                        onTap: widget.onOpname,
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                          ),
-                          alignment: Alignment.center,
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.fact_check_outlined,
-                                size: 14,
-                                color: Color(0xFF334155),
-                              ),
-                              SizedBox(width: 5),
-                              Text(
-                                'Opname',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
+                      // Tombol Opname Fisik
+                      Expanded(
+                        child: InkWell(
+                          onTap: widget.onOpname,
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.fact_check_outlined,
+                                  size: 15,
                                   color: Color(0xFF334155),
                                 ),
-                              ),
-                            ],
+                                SizedBox(width: 5),
+                                Text(
+                                  'Opname',
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF334155),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                    ],
 
                     const SizedBox(width: 6),
 
-                    // Tombol Menu Lainnya (Edit, History, Hapus)
+                    // Tombol Menu Lainnya
                     PopupMenuButton<String>(
                       tooltip: 'Pilihan lainnya',
-                      offset: const Offset(0, 36),
+                      offset: const Offset(0, 38),
                       elevation: 3,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
@@ -478,75 +550,161 @@ class _IngredientCardState extends State<IngredientCard> {
                           case 'history':
                             widget.onHistory();
                             break;
-                          case 'delete':
-                            widget.onDelete();
+                          case 'toggle_active':
+                            widget.onToggleActive();
+                            break;
+                          case 'archive':
+                            widget.onArchive();
+                            break;
+                          case 'restore':
+                            widget.onRestore();
+                            break;
+                          case 'force_delete':
+                            widget.onForceDelete();
                             break;
                         }
                       },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 'attach',
-                          height: 36,
-                          child: Row(
-                            children: [
-                              Icon(Icons.add_link_rounded, size: 16, color: Color(0xFF4F46E5)),
-                              SizedBox(width: 8),
-                              Text('Tautkan ke Menu', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF4F46E5))),
-                            ],
-                          ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'usage',
-                          height: 36,
-                          child: Row(
-                            children: [
-                              Icon(Icons.restaurant_menu_rounded, size: 16, color: Color(0xFF334155)),
-                              SizedBox(width: 8),
-                              Text('Lihat Menu Terkait', style: TextStyle(fontSize: 12.5)),
-                            ],
-                          ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'edit',
-                          height: 36,
-                          child: Row(
-                            children: [
-                              Icon(Icons.edit_outlined, size: 16, color: Color(0xFF334155)),
-                              SizedBox(width: 8),
-                              Text('Edit Data Bahan', style: TextStyle(fontSize: 12.5)),
-                            ],
-                          ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'history',
-                          height: 36,
-                          child: Row(
-                            children: [
-                              Icon(Icons.history_rounded, size: 16, color: Color(0xFF334155)),
-                              SizedBox(width: 8),
-                              Text('Riwayat Mutasi', style: TextStyle(fontSize: 12.5)),
-                            ],
-                          ),
-                        ),
-                        const PopupMenuDivider(height: 1),
-                        const PopupMenuItem(
-                          value: 'delete',
-                          height: 36,
-                          child: Row(
-                            children: [
-                              Icon(Icons.delete_outline_rounded, size: 16, color: AppColors.danger),
-                              SizedBox(width: 8),
-                              Text(
-                                'Hapus Bahan',
-                                style: TextStyle(fontSize: 12.5, color: AppColors.danger),
+                      itemBuilder: (context) {
+                        if (isArchived) {
+                          return [
+                            const PopupMenuItem(
+                              value: 'attach',
+                              height: 38,
+                              child: Row(
+                                children: [
+                                  Icon(Icons.add_link_rounded, size: 17, color: Color(0xFF4F46E5)),
+                                  SizedBox(width: 8),
+                                  Text('Tautkan ke Menu', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF4F46E5))),
+                                ],
                               ),
-                            ],
+                            ),
+                            const PopupMenuItem(
+                              value: 'usage',
+                              height: 38,
+                              child: Row(
+                                children: [
+                                  Icon(Icons.restaurant_menu_rounded, size: 17, color: Color(0xFF334155)),
+                                  SizedBox(width: 8),
+                                  Text('Lihat Menu Terkait', style: TextStyle(fontSize: 13)),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'history',
+                              height: 38,
+                              child: Row(
+                                children: [
+                                  Icon(Icons.history_rounded, size: 17, color: Color(0xFF334155)),
+                                  SizedBox(width: 8),
+                                  Text('Riwayat Mutasi', style: TextStyle(fontSize: 13)),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuDivider(height: 1),
+                            const PopupMenuItem(
+                              value: 'force_delete',
+                              height: 38,
+                              child: Row(
+                                children: [
+                                  Icon(Icons.delete_forever_rounded, size: 17, color: AppColors.danger),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Hapus Permanen',
+                                    style: TextStyle(fontSize: 13, color: AppColors.danger, fontWeight: FontWeight.w700),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ];
+                        }
+
+                        return [
+                          const PopupMenuItem(
+                            value: 'attach',
+                            height: 38,
+                            child: Row(
+                              children: [
+                                Icon(Icons.add_link_rounded, size: 17, color: Color(0xFF4F46E5)),
+                                SizedBox(width: 8),
+                                Text('Tautkan ke Menu', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF4F46E5))),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                          const PopupMenuItem(
+                            value: 'usage',
+                            height: 38,
+                            child: Row(
+                              children: [
+                                Icon(Icons.restaurant_menu_rounded, size: 17, color: Color(0xFF334155)),
+                                SizedBox(width: 8),
+                                Text('Lihat Menu Terkait', style: TextStyle(fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'edit',
+                            height: 38,
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit_outlined, size: 17, color: Color(0xFF334155)),
+                                SizedBox(width: 8),
+                                Text('Edit Data Bahan', style: TextStyle(fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'history',
+                            height: 38,
+                            child: Row(
+                              children: [
+                                Icon(Icons.history_rounded, size: 17, color: Color(0xFF334155)),
+                                SizedBox(width: 8),
+                                Text('Riwayat Mutasi', style: TextStyle(fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuDivider(height: 1),
+                          PopupMenuItem(
+                            value: 'toggle_active',
+                            height: 38,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  ing.isActive ? Icons.pause_circle_outline_rounded : Icons.play_circle_outline_rounded,
+                                  size: 17,
+                                  color: ing.isActive ? const Color(0xFFD97706) : const Color(0xFF059669),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  ing.isActive ? 'Nonaktifkan (Jeda)' : 'Aktifkan Kembali',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: ing.isActive ? const Color(0xFFD97706) : const Color(0xFF059669),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'archive',
+                            height: 38,
+                            child: Row(
+                              children: [
+                                Icon(Icons.archive_outlined, size: 17, color: Color(0xFF475569)),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Arsipkan Bahan',
+                                  style: TextStyle(fontSize: 13, color: Color(0xFF475569)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ];
+                      },
                       child: Container(
-                        width: 32,
-                        height: 32,
+                        width: 34,
+                        height: 34,
                         decoration: BoxDecoration(
                           color: const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(8),
@@ -554,7 +712,7 @@ class _IngredientCardState extends State<IngredientCard> {
                         ),
                         child: const Icon(
                           Icons.more_vert_rounded,
-                          size: 17,
+                          size: 18,
                           color: Color(0xFF64748B),
                         ),
                       ),

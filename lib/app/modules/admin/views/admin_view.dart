@@ -35,38 +35,40 @@ class AdminView extends GetView<AdminController> {
       child: GestureDetector(
         onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
         behavior: HitTestBehavior.translucent,
-        child: Scaffold(
-          resizeToAvoidBottomInset: false,
-          backgroundColor: const Color(0xFFF8FAFC), // Modern Slate-50 Canvas
-          body: LayoutBuilder(
+        child: ColoredBox(
+          color: const Color(0xFFF8FAFC), // Modern Slate-50 Canvas
+          child: LayoutBuilder(
             builder: (context, constraints) {
               final isTablet = constraints.maxWidth >= 768;
 
               if (isTablet) {
-                return SafeArea(
-                  top: true,
-                  bottom: false,
-                  child: Row(
-                    children: [
-                      // 1. Sleek Full-Height Modern Sidebar
-                      _buildSidebar(context, user),
+                return Scaffold(
+                  backgroundColor: const Color(0xFFF8FAFC),
+                  body: SafeArea(
+                    top: true,
+                    bottom: false,
+                    child: Row(
+                      children: [
+                        // 1. Sleek Full-Height Modern Sidebar
+                        _buildSidebar(context, user),
 
-                      // 2. Right Content Area with Executive Header Bar
-                      Expanded(
-                        child: Column(
-                          children: [
-                            _buildTopHeaderBar(context, user),
-                            Expanded(
-                              child: Obx(
-                                () => _buildActiveTab(
-                                  controller.selectedTabIndex.value,
+                        // 2. Right Content Area with Executive Header Bar
+                        Expanded(
+                          child: Column(
+                            children: [
+                              _buildTopHeaderBar(context, user),
+                              Expanded(
+                                child: Obx(
+                                  () => _buildActiveTab(
+                                    controller.selectedTabIndex.value,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 );
               }
@@ -88,10 +90,41 @@ class AdminView extends GetView<AdminController> {
                     scrolledUnderElevation: 0,
                     automaticallyImplyLeading: false,
                     toolbarHeight: 52,
-                    titleSpacing: 16,
+                    titleSpacing: 12,
                     shape: const Border(
                       bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
                     ),
+                    leading: Obx(() {
+                      final tabIndex = controller.selectedTabIndex.value;
+                      final isSubTab = tabIndex == 2 ||
+                          tabIndex == 3 ||
+                          tabIndex == 5 ||
+                          tabIndex == 6 ||
+                          tabIndex == 7 ||
+                          tabIndex == 8;
+
+                      if (!isSubTab) return const SizedBox.shrink();
+
+                      return Center(
+                        child: InkWell(
+                          onTap: () => controller.switchTab(0),
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFF1F5F9),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.arrow_back_rounded,
+                              size: 17,
+                              color: Color(0xFF334155),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                    leadingWidth: 44,
                     title: Obx(() {
                       final tabIndex = controller.selectedTabIndex.value;
                       final isSubTab = tabIndex == 2 ||
@@ -198,57 +231,32 @@ class AdminView extends GetView<AdminController> {
                           tabTitle = 'Portal Admin';
                       }
 
-                      return Row(
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (isSubTab) ...[
-                            InkWell(
-                              onTap: () => controller.switchTab(0),
-                              borderRadius: BorderRadius.circular(20),
-                              child: Container(
-                                padding: const EdgeInsets.all(5),
-                                margin: const EdgeInsets.only(right: 8),
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFF1F5F9),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.arrow_back_rounded,
-                                  size: 17,
-                                  color: Color(0xFF334155),
-                                ),
-                              ),
+                          Text(
+                            tabTitle,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF0F172A),
+                              letterSpacing: -0.2,
                             ),
-                          ],
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  tabTitle,
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF0F172A),
-                                    letterSpacing: -0.2,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                if (isSubTab)
-                                  const Text(
-                                    'Menu Hub • Ketuk panah untuk ke Dashboard',
-                                    style: TextStyle(
-                                      fontSize: 9.5,
-                                      color: Color(0xFF94A3B8),
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                              ],
-                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
+                          if (isSubTab)
+                            const Text(
+                              'Menu Hub • Ketuk panah untuk ke Dashboard',
+                              style: TextStyle(
+                                fontSize: 9.5,
+                                color: Color(0xFF94A3B8),
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                         ],
                       );
                     }),

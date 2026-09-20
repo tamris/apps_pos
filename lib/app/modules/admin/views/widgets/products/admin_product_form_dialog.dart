@@ -2058,7 +2058,7 @@ class _ProductFormContentState extends State<_ProductFormContent> {
                 child: Column(
                   children: [
                     TextField(
-                      autofocus: true,
+                      autofocus: false,
                       onChanged: (val) {
                         setModalState(() {
                           query = val;

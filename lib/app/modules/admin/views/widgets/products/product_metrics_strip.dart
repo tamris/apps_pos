@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:noli_apps/app/core/theme/app_colors.dart';
 import 'package:noli_apps/app/modules/admin/controllers/admin_controller.dart';
+import 'product_skeleton.dart';
 
 class ProductMetricsStrip extends StatelessWidget {
   final AdminController controller;
@@ -17,6 +18,10 @@ class ProductMetricsStrip extends StatelessWidget {
         border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
       ),
       child: Obx(() {
+        if (controller.isLoadingProducts.value && controller.products.isEmpty) {
+          return const ProductMetricsSkeleton();
+        }
+
         final totalActive = controller.products.where((p) => p.isActive).length;
         final totalCategories = controller.productCategories.length;
 

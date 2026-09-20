@@ -53,29 +53,24 @@ class ProductFilterBar extends StatelessWidget {
                     child: Tooltip(
                       message: 'Reset Filter',
                       child: InkWell(
-                        onTap: () {
-                          controller.selectedProductCategoryId.value = null;
-                          controller.selectedProductStatus.value = 'all';
-                          controller.selectedProductSort.value = 'name';
-                          controller.fetchAdminProducts(showLoader: false);
-                        },
-                        borderRadius: BorderRadius.circular(9),
+                        onTap: controller.clearProductFilters,
+                        borderRadius: BorderRadius.circular(10),
                         child: Container(
-                          height: 38,
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          height: 42,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
                           decoration: BoxDecoration(
                             color: const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(9),
+                            borderRadius: BorderRadius.circular(10),
                             border: Border.all(color: const Color(0xFFE2E8F0)),
                           ),
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.filter_alt_off_outlined, size: 15, color: Color(0xFF64748B)),
-                              SizedBox(width: 5),
+                              Icon(Icons.filter_alt_off_outlined, size: 16, color: Color(0xFF64748B)),
+                              SizedBox(width: 6),
                               Text(
                                 'Reset',
-                                style: TextStyle(fontSize: 12, color: Color(0xFF475569), fontWeight: FontWeight.w600),
+                                style: TextStyle(fontSize: 13, color: Color(0xFF475569), fontWeight: FontWeight.w600),
                               ),
                             ],
                           ),
@@ -100,22 +95,22 @@ class ProductFilterBar extends StatelessWidget {
                     onPressed: () => AdminProductFormDialog.show(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                       elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.add_rounded, size: 18, color: Colors.white),
                         SizedBox(width: 4),
-                        Text('Tambah', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                        Text('Tambah', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white)),
                       ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
@@ -126,7 +121,39 @@ class ProductFilterBar extends StatelessWidget {
                     _buildStatusDropdown(),
                     const SizedBox(width: 8),
                     _buildSortDropdown(),
-
+                    Obx(() {
+                      final hasFilter = controller.selectedProductCategoryId.value != null ||
+                          controller.selectedProductStatus.value != 'all' ||
+                          controller.selectedProductSort.value != 'name';
+                      if (!hasFilter) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: InkWell(
+                          onTap: controller.clearProductFilters,
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            height: 42,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.filter_alt_off_outlined, size: 16, color: Color(0xFF64748B)),
+                                SizedBox(width: 5),
+                                Text(
+                                  'Reset',
+                                  style: TextStyle(fontSize: 12.5, color: Color(0xFF475569), fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
                   ],
                 ),
               ),
@@ -138,35 +165,41 @@ class ProductFilterBar extends StatelessWidget {
   }
 
   Widget _buildSearchBox() {
-    return Container(
-      height: 38,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(9),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
+    return SizedBox(
+      height: 42,
       child: TextField(
         controller: controller.productSearchController,
+        textInputAction: TextInputAction.search,
         onChanged: controller.onProductSearchChanged,
-        style: const TextStyle(fontSize: 12.5, color: Color(0xFF0F172A)),
+        style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
         decoration: InputDecoration(
           hintText: 'Cari menu, SKU, atau barcode...',
-          hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+          hintStyle: const TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8)),
           prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF94A3B8)),
           suffixIcon: Obx(() {
             if (controller.hasProductSearch.value) {
               return IconButton(
-                icon: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF64748B)),
+                icon: const Icon(Icons.clear_rounded, size: 16, color: Color(0xFF94A3B8)),
                 onPressed: controller.clearProductSearch,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               );
             }
             return const SizedBox.shrink();
           }),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 9),
-          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          fillColor: const Color(0xFFF8FAFC),
+          filled: true,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.2),
+          ),
         ),
       ),
     );
@@ -185,10 +218,10 @@ class ProductFilterBar extends StatelessWidget {
       }
 
       return SizedBox(
-        height: 38,
-        child: PopupMenuButton<int?>(
+        height: 42,
+        child: PopupMenuButton<int>(
           tooltip: 'Pilih Kategori Menu',
-          offset: const Offset(0, 44),
+          offset: const Offset(0, 48),
           elevation: 3,
           shadowColor: Colors.black.withValues(alpha: 0.08),
           shape: RoundedRectangleBorder(
@@ -198,27 +231,27 @@ class ProductFilterBar extends StatelessWidget {
           color: Colors.white,
           surfaceTintColor: Colors.transparent,
           onSelected: (val) {
-            controller.selectedProductCategoryId.value = val;
+            controller.onProductCategoryFilterChanged(val == -1 ? null : val);
           },
           itemBuilder: (context) => [
-            _buildMenuItem<int?>(
-              null,
+            _buildMenuItem<int>(
+              -1,
               'Semua Kategori',
               isSelected: selectedId == null,
             ),
-            ...categories.map((c) => _buildMenuItem<int?>(
+            ...categories.map((c) => _buildMenuItem<int>(
                   c.id,
                   '${c.name} (${c.productsCount})',
                   isSelected: selectedId == c.id,
                 )),
           ],
           child: Container(
-            height: 38,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            height: 42,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: isSelected ? const Color(0xFFEEF2FF) : const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(9),
+              borderRadius: BorderRadius.circular(10),
               border: Border.all(
                 color: isSelected ? const Color(0xFF818CF8) : const Color(0xFFE2E8F0),
               ),
@@ -229,15 +262,15 @@ class ProductFilterBar extends StatelessWidget {
                 Text(
                   getLabel(),
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                     color: isSelected ? AppColors.secondary : const Color(0xFF475569),
                   ),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 5),
                 Icon(
                   Icons.keyboard_arrow_down_rounded,
-                  size: 16,
+                  size: 18,
                   color: isSelected ? AppColors.secondary : const Color(0xFF64748B),
                 ),
               ],
@@ -268,10 +301,10 @@ class ProductFilterBar extends StatelessWidget {
       }
 
       return SizedBox(
-        height: 38,
+        height: 42,
         child: PopupMenuButton<String>(
           tooltip: 'Filter Status Produk',
-          offset: const Offset(0, 44),
+          offset: const Offset(0, 48),
           elevation: 3,
           shadowColor: Colors.black.withValues(alpha: 0.08),
           shape: RoundedRectangleBorder(
@@ -280,10 +313,7 @@ class ProductFilterBar extends StatelessWidget {
           ),
           color: Colors.white,
           surfaceTintColor: Colors.transparent,
-          onSelected: (val) {
-            controller.selectedProductStatus.value = val;
-            controller.fetchAdminProducts(showLoader: false);
-          },
+          onSelected: controller.onProductStatusFilterChanged,
           itemBuilder: (context) => [
             _buildMenuItem<String>('all', 'Semua Status', isSelected: status == 'all'),
             _buildMenuItem<String>('active', 'Hanya Aktif', isSelected: status == 'active'),
@@ -291,12 +321,12 @@ class ProductFilterBar extends StatelessWidget {
             _buildMenuItem<String>('archived', 'Arsip', isSelected: status == 'archived'),
           ],
           child: Container(
-            height: 38,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            height: 42,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: isFiltered ? const Color(0xFFEEF2FF) : const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(9),
+              borderRadius: BorderRadius.circular(10),
               border: Border.all(
                 color: isFiltered ? const Color(0xFF818CF8) : const Color(0xFFE2E8F0),
               ),
@@ -307,15 +337,15 @@ class ProductFilterBar extends StatelessWidget {
                 Text(
                   getLabel(),
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: isFiltered ? FontWeight.w600 : FontWeight.w500,
                     color: isFiltered ? AppColors.secondary : const Color(0xFF475569),
                   ),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 5),
                 Icon(
                   Icons.keyboard_arrow_down_rounded,
-                  size: 16,
+                  size: 18,
                   color: isFiltered ? AppColors.secondary : const Color(0xFF64748B),
                 ),
               ],
@@ -348,10 +378,10 @@ class ProductFilterBar extends StatelessWidget {
       }
 
       return SizedBox(
-        height: 38,
+        height: 42,
         child: PopupMenuButton<String>(
           tooltip: 'Urutkan Produk',
-          offset: const Offset(0, 44),
+          offset: const Offset(0, 48),
           elevation: 3,
           shadowColor: Colors.black.withValues(alpha: 0.08),
           shape: RoundedRectangleBorder(
@@ -371,12 +401,12 @@ class ProductFilterBar extends StatelessWidget {
             _buildMenuItem<String>('margin_asc', 'Margin Terendah', isSelected: sort == 'margin_asc'),
           ],
           child: Container(
-            height: 38,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            height: 42,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: isFiltered ? const Color(0xFFEEF2FF) : const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(9),
+              borderRadius: BorderRadius.circular(10),
               border: Border.all(
                 color: isFiltered ? const Color(0xFF818CF8) : const Color(0xFFE2E8F0),
               ),
@@ -386,22 +416,22 @@ class ProductFilterBar extends StatelessWidget {
               children: [
                 Icon(
                   Icons.sort_rounded,
-                  size: 15,
+                  size: 17,
                   color: isFiltered ? AppColors.secondary : const Color(0xFF64748B),
                 ),
-                const SizedBox(width: 5),
+                const SizedBox(width: 6),
                 Text(
                   getLabel(),
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: isFiltered ? FontWeight.w600 : FontWeight.w500,
                     color: isFiltered ? AppColors.secondary : const Color(0xFF475569),
                   ),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 5),
                 Icon(
                   Icons.keyboard_arrow_down_rounded,
-                  size: 16,
+                  size: 18,
                   color: isFiltered ? AppColors.secondary : const Color(0xFF64748B),
                 ),
               ],
@@ -419,7 +449,7 @@ class ProductFilterBar extends StatelessWidget {
   }) {
     return PopupMenuItem<T>(
       value: value,
-      height: 38,
+      height: 42,
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -427,7 +457,7 @@ class ProductFilterBar extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontSize: 12.5,
+              fontSize: 13.5,
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
               color: isSelected ? AppColors.secondary : const Color(0xFF1E293B),
             ),
@@ -436,7 +466,7 @@ class ProductFilterBar extends StatelessWidget {
             const SizedBox(width: 14),
             const Icon(
               Icons.check_rounded,
-              size: 16,
+              size: 18,
               color: AppColors.secondary,
             ),
           ],

@@ -96,6 +96,9 @@ class ApiConstants {
   static String adminIngredientAttachProduct(int id) => '/admin/ingredients/$id/attach-product';
   static String adminIngredientDetachProduct(int id, int productId) => '/admin/ingredients/$id/detach-product/$productId';
   static String adminIngredientDetachAllProducts(int id) => '/admin/ingredients/$id/detach-all-products';
+  static String adminIngredientToggleActive(int id) => '/admin/ingredients/$id/toggle-active';
+  static String adminIngredientRestore(int id) => '/admin/ingredients/$id/restore';
+  static String adminIngredientForceDelete(int id) => '/admin/ingredients/$id/force-delete';
 }
 
 
