@@ -540,6 +540,16 @@ class AdminAttachIngredientDialog extends StatefulWidget {
   const AdminAttachIngredientDialog({super.key, required this.ingredient});
 
   static Future<bool?> show(BuildContext context, {required AdminIngredientModel ingredient}) {
+    if (ingredient.isArchived) {
+      Get.snackbar(
+        'Bahan Terarsip',
+        'Bahan baku ini sedang diarsip dan tidak dapat ditautkan ke resep menu. Pulihkan bahan terlebih dahulu.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: const Color(0xFF0F172A),
+        colorText: Colors.white,
+      );
+      return Future.value(false);
+    }
     return showDialog<bool>(
       context: context,
       barrierDismissible: false,

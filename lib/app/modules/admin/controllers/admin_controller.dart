@@ -356,6 +356,7 @@ class AdminController extends GetxController {
   final RxBool isGeneratingAiRecipe = false.obs;
 
   // Simulator HPP State
+  final Rxn<AdminProductModel> simulationSourceProduct = Rxn<AdminProductModel>();
   final RxString simulationProductName = ''.obs;
   final RxList<ProductIngredientModel> simulationIngredients = <ProductIngredientModel>[].obs;
   final RxDouble simulationSellingPrice = 0.0.obs;
@@ -2492,7 +2493,38 @@ class AdminController extends GetxController {
     return false;
   }
 
+  Future<void> loadRecipeToHppSimulation({
+    required String productName,
+    required List<ProductIngredientModel> ingredients,
+    AdminProductModel? sourceProduct,
+    double? sellingPrice,
+    double? operationalCost,
+  }) async {
+    simulationSourceProduct.value = sourceProduct;
+    simulationProductName.value = productName.trim();
+    simulationIngredients.assignAll(ingredients);
+    if (sellingPrice != null && sellingPrice > 0) {
+      simulationSellingPrice.value = sellingPrice;
+    }
+    if (operationalCost != null && operationalCost >= 0) {
+      simulationOperationalCost.value = operationalCost;
+    }
+
+    // Pindah ke Tab Produk (6) & Sub-Tab Kalkulator & Resep HPP (1)
+    switchTab(6);
+    setProductManagementSubTab(1);
+
+    if (ingredients.isNotEmpty) {
+      await calculateHppSimulation(
+        ingredients: ingredients,
+        sellingPrice: sellingPrice,
+        operationalCost: operationalCost,
+      );
+    }
+  }
+
   void resetSimulation() {
+    simulationSourceProduct.value = null;
     simulationProductName.value = '';
     simulationIngredients.clear();
     simulationSellingPrice.value = 0.0;

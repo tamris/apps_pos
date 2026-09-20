@@ -132,6 +132,31 @@ class _HppSimulationPanelState extends State<HppSimulationPanel> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _syncFormFromController();
+  }
+
+  @override
+  void didUpdateWidget(covariant HppSimulationPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncFormFromController();
+  }
+
+  void _syncFormFromController() {
+    if (widget.controller.simulationSellingPrice.value > 0) {
+      _sellingPriceCtrl.text = CurrencyFormatter.formatWithoutSymbol(
+        widget.controller.simulationSellingPrice.value,
+      );
+    }
+    if (widget.controller.simulationOperationalCost.value > 0) {
+      _opsCostCtrl.text = CurrencyFormatter.formatWithoutSymbol(
+        widget.controller.simulationOperationalCost.value,
+      );
+    }
+  }
+
+  @override
   void dispose() {
     _sellingPriceCtrl.dispose();
     _opsCostCtrl.dispose();
@@ -490,8 +515,8 @@ class _HppSimulationPanelState extends State<HppSimulationPanel> {
                             final buyPrice = double.tryParse(buyPriceCtrl.text.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
                             final buyAmount = double.tryParse(buyAmountCtrl.text.replaceAll(RegExp(r'[^\d.]'), '')) ?? 1;
 
-                            if (name.isEmpty || amount <= 0 || buyPrice <= 0) {
-                              AppSnackbar.warning('Data Belum Lengkap', 'Lengkapi nama, takaran, dan harga beli bahan.');
+                            if (name.isEmpty || amount <= 0 || buyPrice < 0) {
+                              AppSnackbar.warning('Data Belum Lengkap', 'Lengkapi nama dan takaran bahan (harga beli minimal Rp 0).');
                               return;
                             }
 
@@ -1877,6 +1902,9 @@ class _HppSimulationPanelState extends State<HppSimulationPanel> {
             // 5. BOTTOM CTA BUTTON
             Builder(
               builder: (context) {
+                final sourceProduct = widget.controller.simulationSourceProduct.value;
+                final isExistingProduct = sourceProduct != null;
+
                 final activeKey = tiers.containsKey(_selectedTierKey)
                     ? _selectedTierKey
                     : (tiers.containsKey('standar') ? 'standar' : (tiers.keys.firstOrNull ?? 'standar'));
@@ -1890,9 +1918,10 @@ class _HppSimulationPanelState extends State<HppSimulationPanel> {
                     onPressed: () async {
                       final success = await AdminProductFormDialog.show(
                         context,
+                        product: sourceProduct,
                         initialName: widget.controller.simulationProductName.value.isNotEmpty
                             ? widget.controller.simulationProductName.value
-                            : null,
+                            : sourceProduct?.name,
                         initialPrice: selectedPrice,
                         prefilledIngredients: widget.controller.simulationIngredients.toList(),
                       );
@@ -1909,13 +1938,21 @@ class _HppSimulationPanelState extends State<HppSimulationPanel> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.add_task_rounded, size: 19, color: Colors.white),
+                        Icon(
+                          isExistingProduct ? Icons.check_circle_outline_rounded : Icons.add_task_rounded,
+                          size: 19,
+                          color: Colors.white,
+                        ),
                         const SizedBox(width: 10),
                         Flexible(
                           child: Text(
-                            selectedTierItem != null && selectedPrice != null && selectedPrice > 0
-                                ? 'Terapkan ke Katalog (${selectedTierItem.label} • ${_currencyFormat.format(selectedPrice)})'
-                                : 'Terapkan ke Katalog Produk Baru',
+                            isExistingProduct
+                                ? (selectedTierItem != null && selectedPrice != null && selectedPrice > 0
+                                    ? 'Perbarui Menu "${sourceProduct.name}" (${selectedTierItem.label} • ${_currencyFormat.format(selectedPrice)})'
+                                    : 'Perbarui Menu "${sourceProduct.name}"')
+                                : (selectedTierItem != null && selectedPrice != null && selectedPrice > 0
+                                    ? 'Terapkan ke Katalog (${selectedTierItem.label} • ${_currencyFormat.format(selectedPrice)})'
+                                    : 'Terapkan ke Katalog Produk Baru'),
                             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.2),
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,

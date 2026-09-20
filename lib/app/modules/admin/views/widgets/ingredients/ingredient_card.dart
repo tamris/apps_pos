@@ -228,41 +228,43 @@ class _IngredientCardState extends State<IngredientCard> {
                         ],
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    // Recipe Usage Badge (Clickable)
-                    InkWell(
-                      onTap: () => AdminIngredientUsageDialog.show(context, ingredient: ing),
-                      borderRadius: BorderRadius.circular(6),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
-                        decoration: BoxDecoration(
-                          color: ing.productsCount > 0 ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: ing.productsCount > 0 ? const Color(0xFFBBF7D0) : const Color(0xFFE2E8F0),
+                    if (!isArchived) ...[
+                      const SizedBox(width: 6),
+                      // Recipe Usage Badge (Clickable)
+                      InkWell(
+                        onTap: () => AdminIngredientUsageDialog.show(context, ingredient: ing),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+                          decoration: BoxDecoration(
+                            color: ing.productsCount > 0 ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: ing.productsCount > 0 ? const Color(0xFFBBF7D0) : const Color(0xFFE2E8F0),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                ing.productsCount > 0 ? Icons.restaurant_menu_rounded : Icons.link_off_rounded,
+                                size: 12,
+                                color: ing.productsCount > 0 ? const Color(0xFF16A34A) : const Color(0xFF94A3B8),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${ing.productsCount} Menu',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: ing.productsCount > 0 ? const Color(0xFF15803D) : const Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              ing.productsCount > 0 ? Icons.restaurant_menu_rounded : Icons.link_off_rounded,
-                              size: 12,
-                              color: ing.productsCount > 0 ? const Color(0xFF16A34A) : const Color(0xFF94A3B8),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${ing.productsCount} Menu',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: ing.productsCount > 0 ? const Color(0xFF15803D) : const Color(0xFF64748B),
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
-                    ),
+                    ],
                     const SizedBox(width: 6),
 
                     // Status Badge
@@ -567,28 +569,6 @@ class _IngredientCardState extends State<IngredientCard> {
                       itemBuilder: (context) {
                         if (isArchived) {
                           return [
-                            const PopupMenuItem(
-                              value: 'attach',
-                              height: 38,
-                              child: Row(
-                                children: [
-                                  Icon(Icons.add_link_rounded, size: 17, color: Color(0xFF4F46E5)),
-                                  SizedBox(width: 8),
-                                  Text('Tautkan ke Menu', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF4F46E5))),
-                                ],
-                              ),
-                            ),
-                            const PopupMenuItem(
-                              value: 'usage',
-                              height: 38,
-                              child: Row(
-                                children: [
-                                  Icon(Icons.restaurant_menu_rounded, size: 17, color: Color(0xFF334155)),
-                                  SizedBox(width: 8),
-                                  Text('Lihat Menu Terkait', style: TextStyle(fontSize: 13)),
-                                ],
-                              ),
-                            ),
                             const PopupMenuItem(
                               value: 'history',
                               height: 38,
