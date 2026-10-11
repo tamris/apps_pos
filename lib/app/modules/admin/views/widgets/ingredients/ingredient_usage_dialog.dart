@@ -124,8 +124,9 @@ class _AdminIngredientUsageDialogState
         u == 'buah' ||
         u == 'butir' ||
         u == 'lembar' ||
-        u == 'sachet')
+        u == 'sachet') {
       return '';
+    }
     return u;
   }
 

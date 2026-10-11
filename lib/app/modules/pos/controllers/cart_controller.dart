@@ -36,7 +36,34 @@ class CartController extends GetxController {
   final RxDouble paidAmount = 0.0.obs;
 
   final Rx<int?> activeOpenBillId = Rx<int?>(null);
+  final RxString activeOpenBillInvoice = ''.obs;
   final RxBool isProcessing = false.obs;
+
+  /// Judul deskriptif untuk banner bill yang sedang diedit (Meja / Nama Pelanggan / Invoice)
+  String get activeOpenBillTitle {
+    final tbl = tableNumber.value.trim();
+    final cust = customerName.value.trim();
+    final inv = activeOpenBillInvoice.value.trim();
+
+    if (tbl.isNotEmpty && cust.isNotEmpty) {
+      final cleanTbl = tbl.replaceFirst(RegExp(r'^(meja|table)\s*', caseSensitive: false), '');
+      return 'Meja $cleanTbl • $cust';
+    }
+    if (tbl.isNotEmpty) {
+      final cleanTbl = tbl.replaceFirst(RegExp(r'^(meja|table)\s*', caseSensitive: false), '');
+      return 'Meja $cleanTbl';
+    }
+    if (cust.isNotEmpty) {
+      return cust;
+    }
+    if (inv.isNotEmpty) {
+      return inv;
+    }
+    if (activeOpenBillId.value != null && activeOpenBillId.value! > 0) {
+      return '#${activeOpenBillId.value}';
+    }
+    return '';
+  }
 
   // --- Kalkulasi Realtime ---
   double get subtotal => items.fold(0.0, (sum, item) => sum + item.subtotal);
@@ -120,6 +147,7 @@ class CartController extends GetxController {
     tableNumber.value = '';
     customerName.value = '';
     activeOpenBillId.value = null;
+    activeOpenBillInvoice.value = '';
     orderType.value = 'dine_in';
   }
 
@@ -139,6 +167,7 @@ class CartController extends GetxController {
   void loadFromOpenBill(OpenBillModel bill, List<ProductModel> allProducts) {
     clearCart();
     activeOpenBillId.value = bill.id;
+    activeOpenBillInvoice.value = bill.invoiceNumber;
     orderType.value = bill.orderType;
     tableNumber.value = bill.tableNumber ?? '';
     customerName.value = bill.customerName ?? '';

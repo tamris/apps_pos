@@ -119,6 +119,21 @@ class TransactionModel {
   bool get isCancelled => status.toLowerCase() == 'cancelled';
   String get formattedTime => DateFormatter.formatHourMinute(time);
 
+  bool get isDineIn => orderType.toLowerCase() == 'dine_in';
+  bool get isTakeAway => orderType.toLowerCase() == 'take_away';
+  bool get hasCustomer => customerName != null && customerName!.trim().isNotEmpty;
+  bool get hasTable => tableNumber != null && tableNumber!.trim().isNotEmpty;
+
+  String get cleanTableNumber {
+    if (!hasTable) return '';
+    return tableNumber!.trim().replaceFirst(RegExp(r'^(meja|table)\s*', caseSensitive: false), '');
+  }
+
+  String get displayCustomerName {
+    if (hasCustomer) return customerName!.trim();
+    return '';
+  }
+
   factory TransactionModel.fromJson(Map<String, dynamic> json) {
     var detailsList = <TransactionDetailModel>[];
     if (json['details'] != null && json['details'] is List) {
@@ -128,12 +143,48 @@ class TransactionModel {
           .toList();
     }
 
+    // Resolve Table Number
+    String? resolvedTableNumber;
+    final rawTable = json['table_number'] ??
+        json['tableNumber'] ??
+        json['no_meja'] ??
+        json['table_no'];
+    if (rawTable != null && rawTable.toString().trim().isNotEmpty) {
+      resolvedTableNumber = rawTable.toString().trim();
+    } else if (json['table'] != null) {
+      if (json['table'] is Map) {
+        final t = json['table'];
+        final tVal = t['number'] ?? t['name'] ?? t['no'];
+        if (tVal != null && tVal.toString().trim().isNotEmpty) {
+          resolvedTableNumber = tVal.toString().trim();
+        }
+      } else if (json['table'].toString().trim().isNotEmpty) {
+        resolvedTableNumber = json['table'].toString().trim();
+      }
+    }
+
+    // Resolve Customer Name
+    String? resolvedCustomerName;
+    final rawCust = json['customer_name'] ??
+        json['customerName'] ??
+        json['nama_pelanggan'] ??
+        json['customer'];
+    if (rawCust != null && rawCust is! Map && rawCust.toString().trim().isNotEmpty) {
+      resolvedCustomerName = rawCust.toString().trim();
+    } else if (rawCust is Map) {
+      final cName = rawCust['name'] ?? rawCust['nama'];
+      if (cName != null && cName.toString().trim().isNotEmpty) {
+        resolvedCustomerName = cName.toString().trim();
+      }
+    }
+
     return TransactionModel(
       id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
       invoiceNumber: json['invoice_number'] ?? '',
       status: json['status'] ?? 'completed',
       orderType: json['order_type'] ?? 'dine_in',
-      tableNumber: json['table_number']?.toString(),
+      tableNumber: resolvedTableNumber,
+      customerName: resolvedCustomerName,
       paymentMethod: (json['payment_method'] != null && json['payment_method'].toString().trim().isNotEmpty)
           ? json['payment_method'].toString().trim()
           : ((json['status']?.toString().toLowerCase() == 'pending') ? 'unpaid' : 'cash'),

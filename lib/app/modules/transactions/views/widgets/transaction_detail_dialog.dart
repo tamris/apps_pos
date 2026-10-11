@@ -103,21 +103,30 @@ class TransactionDetailDialog {
               Wrap(
                 spacing: 8,
                 runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   _buildBadge(
-                    Icons.restaurant_rounded,
-                    tx.orderType == 'dine_in'
-                        ? (tx.tableNumber != null && tx.tableNumber!.isNotEmpty
-                            ? 'Dine In (Meja ${tx.tableNumber})'
-                            : 'Dine In')
-                        : 'Take Away',
-                    AppColors.primary,
+                    tx.isDineIn ? Icons.restaurant_rounded : Icons.shopping_bag_outlined,
+                    tx.isDineIn ? 'Dine In' : 'Take Away',
+                    tx.isDineIn ? AppColors.primary : const Color(0xFFD97706),
                   ),
+                  if (tx.hasTable)
+                    _buildBadge(
+                      Icons.table_restaurant_rounded,
+                      'Meja ${tx.cleanTableNumber}',
+                      const Color(0xFF4F46E5),
+                    ),
+                  if (tx.hasCustomer)
+                    _buildBadge(
+                      Icons.person_rounded,
+                      tx.customerName!.trim(),
+                      const Color(0xFF0284C7),
+                    ),
                   _buildBadge(
                     Icons.payment_rounded,
                     tx.isPending
-                        ? 'Status: Belum Dibayar'
-                        : 'Metode: ${tx.paymentMethod.toUpperCase()}',
+                        ? 'BELUM BAYAR'
+                        : tx.paymentMethod.toUpperCase(),
                     tx.isPending ? AppColors.warning : AppColors.secondary,
                   ),
                   if (!tx.isPending && !tx.isCancelled)
@@ -153,12 +162,6 @@ class TransactionDetailDialog {
                           ],
                         ),
                       ),
-                    ),
-                  if (tx.customerName != null && tx.customerName!.isNotEmpty)
-                    _buildBadge(
-                      Icons.person_outline_rounded,
-                      'Pelanggan: ${tx.customerName}',
-                      AppColors.info,
                     ),
                 ],
               ),
@@ -464,9 +467,14 @@ class TransactionDetailDialog {
         children: [
           Icon(icon, size: 13, color: color),
           const SizedBox(width: 5),
-          Text(
-            label,
-            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: color),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 180),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: color),
+            ),
           ),
         ],
       ),

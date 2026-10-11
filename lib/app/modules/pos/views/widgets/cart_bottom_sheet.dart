@@ -112,7 +112,9 @@ class CartBottomSheet extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Bill #${cartController.activeOpenBillId.value} Aktif (Sedang Diedit)',
+                      'Bill ${cartController.activeOpenBillTitle} Aktif (Sedang Diedit)',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.bold,

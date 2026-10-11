@@ -793,21 +793,38 @@ class TransactionsView extends GetView<TransactionsController> {
                   ),
                   const SizedBox(height: 5),
 
-                  // Order Type & Payment Method Badges (Wrap to prevent overflow)
+                  // Order Type, Table, Customer & Payment Method Badges (Wrap to prevent overflow)
                   Wrap(
                     spacing: 5,
                     runSpacing: 3,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
+                      // Tipe Pesanan: Dine In vs Take Away
                       _buildSmallBadge(
-                        Icons.restaurant_rounded,
-                        tx.orderType == 'dine_in'
-                            ? (tx.tableNumber != null &&
-                                      tx.tableNumber!.isNotEmpty
-                                  ? 'Dine In (Meja ${tx.tableNumber})'
-                                  : 'Dine In')
-                            : 'Take Away',
-                        AppColors.primary,
+                        tx.isDineIn
+                            ? Icons.restaurant_rounded
+                            : Icons.shopping_bag_outlined,
+                        tx.isDineIn ? 'Dine In' : 'Take Away',
+                        tx.isDineIn ? AppColors.primary : const Color(0xFFD97706),
                       ),
+
+                      // Nomor Meja (jika diisi)
+                      if (tx.hasTable)
+                        _buildSmallBadge(
+                          Icons.table_restaurant_rounded,
+                          'Meja ${tx.cleanTableNumber}',
+                          const Color(0xFF4F46E5),
+                        ),
+
+                      // Nama Pelanggan (hanya jika diisi kasir)
+                      if (tx.hasCustomer)
+                        _buildSmallBadge(
+                          Icons.person_rounded,
+                          tx.customerName!.trim(),
+                          const Color(0xFF0284C7),
+                        ),
+
+                      // Metode Pembayaran
                       _buildSmallBadge(
                         Icons.payment_rounded,
                         tx.isPending
@@ -828,13 +845,6 @@ class TransactionsView extends GetView<TransactionsController> {
                                         ? AppColors.secondary
                                         : AppColors.info)),
                       ),
-                      if (tx.customerName != null &&
-                          tx.customerName!.isNotEmpty)
-                        _buildSmallBadge(
-                          Icons.person_outline,
-                          tx.customerName!,
-                          AppColors.info,
-                        ),
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -923,9 +933,11 @@ class TransactionsView extends GetView<TransactionsController> {
         children: [
           Icon(icon, size: 11.5, color: color),
           const SizedBox(width: 3.5),
-          Flexible(
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 130),
             child: Text(
               label,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 10.5,
