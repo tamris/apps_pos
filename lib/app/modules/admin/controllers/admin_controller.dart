@@ -3068,6 +3068,58 @@ class AdminController extends GetxController {
     return false;
   }
 
+  Future<int> attachIngredientToMultipleProducts({
+    required int ingredientId,
+    required List<int> productIds,
+    required double amount,
+    String? unit,
+  }) async {
+    if (productIds.isEmpty) return 0;
+    if (productIds.length == 1) {
+      final success = await attachIngredientToProduct(
+        ingredientId: ingredientId,
+        productId: productIds.first,
+        amount: amount,
+        unit: unit,
+      );
+      return success ? 1 : 0;
+    }
+
+    int successCount = 0;
+    try {
+      for (final pid in productIds) {
+        final response = await _apiProvider.post(
+          ApiConstants.adminIngredientAttachProduct(ingredientId),
+          data: {
+            'product_id': pid,
+            'amount': amount,
+            if (unit != null) 'unit': unit,
+          },
+        );
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          successCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        AppSnackbar.success(
+          'Berhasil Ditautkan',
+          'Bahan baku berhasil ditautkan ke $successCount menu produk.',
+        );
+        await Future.wait([
+          fetchIngredients(showLoader: false),
+          fetchAdminProducts(showLoader: false),
+          fetchHppSummary(showLoader: false),
+        ]);
+      } else {
+        AppSnackbar.warning('Perhatian', 'Gagal menautkan bahan baku ke menu terpilih.');
+      }
+    } catch (e) {
+      AppSnackbar.danger('Gagal Menautkan', ApiProvider.getErrorMessage(e));
+    }
+    return successCount;
+  }
+
   Future<bool> detachIngredientFromProduct({
     required int ingredientId,
     required int productId,
