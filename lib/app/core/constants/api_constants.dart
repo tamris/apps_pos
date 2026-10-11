@@ -75,4 +75,30 @@ class ApiConstants {
   static String adminCashFlowDetail(int id) => '/admin/cash-flow/$id';
   static const String adminExpenseCategories = '/admin/expense-categories';
   static String adminExpenseCategoryDetail(int id) => '/admin/expense-categories/$id';
+
+  // Admin Products & Recipe Management
+  static const String adminProducts = '/admin/products';
+  static String adminProductDetail(int id) => '/admin/products/$id';
+  static String adminProductRestore(int id) => '/admin/products/$id/restore';
+  static const String adminCategories = '/admin/categories';
+
+  // Admin HPP, Recipe AI & Pricing Strategy
+  static const String adminHppSummary = '/admin/hpp/summary';
+  static const String adminHppCalculate = '/admin/hpp/calculate';
+  static const String adminHppAiRecipe = '/admin/hpp/ai-recipe';
+
+  // Admin Ingredients & Stock Inventory Management
+  static const String adminIngredients = '/admin/ingredients';
+  static String adminIngredientDetail(int id) => '/admin/ingredients/$id';
+  static String adminIngredientRestock(int id) => '/admin/ingredients/$id/restock';
+  static const String adminIngredientOpname = '/admin/ingredients/opname';
+  static const String adminIngredientMutations = '/admin/ingredients/mutations';
+  static String adminIngredientAttachProduct(int id) => '/admin/ingredients/$id/attach-product';
+  static String adminIngredientDetachProduct(int id, int productId) => '/admin/ingredients/$id/detach-product/$productId';
+  static String adminIngredientDetachAllProducts(int id) => '/admin/ingredients/$id/detach-all-products';
+  static String adminIngredientToggleActive(int id) => '/admin/ingredients/$id/toggle-active';
+  static String adminIngredientRestore(int id) => '/admin/ingredients/$id/restore';
+  static String adminIngredientForceDelete(int id) => '/admin/ingredients/$id/force-delete';
 }
+
+

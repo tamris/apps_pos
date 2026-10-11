@@ -7,6 +7,7 @@ import '../widgets/menu_sales/menu_sales_filter_bar.dart';
 import '../widgets/menu_sales/menu_sales_card.dart';
 import '../widgets/menu_sales/menu_sales_empty_state.dart';
 import '../widgets/menu_sales/menu_sales_skeleton.dart';
+import '../widgets/common/admin_load_more_footer.dart';
 
 class AdminMenuSalesTab extends GetView<AdminController> {
   const AdminMenuSalesTab({super.key});
@@ -23,7 +24,7 @@ class AdminMenuSalesTab extends GetView<AdminController> {
           // 2. Search & Filter Bar
           const MenuSalesFilterBar(),
 
-          // 3. Menu Sales Responsive Grid / List
+          // 3. Menu Sales Responsive Grid / List with Infinite Scroll
           Expanded(
             child: Obx(() {
               if (controller.isLoadingMenuSales.value &&
@@ -48,44 +49,63 @@ class AdminMenuSalesTab extends GetView<AdminController> {
                           final width = constraints.maxWidth;
                           final isDesktop = width >= 1100;
                           final isTablet = width >= 650;
+                          final crossAxisCount = isDesktop ? 3 : 2;
 
-                          if (isTablet) {
-                      final crossAxisCount = isDesktop ? 3 : 2;
-                      return GridView.builder(
-                        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 16,
-                        ),
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: crossAxisCount,
-                          crossAxisSpacing: 14,
-                          mainAxisSpacing: 14,
-                          mainAxisExtent: 148,
-                        ),
-                        itemCount: displayItems.length,
-                        itemBuilder: (context, index) {
-                          final item = displayItems[index];
-                          return MenuSalesCard(item: item);
+                          return CustomScrollView(
+                            controller: controller.menuScrollController,
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            keyboardDismissBehavior:
+                                ScrollViewKeyboardDismissBehavior.onDrag,
+                            slivers: [
+                              SliverPadding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isTablet ? 20 : 16,
+                                  vertical: isTablet ? 16 : 14,
+                                ),
+                                sliver: isTablet
+                                    ? SliverGrid(
+                                        gridDelegate:
+                                            SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount: crossAxisCount,
+                                          crossAxisSpacing: 14,
+                                          mainAxisSpacing: 14,
+                                          mainAxisExtent: 148,
+                                        ),
+                                        delegate:
+                                            SliverChildBuilderDelegate(
+                                          (context, index) {
+                                            final item = displayItems[index];
+                                            return MenuSalesCard(item: item);
+                                          },
+                                          childCount: displayItems.length,
+                                        ),
+                                      )
+                                    : SliverList.separated(
+                                        itemCount: displayItems.length,
+                                        separatorBuilder: (_, __) =>
+                                            const SizedBox(height: 12),
+                                        itemBuilder: (context, index) {
+                                          final item = displayItems[index];
+                                          return MenuSalesCard(item: item);
+                                        },
+                                      ),
+                              ),
+
+                              // Bottom Loading Spinner or End-of-List Indicator
+                              SliverToBoxAdapter(
+                                child: Obx(() => AdminLoadMoreFooter(
+                                      isLoadingMore: controller
+                                          .isLoadingMoreMenuSales.value,
+                                      hasMore:
+                                          controller.hasMoreMenuSales.value,
+                                      itemCount: displayItems.length,
+                                      itemName: 'menu',
+                                    )),
+                              ),
+                            ],
+                          );
                         },
-                      );
-                    }
-
-                    return ListView.separated(
-                      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
                       ),
-                      itemCount: displayItems.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final item = displayItems[index];
-                        return MenuSalesCard(item: item);
-                      },
-                    );
-                  },
-                ),
               );
             }),
           ),

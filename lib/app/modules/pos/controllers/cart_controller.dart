@@ -417,6 +417,10 @@ class CartController extends GetxController {
           Get.find<ShiftController>().fetchCurrentShift();
         }
 
+        if (Get.isRegistered<PosController>()) {
+          Get.find<PosController>().fetchBootstrap(isSilent: true);
+        }
+
         final kitchenItems = items.map((e) => {
           'name': e.product.name,
           'quantity': e.quantity,

@@ -259,4 +259,43 @@ void main() {
     expect(controller.selectedTrxStartDate.value, isNotNull);
     expect(controller.selectedTrxEndDate.value, isNotNull);
   });
+
+  testWidgets('Displays grand total transactions and server summary in TransactionsMetricsStrip while keeping pagination', (tester) async {
+    final mockApi = MockApiProvider();
+    Get.put<ApiProvider>(mockApi);
+
+    final controller = TestAdminController();
+    Get.put<AdminController>(controller);
+
+    // Only 4 transactions loaded in memory (e.g. page 1)
+    controller.transactions.value = trxJsonList.map((e) => AdminTransactionModel.fromJson(e)).toList();
+    // But server has 142 total transactions
+    controller.totalTrxCount.value = 142;
+    controller.completedTrxCount.value = 135;
+    controller.totalTrxRevenue.value = 2748000.0;
+    controller.totalTrxProfit.value = 1526454.0;
+    controller.totalTrxAov.value = 20355.0;
+    controller.totalTrxProfitMargin.value = 55.5;
+    controller.hasServerTrxSummary.value = true;
+
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      const GetMaterialApp(
+        home: Scaffold(
+          body: AdminTransactionsTab(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Verify grand total 142 Trx is displayed instead of in-memory 4 Trx
+    expect(find.text('142 Trx'), findsWidgets);
+    expect(find.text('4 Trx'), findsNothing);
+    expect(find.text('135 berhasil'), findsWidgets);
+  });
 }
+

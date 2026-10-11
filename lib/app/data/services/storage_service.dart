@@ -33,6 +33,7 @@ class StorageService extends GetxService {
   static const String _keyCachedTodayTransactions = 'cached_today_transactions';
   static const String _keyCachedTodayStats = 'cached_today_stats';
   static const String _keyCachedTodayDate = 'cached_today_date';
+  static const String _keyShowCupCapacity = 'pos_show_cup_capacity';
 
   Future<StorageService> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -59,6 +60,13 @@ class StorageService extends GetxService {
     await _prefs.remove(_keyCustomSoundPath);
     await _prefs.remove(_keyCustomSoundName);
     await saveSelectedSoundPreset('bell_classic');
+  }
+
+  // --- POS Cup Capacity Display Preference ---
+  bool get showCupCapacity => _prefs.getBool(_keyShowCupCapacity) ?? true;
+
+  Future<void> saveShowCupCapacity(bool show) async {
+    await _prefs.setBool(_keyShowCupCapacity, show);
   }
 
   // --- Base URL ---

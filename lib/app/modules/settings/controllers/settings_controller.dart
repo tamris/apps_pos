@@ -13,6 +13,7 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/services/sound_service.dart';
 import '../../../core/utils/app_snackbar.dart';
 import '../../auth/controllers/auth_controller.dart';
+import '../../pos/controllers/pos_controller.dart';
 
 class SettingsController extends GetxController {
   final StorageService _storageService = Get.find<StorageService>();
@@ -38,6 +39,9 @@ class SettingsController extends GetxController {
   final RxString customSoundName = ''.obs;
   final RxString customSoundPath = ''.obs;
 
+  // State Tampilan Kasir
+  final RxBool showCupCapacity = true.obs;
+
   @override
   void onInit() {
     super.onInit();
@@ -46,6 +50,16 @@ class SettingsController extends GetxController {
     selectedPreset.value = _storageService.selectedSoundPreset;
     customSoundName.value = _storageService.customSoundName ?? '';
     customSoundPath.value = _storageService.customSoundPath ?? '';
+    showCupCapacity.value = _storageService.showCupCapacity;
+  }
+
+  /// Atur preferensi visibilitas badge kapasitas porsi di POS
+  Future<void> setShowCupCapacity(bool value) async {
+    showCupCapacity.value = value;
+    await _storageService.saveShowCupCapacity(value);
+    if (Get.isRegistered<PosController>()) {
+      Get.find<PosController>().showCupCapacity.value = value;
+    }
   }
 
   @override

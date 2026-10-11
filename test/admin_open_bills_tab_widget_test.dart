@@ -6,6 +6,7 @@ import 'package:noli_apps/app/data/models/admin_transaction_model.dart';
 import 'package:noli_apps/app/data/providers/api_provider.dart';
 import 'package:noli_apps/app/modules/admin/controllers/admin_controller.dart';
 import 'package:noli_apps/app/modules/admin/views/tabs/admin_open_bills_tab.dart';
+import 'package:noli_apps/app/modules/admin/views/widgets/open_bills/table_bill_card.dart';
 
 class MockApiProvider extends GetxService implements ApiProvider {
   @override
@@ -255,5 +256,86 @@ void main() {
 
     expect(find.text('Pak Joko Widodo'), findsWidgets);
     expect(find.text('Ibu Siti'), findsNothing);
+  });
+
+  testWidgets('Formats stay time in hours when elapsedMinutes >= 60 to save space instead of minutes', (tester) async {
+    // 1. Test model duration formatting
+    final billUnder60 = AdminOpenBillModel(
+      id: 1,
+      invoiceNumber: 'INV-001',
+      tableNumber: '01',
+      customerName: 'Tamu 1',
+      orderType: 'dine_in',
+      orderSource: 'pos',
+      status: 'pending',
+      paymentStatus: 'unpaid',
+      total: 10000,
+      cashierName: 'Kasir',
+      formattedTime: '13:33',
+      rawElapsedMinutes: 25,
+      itemsCount: 1,
+      itemsSummary: 'Kopi',
+    );
+
+    final bill60 = AdminOpenBillModel(
+      id: 2,
+      invoiceNumber: 'INV-002',
+      tableNumber: '02',
+      customerName: 'Tamu 2',
+      orderType: 'dine_in',
+      orderSource: 'pos',
+      status: 'pending',
+      paymentStatus: 'unpaid',
+      total: 10000,
+      cashierName: 'Kasir',
+      formattedTime: '12:41',
+      rawElapsedMinutes: 60,
+      itemsCount: 1,
+      itemsSummary: 'Kopi',
+    );
+
+    final billLongStay = AdminOpenBillModel(
+      id: 3,
+      invoiceNumber: 'INV-003',
+      tableNumber: '03',
+      customerName: 'Tamu 3',
+      orderType: 'dine_in',
+      orderSource: 'pos',
+      status: 'pending',
+      paymentStatus: 'unpaid',
+      total: 13000,
+      cashierName: 'Bakar',
+      formattedTime: '13:33',
+      rawElapsedMinutes: 4661,
+      itemsCount: 1,
+      itemsSummary: 'Aren',
+    );
+
+    expect(billUnder60.formattedDuration, '25m');
+    expect(bill60.formattedDuration, '1 Jam');
+    expect(billLongStay.formattedDuration, '77 Jam');
+
+    // 2. Test widget rendering in TableBillCard
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              TableBillCard(bill: billUnder60, onTap: () {}),
+              TableBillCard(bill: billLongStay, onTap: () {}),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Verify under 60m shows minutes
+    expect(find.text('13:33 • Duduk 25m'), findsOneWidget);
+
+    // Verify >= 60m shows Jam instead of huge minutes like 4661m
+    expect(find.text('13:33 • Duduk 77 Jam'), findsOneWidget);
+    expect(find.text('13:33 • Duduk 4661m'), findsNothing);
   });
 }

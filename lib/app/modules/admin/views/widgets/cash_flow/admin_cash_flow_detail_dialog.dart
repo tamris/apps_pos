@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:noli_apps/app/core/widgets/app_cached_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:noli_apps/app/core/constants/api_constants.dart';
@@ -216,17 +216,14 @@ class _DetailContent extends StatelessWidget {
                       child: Stack(
                         alignment: Alignment.bottomRight,
                         children: [
-                          CachedNetworkImage(
+                          AppCachedImage(
                             imageUrl: imageUrl,
                             width: double.infinity,
                             height: 200,
+                            borderRadius: 10,
                             fit: BoxFit.cover,
-                            placeholder: (_, __) => Container(
-                              height: 200,
-                              color: const Color(0xFFF1F5F9),
-                              child: const Center(child: CircularProgressIndicator()),
-                            ),
-                            errorWidget: (_, __, ___) => Container(
+                            placeholderIcon: Icons.receipt_long_rounded,
+                            errorWidget: Container(
                               height: 120,
                               color: const Color(0xFFF8FAFC),
                               child: const Center(
@@ -388,10 +385,11 @@ class _DetailContent extends StatelessWidget {
                   panEnabled: true,
                   minScale: 0.5,
                   maxScale: 4.0,
-                  child: CachedNetworkImage(
+                  child: AppCachedImage(
                     imageUrl: url,
                     fit: BoxFit.contain,
-                    placeholder: (_, __) => const Center(child: CircularProgressIndicator(color: Colors.white)),
+                    borderRadius: 12,
+                    placeholderIcon: Icons.receipt_long_rounded,
                   ),
                 ),
               ),

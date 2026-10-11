@@ -159,7 +159,7 @@ class OnlineOrderCard extends StatelessWidget {
                             border: Border.all(color: const Color(0xFFE2E8F0)),
                           ),
                           child: Text(
-                            bill.elapsedMinutes > 0 ? '${bill.elapsedMinutes}m' : 'Baru',
+                            bill.formattedDuration,
                             style: const TextStyle(
                               fontSize: 9.5,
                               fontWeight: FontWeight.w700,

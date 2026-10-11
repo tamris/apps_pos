@@ -3,6 +3,7 @@ import 'package:noli_apps/app/data/models/admin_dashboard_model.dart';
 import 'package:noli_apps/app/data/models/admin_shift_model.dart';
 import 'package:noli_apps/app/data/models/admin_transaction_model.dart';
 import 'package:noli_apps/app/data/models/admin_open_bill_model.dart';
+import 'package:noli_apps/app/data/models/admin_ingredient_model.dart';
 
 void main() {
   group('Admin Models Parsing & Business Logic', () {
@@ -153,6 +154,104 @@ void main() {
       expect(bill.elapsedMinutes, 45);
       expect(bill.itemsCount, 3);
       expect(bill.total, 120000);
+    });
+
+    test('AdminIngredientModel correctly evaluates Aktif, Nonaktif (Jeda), and Arsip lifecycle states', () {
+      // 1. Active Ingredient
+      final activeJson = {
+        'id': 1,
+        'name': 'Biji Kopi Arabika',
+        'category': 'Kopi',
+        'stock': 2500,
+        'unit': 'gram',
+        'min_stock': 500,
+        'cost_per_unit': 200,
+        'buy_price': 200000,
+        'buy_amount': 1000,
+        'buy_unit': 'gram',
+        'is_active': true,
+        'is_archived': false,
+        'deleted_at': null,
+      };
+      final activeIng = AdminIngredientModel.fromJson(activeJson);
+      expect(activeIng.isActive, true);
+      expect(activeIng.isArchived, false);
+      expect(activeIng.isInactive, false);
+      expect(activeIng.isAvailable, true);
+
+      // 2. Inactive Ingredient (Paused / Musiman / Supplier Kosong)
+      final inactiveJson = {
+        'id': 2,
+        'name': 'Sirup Pandan Musiman',
+        'category': 'Sirup',
+        'stock': 500,
+        'unit': 'ml',
+        'min_stock': 200,
+        'cost_per_unit': 80,
+        'buy_price': 80000,
+        'buy_amount': 1000,
+        'buy_unit': 'ml',
+        'is_active': false,
+        'is_archived': false,
+        'deleted_at': null,
+      };
+      final inactiveIng = AdminIngredientModel.fromJson(inactiveJson);
+      expect(inactiveIng.isActive, false);
+      expect(inactiveIng.isArchived, false);
+      expect(inactiveIng.isInactive, true);
+      expect(inactiveIng.isAvailable, false);
+
+      // 3. Archived Ingredient (Soft-deleted)
+      final archivedJson = {
+        'id': 3,
+        'name': 'Boba Brown Sugar Pensiun',
+        'category': 'Topping',
+        'stock': 0,
+        'unit': 'gram',
+        'min_stock': 100,
+        'cost_per_unit': 50,
+        'buy_price': 50000,
+        'buy_amount': 1000,
+        'buy_unit': 'gram',
+        'is_active': false,
+        'is_archived': true,
+        'deleted_at': '2026-09-20T08:00:00Z',
+      };
+      final archivedIng = AdminIngredientModel.fromJson(archivedJson);
+      expect(archivedIng.isActive, false);
+      expect(archivedIng.isArchived, true);
+      expect(archivedIng.isInactive, false);
+      expect(archivedIng.isAvailable, false);
+    });
+
+    test('AdminIngredientSummaryModel parses server aggregate summary correctly', () {
+      final json = {
+        'total_ingredients': 350,
+        'low_stock_count': 25,
+        'out_of_stock_count': 10,
+        'debt_count': 3,
+        'safe_stock_count': 315,
+        'total_inventory_value': 12500000.50,
+      };
+
+      final summary = AdminIngredientSummaryModel.fromJson(json);
+      expect(summary.totalIngredients, 350);
+      expect(summary.lowStockCount, 25);
+      expect(summary.outOfStockCount, 10);
+      expect(summary.debtCount, 3);
+      expect(summary.safeStockCount, 315);
+      expect(summary.totalInventoryValue, 12500000.50);
+
+      // Fallback when safe_stock_count is omitted
+      final jsonNoSafe = {
+        'total_ingredients': 100,
+        'low_stock_count': 10,
+        'out_of_stock_count': 5,
+        'debt_count': 0,
+        'total_inventory_value': 500000.0,
+      };
+      final summaryFallback = AdminIngredientSummaryModel.fromJson(jsonNoSafe);
+      expect(summaryFallback.safeStockCount, 85);
     });
   });
 }

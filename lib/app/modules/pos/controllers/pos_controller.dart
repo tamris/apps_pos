@@ -35,12 +35,14 @@ class PosController extends GetxController {
   final RxString searchQuery = ''.obs;
   final RxBool hasSearchQuery = false.obs;
   final RxBool isLoading = false.obs;
+  final RxBool showCupCapacity = true.obs;
   final TextEditingController searchController = TextEditingController();
   Timer? _searchDebounce;
 
   @override
   void onInit() {
     super.onInit();
+    showCupCapacity.value = _storageService.showCupCapacity;
     // 1. Muat cache lokal terlebih dahulu agar UI instan dan siap offline
     _loadCachedBootstrap();
     // 2. Ambil data terbaru dari backend

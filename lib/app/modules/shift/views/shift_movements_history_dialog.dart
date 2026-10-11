@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../../core/widgets/app_cached_image.dart';
 import '../../../data/models/cash_movement_model.dart';
 import '../controllers/cash_flow_controller.dart';
 import 'cash_movement_dialog.dart';
@@ -503,17 +504,16 @@ class _HistoryContent extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 10),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  item.receiptImageUrl!,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => Container(
-                    padding: const EdgeInsets.all(24),
-                    color: Colors.grey.shade100,
-                    child: const Center(
-                      child: Text('Gagal memuat gambar bukti nota.', style: TextStyle(fontSize: 12)),
-                    ),
+              AppCachedImage(
+                imageUrl: item.receiptImageUrl,
+                fit: BoxFit.contain,
+                borderRadius: 12,
+                placeholderIcon: Icons.receipt_long_rounded,
+                errorWidget: Container(
+                  padding: const EdgeInsets.all(24),
+                  color: Colors.grey.shade100,
+                  child: const Center(
+                    child: Text('Gagal memuat gambar bukti nota.', style: TextStyle(fontSize: 12)),
                   ),
                 ),
               ),
