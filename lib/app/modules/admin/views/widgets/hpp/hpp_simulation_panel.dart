@@ -120,7 +120,13 @@ class _HppSimulationPanelState extends State<HppSimulationPanel> {
   final TextEditingController _targetProfitCtrl = TextEditingController(text: '5.000.000');
 
   double _markupPercent = 0.0;
-  final int _targetUnits = 3000;
+  int _targetUnits = 3000;
+  double _monthlyStoreExpenses = 0.0;
+  bool _hasCustomMonthlyExpenses = false;
+  double _monthlyRentExpense = 2000000;
+  double _monthlyUtilityExpense = 1000000;
+  double _monthlySalaryExpense = 2500000;
+  double _monthlyOtherExpense = 500000;
   String _selectedTierKey = 'standar';
 
   void _selectTier(String key, double price) {
@@ -153,6 +159,9 @@ class _HppSimulationPanelState extends State<HppSimulationPanel> {
       _opsCostCtrl.text = CurrencyFormatter.formatWithoutSymbol(
         widget.controller.simulationOperationalCost.value,
       );
+    }
+    if (widget.controller.simulationTargetMonthlyUnits.value > 0) {
+      _targetUnits = widget.controller.simulationTargetMonthlyUnits.value;
     }
   }
 
@@ -560,6 +569,1154 @@ class _HppSimulationPanelState extends State<HppSimulationPanel> {
           );
         },
       ),
+    );
+  }
+
+  void _showStoreOverheadCalculatorDialog() {
+    int activeMode = 0; // 0: Total Global, 1: Rincian Pos
+
+    final monthlyTotalCtrl = TextEditingController(
+      text: _monthlyStoreExpenses > 0
+          ? CurrencyFormatter.formatWithoutSymbol(_monthlyStoreExpenses)
+          : '6.000.000',
+    );
+    final targetCupsCtrl = TextEditingController(
+      text: NumberFormat.decimalPattern('id_ID').format(_targetUnits),
+    );
+
+    final rentCtrl = TextEditingController(
+      text: CurrencyFormatter.formatWithoutSymbol(_monthlyRentExpense),
+    );
+    final utilityCtrl = TextEditingController(
+      text: CurrencyFormatter.formatWithoutSymbol(_monthlyUtilityExpense),
+    );
+    final salaryCtrl = TextEditingController(
+      text: CurrencyFormatter.formatWithoutSymbol(_monthlySalaryExpense),
+    );
+    final otherCtrl = TextEditingController(
+      text: CurrencyFormatter.formatWithoutSymbol(_monthlyOtherExpense),
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) {
+          double parseAmount(TextEditingController ctrl) {
+            return double.tryParse(
+                  ctrl.text.replaceAll(RegExp(r'[^\d]'), ''),
+                ) ??
+                0.0;
+          }
+
+          int parseCups(TextEditingController ctrl) {
+            final val =
+                int.tryParse(ctrl.text.replaceAll(RegExp(r'[^\d]'), '')) ?? 0;
+            return val > 0 ? val : 1;
+          }
+
+          final double currentRent = parseAmount(rentCtrl);
+          final double currentUtil = parseAmount(utilityCtrl);
+          final double currentSalary = parseAmount(salaryCtrl);
+          final double currentOther = parseAmount(otherCtrl);
+          final double itemizedSum =
+              currentRent + currentUtil + currentSalary + currentOther;
+
+          final double totalExpenses = activeMode == 0
+              ? parseAmount(monthlyTotalCtrl)
+              : itemizedSum;
+
+          final int targetCups = parseCups(targetCupsCtrl);
+          final double costPerCup = (totalExpenses / targetCups)
+              .roundToDouble();
+
+          // Financial context for cafe owner
+          final dailyCups = (targetCups / 30.0).round();
+
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 20,
+            ),
+            backgroundColor: Colors.white,
+            elevation: 10,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 16,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
+                    Row(
+                      children: [
+                        Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(
+                                  0xFF4F46E5,
+                                ).withValues(alpha: 0.25),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.storefront_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Kalkulator Beban Toko',
+                                style: TextStyle(
+                                  fontSize: 15.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF0F172A),
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                              SizedBox(height: 1),
+                              Text(
+                                'Alokasikan sewa, listrik & gaji bulanan ke modal setiap cup',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            size: 20,
+                            color: Color(0xFF94A3B8),
+                          ),
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Scrollable content
+                    Flexible(
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // CARD 1: PENGELUARAN TOKO BULANAN
+                            Container(
+                              padding: const EdgeInsets.all(13),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: const Color(0xFFE2E8F0),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  LayoutBuilder(
+                                    builder: (context, cardConstraints) {
+                                      final isCompact =
+                                          cardConstraints.maxWidth < 360;
+                                      final tabs = Container(
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFE2E8F0),
+                                          borderRadius: BorderRadius.circular(
+                                            7,
+                                          ),
+                                        ),
+                                        padding: const EdgeInsets.all(2),
+                                        child: Row(
+                                          mainAxisSize: isCompact
+                                              ? MainAxisSize.max
+                                              : MainAxisSize.min,
+                                          children: [
+                                            if (isCompact) ...[
+                                              Expanded(
+                                                child: _buildSegmentTab(
+                                                  title: 'Total Global',
+                                                  isSelected: activeMode == 0,
+                                                  onTap: () => setDlgState(
+                                                    () => activeMode = 0,
+                                                  ),
+                                                  isFullWidth: true,
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: _buildSegmentTab(
+                                                  title: 'Rincian Pos',
+                                                  isSelected: activeMode == 1,
+                                                  onTap: () => setDlgState(
+                                                    () => activeMode = 1,
+                                                  ),
+                                                  isFullWidth: true,
+                                                ),
+                                              ),
+                                            ] else ...[
+                                              _buildSegmentTab(
+                                                title: 'Total Global',
+                                                isSelected: activeMode == 0,
+                                                onTap: () => setDlgState(
+                                                  () => activeMode = 0,
+                                                ),
+                                              ),
+                                              _buildSegmentTab(
+                                                title: 'Rincian Pos',
+                                                isSelected: activeMode == 1,
+                                                onTap: () => setDlgState(
+                                                  () => activeMode = 1,
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      );
+
+                                      if (isCompact) {
+                                        return Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.payments_outlined,
+                                                  size: 15,
+                                                  color: Color(0xFF475569),
+                                                ),
+                                                SizedBox(width: 6),
+                                                Text(
+                                                  'Biaya Operasional Toko',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w800,
+                                                    color: Color(0xFF1E293B),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 8),
+                                            tabs,
+                                          ],
+                                        );
+                                      }
+
+                                      return Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          const Row(
+                                            children: [
+                                              Icon(
+                                                Icons.payments_outlined,
+                                                size: 15,
+                                                color: Color(0xFF475569),
+                                              ),
+                                              SizedBox(width: 6),
+                                              Text(
+                                                'Biaya Operasional Toko',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: Color(0xFF1E293B),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          tabs,
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 10),
+
+                                  if (activeMode == 0) ...[
+                                    TextField(
+                                      controller: monthlyTotalCtrl,
+                                      keyboardType: TextInputType.number,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,
+                                        CurrencyInputFormatter(),
+                                      ],
+                                      onChanged: (_) => setDlgState(() {}),
+                                      decoration: InputDecoration(
+                                        prefixText: 'Rp ',
+                                        prefixStyle: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF0F172A),
+                                        ),
+                                        hintText: '6.000.000',
+                                        suffixText: '/ bulan',
+                                        suffixStyle: const TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF64748B),
+                                        ),
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            9,
+                                          ),
+                                          borderSide: const BorderSide(
+                                            color: Color(0xFFCBD5E1),
+                                          ),
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            9,
+                                          ),
+                                          borderSide: const BorderSide(
+                                            color: Color(0xFFCBD5E1),
+                                          ),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            9,
+                                          ),
+                                          borderSide: const BorderSide(
+                                            color: AppColors.primary,
+                                            width: 1.5,
+                                          ),
+                                        ),
+                                        filled: true,
+                                        fillColor: Colors.white,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 10,
+                                            ),
+                                        isDense: true,
+                                      ),
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: Row(
+                                        children:
+                                            [
+                                              3000000,
+                                              5000000,
+                                              6000000,
+                                              8000000,
+                                              10000000,
+                                              12000000,
+                                            ].map((val) {
+                                              final isSel =
+                                                  totalExpenses ==
+                                                  val.toDouble();
+                                              final label =
+                                                  'Rp ${val ~/ 1000000} Jt';
+                                              return Padding(
+                                                padding: const EdgeInsets.only(
+                                                  right: 5,
+                                                ),
+                                                child: InkWell(
+                                                  onTap: () {
+                                                    monthlyTotalCtrl.text =
+                                                        CurrencyFormatter.formatWithoutSymbol(
+                                                          val.toDouble(),
+                                                        );
+                                                    setDlgState(() {});
+                                                  },
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                  child: AnimatedContainer(
+                                                    duration: const Duration(
+                                                      milliseconds: 150,
+                                                    ),
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 4,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color: isSel
+                                                          ? const Color(
+                                                              0xFFEEF2FF,
+                                                            )
+                                                          : Colors.white,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            6,
+                                                          ),
+                                                      border: Border.all(
+                                                        color: isSel
+                                                            ? const Color(
+                                                                0xFF6366F1,
+                                                              )
+                                                            : const Color(
+                                                                0xFFCBD5E1,
+                                                              ),
+                                                        width: isSel ? 1.5 : 1,
+                                                      ),
+                                                    ),
+                                                    child: Text(
+                                                      label,
+                                                      style: TextStyle(
+                                                        fontSize: 10,
+                                                        fontWeight: isSel
+                                                            ? FontWeight.w800
+                                                            : FontWeight.w600,
+                                                        color: isSel
+                                                            ? const Color(
+                                                                0xFF4F46E5,
+                                                              )
+                                                            : const Color(
+                                                                0xFF475569,
+                                                              ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              );
+                                            }).toList(),
+                                      ),
+                                    ),
+                                  ] else ...[
+                                    _buildExpenseFieldRow(
+                                      icon: Icons.store_rounded,
+                                      label: 'Sewa Tempat / Ruko',
+                                      controller: rentCtrl,
+                                      onChanged: () => setDlgState(() {}),
+                                    ),
+                                    const SizedBox(height: 7),
+                                    _buildExpenseFieldRow(
+                                      icon: Icons.bolt_rounded,
+                                      label: 'Listrik, Air & WiFi',
+                                      controller: utilityCtrl,
+                                      onChanged: () => setDlgState(() {}),
+                                    ),
+                                    const SizedBox(height: 7),
+                                    _buildExpenseFieldRow(
+                                      icon: Icons.badge_rounded,
+                                      label: 'Gaji Barista / Karyawan',
+                                      controller: salaryCtrl,
+                                      onChanged: () => setDlgState(() {}),
+                                    ),
+                                    const SizedBox(height: 7),
+                                    _buildExpenseFieldRow(
+                                      icon: Icons.handyman_rounded,
+                                      label: 'Operasional & Lainnya',
+                                      controller: otherCtrl,
+                                      onChanged: () => setDlgState(() {}),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(7),
+                                        border: Border.all(
+                                          color: const Color(0xFFE2E8F0),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          const Expanded(
+                                            child: Text(
+                                              'Total Rincian Beban Toko:',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: Color(0xFF64748B),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Text(
+                                              _currencyFormat.format(
+                                                totalExpenses,
+                                              ),
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w900,
+                                                color: Color(0xFF0F172A),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // CARD 2: TARGET VOLUME PENJUALAN
+                            Container(
+                              padding: const EdgeInsets.all(13),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: const Color(0xFFE2E8F0),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Row(
+                                    children: [
+                                      Icon(
+                                        Icons.coffee_rounded,
+                                        size: 15,
+                                        color: Color(0xFF475569),
+                                      ),
+                                      SizedBox(width: 6),
+                                      Text(
+                                        'Target Volume Penjualan Cup / Bulan',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF1E293B),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextField(
+                                    controller: targetCupsCtrl,
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                      CurrencyInputFormatter(),
+                                    ],
+                                    onChanged: (_) => setDlgState(() {}),
+                                    decoration: InputDecoration(
+                                      prefixIcon: const Icon(
+                                        Icons.tune_rounded,
+                                        size: 16,
+                                        color: Color(0xFF64748B),
+                                      ),
+                                      suffixText: 'cup / bulan',
+                                      suffixStyle: const TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF64748B),
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(9),
+                                        borderSide: const BorderSide(
+                                          color: Color(0xFFCBD5E1),
+                                        ),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(9),
+                                        borderSide: const BorderSide(
+                                          color: Color(0xFFCBD5E1),
+                                        ),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(9),
+                                        borderSide: const BorderSide(
+                                          color: AppColors.primary,
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      filled: true,
+                                      fillColor: Colors.white,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 10,
+                                          ),
+                                      isDense: true,
+                                    ),
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    physics: const BouncingScrollPhysics(),
+                                    child: Row(
+                                      children:
+                                          [
+                                            {
+                                              'label': '1.500 (~50/hari)',
+                                              'val': 1500,
+                                            },
+                                            {
+                                              'label': '3.000 (~100/hari)',
+                                              'val': 3000,
+                                            },
+                                            {
+                                              'label': '4.500 (~150/hari)',
+                                              'val': 4500,
+                                            },
+                                            {
+                                              'label': '6.000 (~200/hari)',
+                                              'val': 6000,
+                                            },
+                                          ].map((item) {
+                                            final val = item['val'] as int;
+                                            final isSel = targetCups == val;
+                                            return Padding(
+                                              padding: const EdgeInsets.only(
+                                                right: 5,
+                                              ),
+                                              child: InkWell(
+                                                onTap: () {
+                                                  targetCupsCtrl.text =
+                                                      NumberFormat.decimalPattern(
+                                                        'id_ID',
+                                                      ).format(val);
+                                                  setDlgState(() {});
+                                                },
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                                child: AnimatedContainer(
+                                                  duration: const Duration(
+                                                    milliseconds: 150,
+                                                  ),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 4,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: isSel
+                                                        ? const Color(
+                                                            0xFFEEF2FF,
+                                                          )
+                                                        : Colors.white,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          6,
+                                                        ),
+                                                    border: Border.all(
+                                                      color: isSel
+                                                          ? const Color(
+                                                              0xFF6366F1,
+                                                            )
+                                                          : const Color(
+                                                              0xFFCBD5E1,
+                                                            ),
+                                                      width: isSel ? 1.5 : 1,
+                                                    ),
+                                                  ),
+                                                  child: Text(
+                                                    item['label'] as String,
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      fontWeight: isSel
+                                                          ? FontWeight.w800
+                                                          : FontWeight.w600,
+                                                      color: isSel
+                                                          ? const Color(
+                                                              0xFF4F46E5,
+                                                            )
+                                                          : const Color(
+                                                              0xFF475569,
+                                                            ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          }).toList(),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // CARD 3: RINGKASAN PEMBAGIAN BEBAN TOKO UNTUK OWNER
+                            Container(
+                              padding: const EdgeInsets.all(13),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: const Color(0xFFE2E8F0),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(4.5),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF1F5F9),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                          border: Border.all(
+                                            color: const Color(0xFFCBD5E1),
+                                          ),
+                                        ),
+                                        child: const Icon(
+                                          Icons.account_balance_wallet_outlined,
+                                          size: 13,
+                                          color: Color(0xFF334155),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Expanded(
+                                        child: Text(
+                                          'Hasil Alokasi Beban Toko',
+                                          style: TextStyle(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w800,
+                                            color: Color(0xFF0F172A),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+
+                                  // Dua Kartu Metrik Berdampingan (Informatif & Mudah Dipahami)
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 9,
+                                            vertical: 8,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(
+                                              9,
+                                            ),
+                                            border: Border.all(
+                                              color: const Color(0xFFE2E8F0),
+                                            ),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              const Text(
+                                                'BEBAN TOKO PER CUP',
+                                                style: TextStyle(
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Color(0xFF64748B),
+                                                  letterSpacing: 0.3,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              FittedBox(
+                                                fit: BoxFit.scaleDown,
+                                                alignment: Alignment.centerLeft,
+                                                child: Text(
+                                                  _currencyFormat.format(
+                                                    costPerCup,
+                                                  ),
+                                                  style: const TextStyle(
+                                                    fontSize: 17,
+                                                    fontWeight: FontWeight.w900,
+                                                    color: Color(0xFF0F172A),
+                                                    letterSpacing: -0.3,
+                                                  ),
+                                                ),
+                                              ),
+                                              const Text(
+                                                'Masuk ke modal (HPP)',
+                                                style: TextStyle(
+                                                  fontSize: 9,
+                                                  color: Color(0xFF64748B),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 9,
+                                            vertical: 8,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(
+                                              9,
+                                            ),
+                                            border: Border.all(
+                                              color: const Color(0xFFE2E8F0),
+                                            ),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              const Text(
+                                                'DASAR PEMBAGIAN',
+                                                style: TextStyle(
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Color(0xFF64748B),
+                                                  letterSpacing: 0.3,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              FittedBox(
+                                                fit: BoxFit.scaleDown,
+                                                alignment: Alignment.centerLeft,
+                                                child: Text(
+                                                  '${_currencyFormat.format(totalExpenses).replaceAll('Rp ', '')} / bln',
+                                                  style: const TextStyle(
+                                                    fontSize: 12.5,
+                                                    fontWeight: FontWeight.w800,
+                                                    color: Color(0xFF0F172A),
+                                                  ),
+                                                ),
+                                              ),
+                                              FittedBox(
+                                                fit: BoxFit.scaleDown,
+                                                alignment: Alignment.centerLeft,
+                                                child: Text(
+                                                  '÷ ${NumberFormat.decimalPattern('id_ID').format(targetCups)} cup (~$dailyCups/hari)',
+                                                  style: const TextStyle(
+                                                    fontSize: 9,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: Color(0xFF0284C7),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+
+                                  // Catatan Operasional Praktis untuk Owner
+                                  Container(
+                                    padding: const EdgeInsets.all(9),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: const Color(0xFFE2E8F0),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        _buildInsightItem(
+                                          icon: Icons.savings_outlined,
+                                          color: const Color(0xFF059669),
+                                          title:
+                                              'Uang Sewa & Gaji Bulanan Aman',
+                                          desc:
+                                              'Saat target ${NumberFormat.decimalPattern('id_ID').format(targetCups)} cup/bulan tercapai, biaya sewa & gaji sudah terkumpul dari penjualan per cup—tidak perlu nombok dari kantong pribadi.',
+                                        ),
+                                        const SizedBox(height: 6),
+                                        _buildInsightItem(
+                                          icon: Icons.verified_outlined,
+                                          color: const Color(0xFF2563EB),
+                                          title:
+                                              'Laba yang Dilihat adalah Untung Bersih Asli',
+                                          desc:
+                                              'Dengan menambah Rp ${CurrencyFormatter.formatWithoutSymbol(costPerCup)}/cup ke modal, owner tidak akan terjebak untung semu saat mengecek kas di akhir bulan.',
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Actions
+                    Row(
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            foregroundColor: const Color(0xFF64748B),
+                          ),
+                          child: const Text(
+                            'Batal',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12.5,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              setState(() {
+                                _opsCostCtrl.text =
+                                    CurrencyFormatter.formatWithoutSymbol(
+                                      costPerCup,
+                                    );
+                                _targetUnits = targetCups;
+                                _monthlyStoreExpenses = totalExpenses;
+                                _hasCustomMonthlyExpenses = true;
+                                if (activeMode == 1) {
+                                  _monthlyRentExpense = currentRent;
+                                  _monthlyUtilityExpense = currentUtil;
+                                  _monthlySalaryExpense = currentSalary;
+                                  _monthlyOtherExpense = currentOther;
+                                }
+                              });
+                              _recalculate();
+                              Navigator.of(ctx).pop();
+                              AppSnackbar.success(
+                                'Alokasi Beban Diterapkan',
+                                'Alokasi Rp ${CurrencyFormatter.formatWithoutSymbol(costPerCup)}/cup (${_currencyFormat.format(totalExpenses)} ÷ ${NumberFormat.decimalPattern('id_ID').format(targetCups)} cup) berhasil diterapkan ke simulasi HPP.',
+                              );
+                            },
+                            icon: const Icon(
+                              Icons.check_circle_rounded,
+                              size: 16,
+                              color: Colors.white,
+                            ),
+                            label: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                'Terapkan Beban (Rp ${CurrencyFormatter.formatWithoutSymbol(costPerCup)}/cup)',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12.5,
+                                ),
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 11,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(9),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildInsightItem({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String desc,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+              const SizedBox(height: 1),
+              Text(
+                desc,
+                style: const TextStyle(
+                  fontSize: 9.5,
+                  color: Color(0xFF475569),
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSegmentTab({
+    required String title,
+    required bool isSelected,
+    required VoidCallback onTap,
+    bool isFullWidth = false,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: EdgeInsets.symmetric(
+          horizontal: isFullWidth ? 4 : 10,
+          vertical: 5,
+        ),
+        alignment: isFullWidth ? Alignment.center : null,
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: isSelected
+              ? const [
+                  BoxShadow(
+                    color: Color(0x0A000000),
+                    blurRadius: 4,
+                    offset: Offset(0, 1),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          title,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 10.5,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            color: isSelected ? AppColors.primary : const Color(0xFF64748B),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExpenseFieldRow({
+    required IconData icon,
+    required String label,
+    required TextEditingController controller,
+    required VoidCallback onChanged,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: const Color(0xFF64748B)),
+        const SizedBox(width: 8),
+        Expanded(
+          flex: 4,
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF334155),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          flex: 5,
+          child: SizedBox(
+            height: 36,
+            child: TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                CurrencyInputFormatter(),
+              ],
+              onChanged: (_) => onChanged(),
+              decoration: InputDecoration(
+                prefixText: 'Rp ',
+                prefixStyle: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0F172A),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(
+                    color: AppColors.primary,
+                    width: 1.5,
+                  ),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                isDense: true,
+              ),
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1459,25 +2616,74 @@ class _HppSimulationPanelState extends State<HppSimulationPanel> {
                                   width: 28,
                                   height: 28,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFE2E8F0),
+                                    color: const Color(0xFFEEF2FF),
                                     borderRadius: BorderRadius.circular(7),
                                   ),
-                                  child: const Icon(Icons.storefront_outlined, size: 15, color: Color(0xFF334155)),
+                                  child: const Icon(
+                                    Icons.storefront_rounded,
+                                    size: 15,
+                                    color: Color(0xFF4F46E5),
+                                  ),
                                 ),
                                 const SizedBox(width: 8),
                                 const Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Alokasi Beban Toko',
-                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF1E293B)),
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF0F172A),
+                                        ),
                                       ),
                                       Text(
                                         'Sewa, listrik & barista / cup',
-                                        style: TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Color(0xFF64748B),
+                                        ),
                                       ),
                                     ],
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                InkWell(
+                                  onTap: _showStoreOverheadCalculatorDialog,
+                                  borderRadius: BorderRadius.circular(7),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEEF2FF),
+                                      borderRadius: BorderRadius.circular(7),
+                                      border: Border.all(
+                                        color: const Color(0xFFC7D2FE),
+                                      ),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.calculate_outlined,
+                                          size: 13,
+                                          color: Color(0xFF4F46E5),
+                                        ),
+                                        SizedBox(width: 3.5),
+                                        Text(
+                                          'Kalkulator',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF4F46E5),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ],
@@ -1492,64 +2698,201 @@ class _HppSimulationPanelState extends State<HppSimulationPanel> {
                                   FilteringTextInputFormatter.digitsOnly,
                                   CurrencyInputFormatter(),
                                 ],
-                                onChanged: (_) => _recalculate(),
+                                onChanged: (_) {
+                                  setState(() {
+                                    _hasCustomMonthlyExpenses = false;
+                                  });
+                                  _recalculate();
+                                },
                                 decoration: InputDecoration(
                                   prefixText: 'Rp ',
-                                  prefixStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+                                  prefixStyle: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 8,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFFCBD5E1),
+                                    ),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFFCBD5E1),
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: const BorderSide(
+                                      color: AppColors.primary,
+                                      width: 1.5,
+                                    ),
+                                  ),
                                   filled: true,
                                   fillColor: Colors.white,
                                   isDense: true,
                                 ),
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF0F172A),
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [500, 1000, 1500, 2000].asMap().entries.map((entry) {
-                                final val = entry.value;
-                                final isLast = entry.key == 3;
-                                final isSelected = effectiveOpsCost == val.toDouble();
-                                final formatted = CurrencyFormatter.formatWithoutSymbol(val.toDouble());
-                                return Expanded(
-                                  child: Padding(
-                                    padding: EdgeInsets.only(right: isLast ? 0 : 4),
-                                    child: InkWell(
-                                      onTap: () {
-                                        _opsCostCtrl.text = formatted;
-                                        _recalculate();
-                                      },
-                                      borderRadius: BorderRadius.circular(6),
-                                      child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 150),
-                                        padding: const EdgeInsets.symmetric(vertical: 4.5),
-                                        alignment: Alignment.center,
-                                        decoration: BoxDecoration(
-                                          color: isSelected ? AppColors.primarySoft : Colors.white,
-                                          borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(
-                                            color: isSelected ? AppColors.primary : const Color(0xFFCBD5E1),
-                                            width: isSelected ? 1.5 : 1.0,
-                                          ),
+                            if (_hasCustomMonthlyExpenses &&
+                                _monthlyStoreExpenses > 0) ...[
+                              Container(
+                                margin: const EdgeInsets.only(top: 6),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4.5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEEF2FF),
+                                  borderRadius: BorderRadius.circular(7),
+                                  border: Border.all(
+                                    color: const Color(0xFFC7D2FE),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.check_circle_rounded,
+                                      size: 12,
+                                      color: Color(0xFF4F46E5),
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Expanded(
+                                      child: Text(
+                                        'Beban: Rp ${_currencyFormat.format(_monthlyStoreExpenses).replaceAll('Rp ', '')}/bln ÷ ${NumberFormat.decimalPattern('id_ID').format(_targetUnits)} cup',
+                                        style: const TextStyle(
+                                          fontSize: 9.5,
+                                          color: Color(0xFF3730A3),
+                                          fontWeight: FontWeight.w700,
                                         ),
-                                        child: Text(
-                                          'Rp $formatted',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 9.5,
-                                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                                            color: isSelected ? AppColors.primary : const Color(0xFF475569),
-                                          ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    InkWell(
+                                      onTap: _showStoreOverheadCalculatorDialog,
+                                      child: const Text(
+                                        'Ubah',
+                                        style: TextStyle(
+                                          fontSize: 9.5,
+                                          color: Color(0xFF4F46E5),
+                                          fontWeight: FontWeight.w800,
                                         ),
                                       ),
                                     ),
+                                  ],
+                                ),
+                              ),
+                            ] else ...[
+                              Padding(
+                                padding: const EdgeInsets.only(top: 5),
+                                child: InkWell(
+                                  onTap: _showStoreOverheadCalculatorDialog,
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.touch_app_outlined,
+                                        size: 11,
+                                        color: Color(0xFF94A3B8),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          'Manual per cup • Klik Kalkulator untuk bagi sewa bulanan',
+                                          style: const TextStyle(
+                                            fontSize: 9,
+                                            color: Color(0xFF64748B),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                );
-                              }).toList(),
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [500, 1000, 1500, 2000, 2500]
+                                  .asMap()
+                                  .entries
+                                  .map((entry) {
+                                    final index = entry.key;
+                                    final val = entry.value;
+                                    final isLast = index == 4;
+                                    final isSelected =
+                                        effectiveOpsCost == val.toDouble();
+                                    final formatted =
+                                        CurrencyFormatter.formatWithoutSymbol(
+                                          val.toDouble(),
+                                        );
+                                    return Expanded(
+                                      child: Padding(
+                                        padding: EdgeInsets.only(
+                                          right: isLast ? 0 : 4,
+                                        ),
+                                        child: InkWell(
+                                          onTap: () {
+                                            setState(() {
+                                              _hasCustomMonthlyExpenses = false;
+                                            });
+                                            _opsCostCtrl.text = formatted;
+                                            _recalculate();
+                                          },
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                          child: AnimatedContainer(
+                                            duration: const Duration(
+                                              milliseconds: 150,
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 5,
+                                            ),
+                                            alignment: Alignment.center,
+                                            decoration: BoxDecoration(
+                                              color: isSelected
+                                                  ? AppColors.primarySoft
+                                                  : Colors.white,
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                              border: Border.all(
+                                                color: isSelected
+                                                    ? AppColors.primary
+                                                    : const Color(0xFFCBD5E1),
+                                                width: isSelected ? 1.5 : 1.0,
+                                              ),
+                                            ),
+                                            child: Text(
+                                              'Rp $formatted',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 9.5,
+                                                fontWeight: isSelected
+                                                    ? FontWeight.w800
+                                                    : FontWeight.w600,
+                                                color: isSelected
+                                                    ? AppColors.primary
+                                                    : const Color(0xFF475569),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
                             ),
                           ],
                         ),
