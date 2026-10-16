@@ -237,9 +237,9 @@ class PaymentSuccessDialog {
                                   final balance = customerData?['points_balance'] ?? 0;
 
                                   List<String> parts = [];
-                                  if (earned > 0) parts.add('+$earned Poin');
                                   if (redeemed > 0) parts.add('-$redeemed Poin ditukar');
-                                  if (balance > 0) parts.add('Saldo: $balance Poin');
+                                  if (earned > 0) parts.add('+$earned Poin didapat');
+                                  if (customerData != null) parts.add('Saldo: $balance Poin');
                                   return parts.isNotEmpty ? parts.join(' • ') : 'Poin berhasil dicatat';
                                 }(),
                                 style: const TextStyle(

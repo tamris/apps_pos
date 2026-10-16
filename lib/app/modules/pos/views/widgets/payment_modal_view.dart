@@ -41,22 +41,31 @@ class PaymentModalView extends StatefulWidget {
 class _PaymentModalViewState extends State<PaymentModalView> {
   final CartController cartController = Get.find<CartController>();
   final PosController posController = Get.find<PosController>();
+  Worker? _pointsWorker;
   late TextEditingController _paidInputController;
 
   @override
   void initState() {
     super.initState();
-    // Default uang pas jika cash
-    if (cartController.paidAmount.value <= 0) {
-      cartController.setPaidAmount(cartController.grandTotal);
-    }
+    // Default selalu uang pas saat membuka modal pembayaran
+    cartController.setPaidAmount(cartController.grandTotal);
     _paidInputController = TextEditingController(
-      text: CurrencyFormatter.formatWithoutSymbol(cartController.paidAmount.value),
+      text: CurrencyFormatter.formatWithoutSymbol(cartController.grandTotal),
     );
+
+    // Otomatis sinkronkan uang yang diterima ke uang pas setiap kali penukaran poin diubah/diterapkan
+    _pointsWorker = ever(cartController.redeemPoints, (_) {
+      if (mounted) {
+        cartController.setPaidAmount(cartController.grandTotal);
+        _paidInputController.text = CurrencyFormatter.formatWithoutSymbol(cartController.grandTotal);
+        setState(() {});
+      }
+    });
   }
 
   @override
   void dispose() {
+    _pointsWorker?.dispose();
     _paidInputController.dispose();
     super.dispose();
   }
@@ -206,10 +215,8 @@ class _PaymentModalViewState extends State<PaymentModalView> {
                           borderRadius: BorderRadius.circular(10),
                           onTap: () async {
                             await MemberSelectorModal.show(context);
-                            if (cartController.paidAmount.value < cartController.grandTotal) {
-                              cartController.setPaidAmount(cartController.grandTotal);
-                              _paidInputController.text = CurrencyFormatter.formatWithoutSymbol(cartController.grandTotal);
-                            }
+                            cartController.setPaidAmount(cartController.grandTotal);
+                            _paidInputController.text = CurrencyFormatter.formatWithoutSymbol(cartController.grandTotal);
                           },
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -302,10 +309,8 @@ class _PaymentModalViewState extends State<PaymentModalView> {
                               TextButton(
                                 onPressed: () async {
                                   await RedeemPointsDialog.show(context);
-                                  if (cartController.paidAmount.value < cartController.grandTotal) {
-                                    cartController.setPaidAmount(cartController.grandTotal);
-                                    _paidInputController.text = CurrencyFormatter.formatWithoutSymbol(cartController.grandTotal);
-                                  }
+                                  cartController.setPaidAmount(cartController.grandTotal);
+                                  _paidInputController.text = CurrencyFormatter.formatWithoutSymbol(cartController.grandTotal);
                                 },
                                 style: TextButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -572,7 +577,7 @@ class _PaymentModalViewState extends State<PaymentModalView> {
   /// Komponen Rekomendasi Uang Cepat (4 Tombol Sama Lebar)
   Widget _buildQuickCashRow(double total) {
     final suggestions = _getSmartCashSuggestions(total);
-    final isExactSelected = cartController.paidAmount.value == total && total > 0;
+    final isExactSelected = cartController.paidAmount.value == total;
 
     return Row(
       children: [
@@ -679,6 +684,10 @@ class _PaymentModalViewState extends State<PaymentModalView> {
           onTap: () {
             HapticFeedback.selectionClick();
             cartController.paymentMethod.value = key;
+            if (key == 'cash') {
+              cartController.setPaidAmount(cartController.grandTotal);
+              _paidInputController.text = CurrencyFormatter.formatWithoutSymbol(cartController.grandTotal);
+            }
           },
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 12),

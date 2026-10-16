@@ -61,6 +61,10 @@ class ApiConstants {
   static String adminTransactionDetail(int id) => '/admin/transactions/$id';
   static String adminVoidTransaction(int id) => '/admin/transactions/$id/void';
   static const String adminOpenBills = '/admin/open-bills';
+  static const String adminLoyaltySettings = '/admin/settings/loyalty';
+  static const String adminGeneralSettings = '/admin/settings/general';
+  static const String adminTelegramSettings = '/admin/settings/telegram';
+  static const String adminTelegramTest = '/admin/settings/telegram/test';
 
   // POS Cash Flow & Drawer Management
   static const String posCashFlowCategories = '/pos/cash-flow/categories';
