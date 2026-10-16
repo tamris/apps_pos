@@ -170,8 +170,8 @@ class TransactionsView extends GetView<TransactionsController> {
                     final width = constraints.maxWidth;
                     final isTabletOrDesktop = width >= 600;
                     final int crossAxisCount = width >= 1050 ? 3 : 2;
-                    // Tinggi seragam pas di bawah item lainnya (tanpa ruang kosong berlebih)
-                    const double cardExtent = 202;
+                    // Tinggi seragam pas di bawah item lainnya (tanpa ruang kosong berlebih & aman overflow)
+                    const double cardExtent = 210;
 
                     return CustomScrollView(
                       controller: controller.scrollController,
@@ -647,6 +647,252 @@ class TransactionsView extends GetView<TransactionsController> {
       ],
     );
 
+    final Widget topContent = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Top Meta
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      tx.invoiceNumber,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: tx.isCompleted
+                          ? AppColors.primarySoft
+                          : (tx.isPending
+                                ? AppColors.warningSoft
+                                : AppColors.dangerSoft),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      tx.isPending
+                          ? 'OPEN BILL'
+                          : tx.status.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.bold,
+                        color: tx.isCompleted
+                            ? AppColors.primaryDark
+                            : (tx.isPending
+                                  ? AppColors.warning
+                                  : AppColors.danger),
+                      ),
+                    ),
+                  ),
+                  if (tx.id < 0) ...[
+                    const SizedBox(width: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.warningSoft,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: AppColors.warning.withAlpha(120),
+                        ),
+                      ),
+                      child: const Text(
+                        'OFFLINE',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.warning,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 2.5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.lightBackground,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.lightBorder),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.access_time_rounded,
+                        size: 11,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(width: 3.5),
+                      Text(
+                        tx.formattedTime,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 3),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 17,
+                  color: AppColors.textMuted,
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 5),
+
+        // Order Type, Table, Customer & Payment Method Badges (Wrap to prevent overflow)
+        Wrap(
+          spacing: 5,
+          runSpacing: 3,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            // Tipe Pesanan: Dine In vs Take Away
+            _buildSmallBadge(
+              tx.isDineIn
+                  ? Icons.restaurant_rounded
+                  : Icons.shopping_bag_outlined,
+              tx.isDineIn ? 'Dine In' : 'Take Away',
+              tx.isDineIn ? AppColors.primary : const Color(0xFFD97706),
+            ),
+
+            // Nomor Meja (jika diisi)
+            if (tx.hasTable)
+              _buildSmallBadge(
+                Icons.table_restaurant_rounded,
+                'Meja ${tx.cleanTableNumber}',
+                const Color(0xFF4F46E5),
+              ),
+
+            // Nama Pelanggan (hanya jika diisi kasir)
+            if (tx.hasCustomer)
+              _buildSmallBadge(
+                Icons.person_rounded,
+                tx.customerName!.trim(),
+                const Color(0xFF0284C7),
+              ),
+
+            // Metode Pembayaran
+            _buildSmallBadge(
+              Icons.payment_rounded,
+              tx.isPending
+                  ? 'BELUM BAYAR'
+                  : tx.paymentMethod.toUpperCase(),
+              tx.isPending
+                  ? AppColors.warning
+                  : (tx.paymentMethod.toLowerCase().contains(
+                              'cash',
+                            ) ||
+                            tx.paymentMethod.toLowerCase().contains(
+                              'tunai',
+                            )
+                        ? AppColors.success
+                        : (tx.paymentMethod.toLowerCase().contains(
+                                'qris',
+                              )
+                            ? AppColors.secondary
+                            : AppColors.info)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+
+        // Items details summary (langsung pas di bawah badges)
+        detailsSummaryWidget,
+      ],
+    );
+
+    final Widget bottomContent = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Divider(height: 8, thickness: 0.8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Total Pembayaran',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  Text(
+                    CurrencyFormatter.format(tx.total),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryDark,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.lightBackground,
+                foregroundColor: AppColors.textPrimary,
+                side: const BorderSide(color: AppColors.lightBorder),
+                elevation: 0,
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+              ),
+              icon: const Icon(Icons.print_outlined, size: 15),
+              label: const Text(
+                'Cetak Struk',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              onPressed: () =>
+                  controller.printOrPreviewReceipt(tx.id),
+            ),
+          ],
+        ),
+      ],
+    );
+
     return Card(
       elevation: 0,
       margin: EdgeInsets.zero,
@@ -659,7 +905,7 @@ class TransactionsView extends GetView<TransactionsController> {
         borderRadius: BorderRadius.circular(16),
         onTap: () => TransactionDetailDialog.show(context, tx, controller),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
+          padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 7.5),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: isGrid
@@ -667,253 +913,16 @@ class TransactionsView extends GetView<TransactionsController> {
                 : MainAxisAlignment.start,
             mainAxisSize: isGrid ? MainAxisSize.max : MainAxisSize.min,
             children: [
-              // Bagian Atas: Header dan Badges
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Top Meta
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                tx.invoiceNumber,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: tx.isCompleted
-                                    ? AppColors.primarySoft
-                                    : (tx.isPending
-                                          ? AppColors.warningSoft
-                                          : AppColors.dangerSoft),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                tx.isPending
-                                    ? 'OPEN BILL'
-                                    : tx.status.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: tx.isCompleted
-                                      ? AppColors.primaryDark
-                                      : (tx.isPending
-                                            ? AppColors.warning
-                                            : AppColors.danger),
-                                ),
-                              ),
-                            ),
-                            if (tx.id < 0) ...[
-                              const SizedBox(width: 5),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 5,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.warningSoft,
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                    color: AppColors.warning.withAlpha(120),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'OFFLINE',
-                                  style: TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.warning,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 7,
-                              vertical: 2.5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.lightBackground,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: AppColors.lightBorder),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.access_time_rounded,
-                                  size: 11,
-                                  color: AppColors.primary,
-                                ),
-                                const SizedBox(width: 3.5),
-                                Text(
-                                  tx.formattedTime,
-                                  style: const TextStyle(
-                                    fontSize: 11.5,
-                                    color: AppColors.textPrimary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 3),
-                          const Icon(
-                            Icons.chevron_right_rounded,
-                            size: 17,
-                            color: AppColors.textMuted,
-                          ),
-                        ],
-                      ),
-                    ],
+              if (isGrid)
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const NeverScrollableScrollPhysics(),
+                    child: topContent,
                   ),
-                  const SizedBox(height: 5),
-
-                  // Order Type, Table, Customer & Payment Method Badges (Wrap to prevent overflow)
-                  Wrap(
-                    spacing: 5,
-                    runSpacing: 3,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      // Tipe Pesanan: Dine In vs Take Away
-                      _buildSmallBadge(
-                        tx.isDineIn
-                            ? Icons.restaurant_rounded
-                            : Icons.shopping_bag_outlined,
-                        tx.isDineIn ? 'Dine In' : 'Take Away',
-                        tx.isDineIn ? AppColors.primary : const Color(0xFFD97706),
-                      ),
-
-                      // Nomor Meja (jika diisi)
-                      if (tx.hasTable)
-                        _buildSmallBadge(
-                          Icons.table_restaurant_rounded,
-                          'Meja ${tx.cleanTableNumber}',
-                          const Color(0xFF4F46E5),
-                        ),
-
-                      // Nama Pelanggan (hanya jika diisi kasir)
-                      if (tx.hasCustomer)
-                        _buildSmallBadge(
-                          Icons.person_rounded,
-                          tx.customerName!.trim(),
-                          const Color(0xFF0284C7),
-                        ),
-
-                      // Metode Pembayaran
-                      _buildSmallBadge(
-                        Icons.payment_rounded,
-                        tx.isPending
-                            ? 'BELUM BAYAR'
-                            : tx.paymentMethod.toUpperCase(),
-                        tx.isPending
-                            ? AppColors.warning
-                            : (tx.paymentMethod.toLowerCase().contains(
-                                        'cash',
-                                      ) ||
-                                      tx.paymentMethod.toLowerCase().contains(
-                                        'tunai',
-                                      )
-                                  ? AppColors.success
-                                  : (tx.paymentMethod.toLowerCase().contains(
-                                          'qris',
-                                        )
-                                        ? AppColors.secondary
-                                        : AppColors.info)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-
-                  // Items details summary (langsung pas di bawah badges)
-                  detailsSummaryWidget,
-                ],
-              ),
-
-              // Bagian Bawah: Divider, Total & Cetak Struk Button
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Divider(height: 10, thickness: 0.8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Total Pembayaran',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                            Text(
-                              CurrencyFormatter.format(tx.total),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primaryDark,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.lightBackground,
-                          foregroundColor: AppColors.textPrimary,
-                          side: const BorderSide(color: AppColors.lightBorder),
-                          elevation: 0,
-                          visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                        ),
-                        icon: const Icon(Icons.print_outlined, size: 15),
-                        label: const Text(
-                          'Cetak Struk',
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        onPressed: () =>
-                            controller.printOrPreviewReceipt(tx.id),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                )
+              else
+                topContent,
+              bottomContent,
             ],
           ),
         ),

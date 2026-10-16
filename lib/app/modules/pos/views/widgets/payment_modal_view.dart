@@ -8,6 +8,8 @@ import '../../controllers/pos_controller.dart';
 
 import '../../../shift/controllers/shift_controller.dart';
 import '../../../shift/views/shift_dialogs.dart';
+import 'member_selector_modal.dart';
+import 'redeem_points_dialog.dart';
 
 class PaymentModalView extends StatefulWidget {
   const PaymentModalView({super.key});
@@ -191,7 +193,136 @@ class _PaymentModalViewState extends State<PaymentModalView> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
+
+                  // Member & Loyalty Status Bar in Payment Screen
+                  Obx(() {
+                    final customer = cartController.selectedCustomer.value;
+                    final hasRedeemed = cartController.redeemPoints.value > 0;
+
+                    if (customer == null) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: () async {
+                            await MemberSelectorModal.show(context);
+                            if (cartController.paidAmount.value < cartController.grandTotal) {
+                              cartController.setPaidAmount(cartController.grandTotal);
+                              _paidInputController.text = CurrencyFormatter.formatWithoutSymbol(cartController.grandTotal);
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: AppColors.lightBackground,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppColors.lightBorder),
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(Icons.card_membership_rounded, size: 16, color: AppColors.primary),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Member: Non-Member (Umum)',
+                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    Text(
+                                      '+ Tambah Member',
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                    ),
+                                    SizedBox(width: 2),
+                                    Icon(Icons.chevron_right, size: 14, color: AppColors.primary),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.primarySoft,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.primaryLight.withAlpha(120)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(5),
+                                    decoration: BoxDecoration(
+                                      color: Colors.amber.shade100,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.stars_rounded, size: 16, color: Colors.amber),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Member: ${customer.displayName}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                        ),
+                                        Text(
+                                          hasRedeemed
+                                              ? 'Potongan: -${CurrencyFormatter.format(cartController.pointsDiscountAmount)} (${cartController.redeemPoints.value} Poin)'
+                                              : 'Saldo: ${customer.pointsBalance} Poin (${customer.pointsRupiahFormatted})',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: hasRedeemed ? AppColors.primaryDark : AppColors.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (customer.canRedeem || hasRedeemed)
+                              TextButton(
+                                onPressed: () async {
+                                  await RedeemPointsDialog.show(context);
+                                  if (cartController.paidAmount.value < cartController.grandTotal) {
+                                    cartController.setPaidAmount(cartController.grandTotal);
+                                    _paidInputController.text = CurrencyFormatter.formatWithoutSymbol(cartController.grandTotal);
+                                  }
+                                },
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: Text(
+                                  hasRedeemed ? 'Ubah Poin' : 'Tukar Poin',
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                  const SizedBox(height: 18),
 
                   // Pilihan Metode Pembayaran (3 Kartu Sama Rata)
                   const Text(

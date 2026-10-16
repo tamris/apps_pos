@@ -5,8 +5,9 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../controllers/cart_controller.dart';
 import 'payment_modal_view.dart';
-import 'table_selector_sheet.dart';
 import 'product_customization_sheet.dart';
+import 'order_header_card.dart';
+import 'redeem_points_dialog.dart';
 
 class CartBottomSheet extends StatelessWidget {
   const CartBottomSheet({super.key});
@@ -155,69 +156,8 @@ class CartBottomSheet extends StatelessWidget {
             );
           }),
 
-          // Order Type / Table Indicator
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () {
-                HapticFeedback.selectionClick();
-                TableSelectorSheet.show(context);
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.primarySoft,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.primaryLight.withAlpha(76),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.table_restaurant_rounded,
-                      size: 18,
-                      color: AppColors.primary,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Obx(() {
-                        final type = cartController.orderType.value == 'dine_in'
-                            ? 'Dine In'
-                            : cartController.orderType.value == 'take_away'
-                            ? 'Take Away'
-                            : 'Delivery';
-                        final table = cartController.tableNumber.value;
-                        final customer = cartController.customerName.value;
-
-                        String desc = type;
-                        if (table.isNotEmpty) desc += ' • Meja $table';
-                        if (customer.isNotEmpty) desc += ' ($customer)';
-
-                        return Text(
-                          desc,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primaryDark,
-                          ),
-                        );
-                      }),
-                    ),
-                    const Icon(
-                      Icons.chevron_right,
-                      size: 18,
-                      color: AppColors.primary,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          // Order Info & Member Card (Unified Single Card)
+          const OrderHeaderCard(isMobile: true),
 
           // Cart Items List
           Expanded(
@@ -441,12 +381,16 @@ class CartBottomSheet extends StatelessWidget {
             child: Obx(() {
               return Column(
                 children: [
-                  // Diskon & Pajak controls (Rapi 50% - 50%)
+                  // Diskon, Pajak & Tukar Poin controls
                   Row(
                     children: [
                       Expanded(child: _buildDiscountButton(context)),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
                       Expanded(child: _buildTaxButton(context)),
+                      if (cartController.selectedCustomer.value != null && (cartController.selectedCustomer.value!.canRedeem || cartController.redeemPoints.value > 0)) ...[
+                        const SizedBox(width: 8),
+                        Expanded(child: _buildRedeemPointsButton(context)),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -461,6 +405,12 @@ class CartBottomSheet extends StatelessWidget {
                       'Diskon (${cartController.discountPercent.value.toInt()}%)',
                       '-${CurrencyFormatter.format(cartController.discountAmount)}',
                       color: AppColors.danger,
+                    ),
+                  if (cartController.pointsDiscountAmount > 0)
+                    _buildSummaryRow(
+                      'Tukar Poin (${cartController.redeemPoints.value} Poin)',
+                      '-${CurrencyFormatter.format(cartController.pointsDiscountAmount)}',
+                      color: AppColors.primaryDark,
                     ),
                   if (cartController.taxAmount > 0)
                     _buildSummaryRow(
@@ -666,6 +616,52 @@ class CartBottomSheet extends StatelessWidget {
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: hasTax ? AppColors.info : AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _buildRedeemPointsButton(BuildContext context) {
+    final cartController = Get.find<CartController>();
+    return Obx(() {
+      final currentPoints = cartController.redeemPoints.value;
+      final hasRedeemed = currentPoints > 0;
+
+      return InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () => RedeemPointsDialog.show(context),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: hasRedeemed ? AppColors.primarySoft : AppColors.lightBackground,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: hasRedeemed ? AppColors.primary : AppColors.lightBorder,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                hasRedeemed ? Icons.stars_rounded : Icons.redeem_rounded,
+                size: 15,
+                color: hasRedeemed ? AppColors.primary : AppColors.textSecondary,
+              ),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  hasRedeemed ? '$currentPoints Poin' : 'Tukar Poin',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: hasRedeemed ? AppColors.primaryDark : AppColors.textPrimary,
+                  ),
                 ),
               ),
             ],

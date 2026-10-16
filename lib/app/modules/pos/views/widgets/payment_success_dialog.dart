@@ -17,6 +17,8 @@ class PaymentSuccessDialog {
     bool isOffline = false,
     Map<String, dynamic>? receiptPayload,
     Map<String, dynamic>? kitchenPayload,
+    Map<String, dynamic>? customerData,
+    Map<String, dynamic>? loyaltyData,
   }) {
     final printerService = Get.find<EscPosPrinterService>();
 
@@ -184,6 +186,98 @@ class PaymentSuccessDialog {
                     ],
                   ),
                 ),
+
+                // 5b. Loyalty & Membership Points Outcome Banner
+                if (customerData != null || (loyaltyData != null && ((loyaltyData['points_earned'] ?? 0) > 0 || (loyaltyData['points_redeemed'] ?? 0) > 0))) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.primarySoft,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.primaryLight.withAlpha(120)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade100,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.stars_rounded,
+                            color: Colors.amber,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                customerData != null
+                                    ? ((customerData['name'] != null && customerData['name'].toString().isNotEmpty)
+                                        ? customerData['name'].toString()
+                                        : 'Member (${customerData['phone'] ?? ''})')
+                                    : 'Loyalitas Member',
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                () {
+                                  final earned = loyaltyData?['points_earned'] ?? 0;
+                                  final redeemed = loyaltyData?['points_redeemed'] ?? 0;
+                                  final balance = customerData?['points_balance'] ?? 0;
+
+                                  List<String> parts = [];
+                                  if (earned > 0) parts.add('+$earned Poin');
+                                  if (redeemed > 0) parts.add('-$redeemed Poin ditukar');
+                                  if (balance > 0) parts.add('Saldo: $balance Poin');
+                                  return parts.isNotEmpty ? parts.join(' • ') : 'Poin berhasil dicatat';
+                                }(),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primaryDark,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else if (loyaltyData != null && loyaltyData['claim_token'] != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.infoSoft,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.info.withAlpha(80)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.qr_code_2_rounded, size: 18, color: AppColors.info),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Pelanggan dapat scan QR / klaim poin di struk kasir.',
+                            style: TextStyle(fontSize: 11, color: AppColors.info, fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 20),
 
                 // 6. Print Actions (Struk Kasir & Struk Dapur)

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../controllers/pos_controller.dart';
 import '../../controllers/cart_controller.dart';
+import 'member_selector_modal.dart';
 
 class TableSelectorSheet extends StatefulWidget {
   const TableSelectorSheet({super.key});
@@ -235,11 +236,36 @@ class _TableSelectorSheetState extends State<TableSelectorSheet> {
               const SizedBox(height: 16),
             ],
 
-            // Input Nama Pelanggan
+            // Input Nama Pelanggan & Member Shortcut
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Nama Pelanggan (Opsional)',
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                ),
+                TextButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    MemberSelectorModal.show(context);
+                  },
+                  icon: const Icon(Icons.card_membership_rounded, size: 15, color: AppColors.primary),
+                  label: const Text(
+                    'Pilih Member WA',
+                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: AppColors.primary),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
             TextField(
               controller: _customerController,
               decoration: const InputDecoration(
-                labelText: 'Nama Pelanggan (Opsional)',
                 hintText: 'Misal: Kak Rian',
                 prefixIcon: Icon(Icons.person_outline),
               ),

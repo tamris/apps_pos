@@ -16,10 +16,14 @@ class ReceiptViewDialog {
     final address = header['address'] ?? '';
     final phone = header['phone'] ?? '';
     final String? logoUrl = header['logo_url']?.toString();
-    final bool showLogo = (header['show_logo'] is bool) ? header['show_logo'] as bool : true;
+    final bool showLogo = (header['show_logo'] is bool)
+        ? header['show_logo'] as bool
+        : true;
 
     final invoice = payload['invoice_number'] ?? '-';
-    final date = EscPosPrinterService.formatDateTimeDMY(payload['date']?.toString() ?? '-');
+    final date = EscPosPrinterService.formatDateTimeDMY(
+      payload['date']?.toString() ?? '-',
+    );
     final cashier = payload['cashier_name'] ?? 'Kasir';
     final orderType = payload['order_type'] ?? 'DINE IN';
     final tableNumber = payload['table_number'];
@@ -27,17 +31,61 @@ class ReceiptViewDialog {
 
     final List items = payload['items'] ?? [];
     final summary = payload['summary'] ?? {};
-    final double subtotal = (summary['subtotal'] != null) ? double.tryParse(summary['subtotal'].toString()) ?? 0 : 0;
-    final double discount = (summary['discount'] != null) ? double.tryParse(summary['discount'].toString()) ?? 0 : 0;
-    final double tax = (summary['tax'] != null) ? double.tryParse(summary['tax'].toString()) ?? 0 : 0;
-    final double total = (summary['total'] != null) ? double.tryParse(summary['total'].toString()) ?? 0 : 0;
-    final String rawPaymentMethod = (summary['payment_method'] ?? 'CASH').toString();
-    String cleanPaymentMethod = rawPaymentMethod.replaceAll('(OFFLINE)', '').replaceAll('OFFLINE', '').trim();
-    if (cleanPaymentMethod.isEmpty || cleanPaymentMethod == 'CASH' || cleanPaymentMethod == 'TUNAI') {
+    final double subtotal = (summary['subtotal'] != null)
+        ? double.tryParse(summary['subtotal'].toString()) ?? 0
+        : 0;
+    final double discount = (summary['discount'] != null)
+        ? double.tryParse(summary['discount'].toString()) ?? 0
+        : 0;
+    final double pointsDiscount = (summary['points_discount'] != null)
+        ? double.tryParse(summary['points_discount'].toString()) ?? 0
+        : (summary['points_discount_amount'] != null)
+        ? double.tryParse(summary['points_discount_amount'].toString()) ?? 0
+        : 0;
+    final int pointsRedeemed = (summary['points_redeemed'] != null)
+        ? int.tryParse(summary['points_redeemed'].toString()) ?? 0
+        : 0;
+    final double tax = (summary['tax'] != null)
+        ? double.tryParse(summary['tax'].toString()) ?? 0
+        : 0;
+    final double total = (summary['total'] != null)
+        ? double.tryParse(summary['total'].toString()) ?? 0
+        : 0;
+    final String rawPaymentMethod = (summary['payment_method'] ?? 'CASH')
+        .toString();
+    String cleanPaymentMethod = rawPaymentMethod
+        .replaceAll('(OFFLINE)', '')
+        .replaceAll('OFFLINE', '')
+        .trim();
+    if (cleanPaymentMethod.isEmpty ||
+        cleanPaymentMethod == 'CASH' ||
+        cleanPaymentMethod == 'TUNAI') {
       cleanPaymentMethod = 'TUNAI';
     }
-    final double paid = (summary['paid'] != null) ? double.tryParse(summary['paid'].toString()) ?? 0 : 0;
-    final double change = (summary['change'] != null) ? double.tryParse(summary['change'].toString()) ?? 0 : 0;
+    final double paid = (summary['paid'] != null)
+        ? double.tryParse(summary['paid'].toString()) ?? 0
+        : 0;
+    final double change = (summary['change'] != null)
+        ? double.tryParse(summary['change'].toString()) ?? 0
+        : 0;
+
+    final loyalty = (payload['loyalty'] is Map)
+        ? payload['loyalty'] as Map<String, dynamic>
+        : null;
+    final String? customerPhone =
+        loyalty?['customer_phone']?.toString() ??
+        payload['customer_phone']?.toString();
+    final String? claimToken =
+        loyalty?['claim_token']?.toString() ??
+        payload['claim_token']?.toString();
+    final String? claimUrl =
+        loyalty?['claim_url']?.toString() ?? payload['claim_url']?.toString();
+    final int pointsEarned = (loyalty?['points_earned'] != null)
+        ? int.tryParse(loyalty!['points_earned'].toString()) ?? 0
+        : (payload['points_earned'] != null
+              ? int.tryParse(payload['points_earned'].toString()) ?? 0
+              : 0);
+    final bool isGuest = (customerPhone == null || customerPhone.isEmpty);
 
     final footer = payload['footer'] ?? {};
     final footerMsg = footer['message'] ?? 'Terima Kasih Atas Kunjungannya!';
@@ -71,33 +119,56 @@ class ReceiptViewDialog {
                               imageUrl: logoUrl,
                               height: 52,
                               fit: BoxFit.contain,
-                              placeholder: (_, __) => const SizedBox(height: 52),
+                              placeholder: (_, __) =>
+                                  const SizedBox(height: 52),
                               errorWidget: (_, __, ___) => Image.asset(
                                 'assets/icons/cafe_logo.png',
                                 height: 52,
                                 fit: BoxFit.contain,
-                                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                                errorBuilder: (_, __, ___) =>
+                                    const SizedBox.shrink(),
                               ),
                             )
                           : Image.asset(
                               'assets/icons/cafe_logo.png',
                               height: 52,
                               fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                              errorBuilder: (_, __, ___) =>
+                                  const SizedBox.shrink(),
                             ),
                     ),
 
                   // Shop Header
                   Text(
                     shopName.toUpperCase(),
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                   if (address.toString().isNotEmpty)
-                    Text(address, textAlign: TextAlign.center, style: const TextStyle(fontSize: 10, color: Colors.black54)),
+                    Text(
+                      address,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Colors.black54,
+                      ),
+                    ),
                   if (phone.toString().isNotEmpty)
-                    Text('Telp: $phone', style: const TextStyle(fontSize: 10, color: Colors.black54)),
+                    Text(
+                      'Telp: $phone',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Colors.black54,
+                      ),
+                    ),
                   const SizedBox(height: 6),
-                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black38)),
+                  const Text(
+                    '----------------------------------------',
+                    style: TextStyle(fontSize: 10, color: Colors.black38),
+                  ),
 
                   // Transaction Meta
                   Align(
@@ -108,7 +179,10 @@ class ReceiptViewDialog {
                         _buildReceiptRow('No. Inv', invoice, isBold: true),
                         _buildReceiptRow('Waktu', date),
                         _buildReceiptRow('Kasir', cashier),
-                        if ((tableNumber != null && tableNumber.toString().isNotEmpty) || (customerName != null && customerName.toString().isNotEmpty)) ...[
+                        if ((tableNumber != null &&
+                                tableNumber.toString().isNotEmpty) ||
+                            (customerName != null &&
+                                customerName.toString().isNotEmpty)) ...[
                           _buildReceiptRow(
                             'Pesanan',
                             orderType.contains('DINE')
@@ -116,27 +190,44 @@ class ReceiptViewDialog {
                                 : orderType,
                             isBold: true,
                           ),
-                          if (customerName != null && customerName.toString().isNotEmpty)
-                            _buildReceiptRow('Pelanggan', customerName.toString(), isBold: true),
+                          if (customerName != null &&
+                              customerName.toString().isNotEmpty)
+                            _buildReceiptRow(
+                              'Pelanggan',
+                              customerName.toString(),
+                              isBold: true,
+                            ),
                         ],
                       ],
                     ),
                   ),
-                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black38)),
+                  const Text(
+                    '----------------------------------------',
+                    style: TextStyle(fontSize: 10, color: Colors.black38),
+                  ),
 
                   // Item Rows
                   ...items.map((item) {
                     String name = '';
                     if (item is Map) {
-                      name = item['name']?.toString() ??
-                             item['product_name']?.toString() ??
-                             (item['product'] is Map ? item['product']['name']?.toString() : null) ??
-                             item['title']?.toString() ??
-                             '';
+                      name =
+                          item['name']?.toString() ??
+                          item['product_name']?.toString() ??
+                          (item['product'] is Map
+                              ? item['product']['name']?.toString()
+                              : null) ??
+                          item['title']?.toString() ??
+                          '';
                       if (name.isEmpty || name == 'Item' || name == 'Menu') {
-                        final pId = int.tryParse((item['product_id'] ?? item['id'] ?? '0').toString()) ?? 0;
+                        final pId =
+                            int.tryParse(
+                              (item['product_id'] ?? item['id'] ?? '0')
+                                  .toString(),
+                            ) ??
+                            0;
                         if (pId > 0 && Get.isRegistered<PosController>()) {
-                          final found = Get.find<PosController>().products.firstWhereOrNull((p) => p.id == pId);
+                          final found = Get.find<PosController>().products
+                              .firstWhereOrNull((p) => p.id == pId);
                           if (found != null && found.name.isNotEmpty) {
                             name = found.name;
                           }
@@ -146,87 +237,234 @@ class ReceiptViewDialog {
                     if (name.isEmpty) name = 'Item';
 
                     final int qty = (item is Map && item['quantity'] != null)
-                        ? (item['quantity'] is int ? item['quantity'] : int.tryParse(item['quantity'].toString()) ?? 1)
+                        ? (item['quantity'] is int
+                              ? item['quantity']
+                              : int.tryParse(item['quantity'].toString()) ?? 1)
                         : 1;
                     final double price = (item is Map && item['price'] != null)
                         ? double.tryParse(item['price'].toString()) ?? 0
                         : 0;
-                    final double itemSub = (item is Map && item['subtotal'] != null)
-                        ? double.tryParse(item['subtotal'].toString()) ?? (price * qty)
+                    final double itemSub =
+                        (item is Map && item['subtotal'] != null)
+                        ? double.tryParse(item['subtotal'].toString()) ??
+                              (price * qty)
                         : (price * qty);
-                    final notes = (item is Map) ? item['notes']?.toString() : null;
+                    final notes = (item is Map)
+                        ? item['notes']?.toString()
+                        : null;
 
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 2.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(name, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                          Text(
+                            name,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('$qty x ${CurrencyFormatter.formatWithoutSymbol(price)}', style: const TextStyle(fontSize: 10, color: Colors.black87)),
-                              Text(CurrencyFormatter.formatWithoutSymbol(itemSub), style: const TextStyle(fontSize: 10)),
+                              Text(
+                                '$qty x ${CurrencyFormatter.formatWithoutSymbol(price)}',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              Text(
+                                CurrencyFormatter.formatWithoutSymbol(itemSub),
+                                style: const TextStyle(fontSize: 10),
+                              ),
                             ],
                           ),
-                          if (item is Map && item['addons'] != null && item['addons'] is List)
+                          if (item is Map &&
+                              item['addons'] != null &&
+                              item['addons'] is List)
                             ...((item['addons'] as List).map((a) {
-                              final aName = (a is Map ? a['name']?.toString() : a.toString()) ?? '';
-                              final aPrice = (a is Map && a['price'] != null) ? double.tryParse(a['price'].toString()) ?? 0 : 0;
+                              final aName =
+                                  (a is Map
+                                      ? a['name']?.toString()
+                                      : a.toString()) ??
+                                  '';
+                              final aPrice = (a is Map && a['price'] != null)
+                                  ? double.tryParse(a['price'].toString()) ?? 0
+                                  : 0;
                               if (aName.isEmpty) return const SizedBox.shrink();
                               return Padding(
                                 padding: const EdgeInsets.only(left: 6, top: 1),
                                 child: Text(
                                   '+ $aName${aPrice > 0 ? " (${CurrencyFormatter.formatWithoutSymbol(aPrice)})" : ""}',
-                                  style: const TextStyle(fontSize: 9, color: Colors.black54),
+                                  style: const TextStyle(
+                                    fontSize: 9,
+                                    color: Colors.black54,
+                                  ),
                                 ),
                               );
                             })),
                           if (notes != null && notes.trim().isNotEmpty)
-                            Text(' * $notes', style: const TextStyle(fontSize: 9, fontStyle: FontStyle.italic, color: Colors.black54)),
+                            Text(
+                              ' * $notes',
+                              style: const TextStyle(
+                                fontSize: 9,
+                                fontStyle: FontStyle.italic,
+                                color: Colors.black54,
+                              ),
+                            ),
                         ],
                       ),
                     );
                   }),
 
-                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black38)),
+                  const Text(
+                    '----------------------------------------',
+                    style: TextStyle(fontSize: 10, color: Colors.black38),
+                  ),
 
                   // Totals
-                  _buildReceiptRow('Subtotal', CurrencyFormatter.formatWithoutSymbol(subtotal)),
-                  if (discount > 0) _buildReceiptRow('Diskon', '-${CurrencyFormatter.formatWithoutSymbol(discount)}'),
-                  if (tax > 0) _buildReceiptRow('Pajak', '+${CurrencyFormatter.formatWithoutSymbol(tax)}'),
-                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black38)),
-                  _buildReceiptRow('TOTAL', 'Rp ${CurrencyFormatter.formatWithoutSymbol(total)}', isBold: true, fontSize: 13),
-                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black38)),
-                  _buildReceiptRow('Bayar ($cleanPaymentMethod)', CurrencyFormatter.formatWithoutSymbol(paid)),
-                  _buildReceiptRow('Kembali', CurrencyFormatter.formatWithoutSymbol(change)),
+                  _buildReceiptRow(
+                    'Subtotal',
+                    CurrencyFormatter.formatWithoutSymbol(subtotal),
+                  ),
+                  if (discount > 0)
+                    _buildReceiptRow(
+                      'Diskon',
+                      '-${CurrencyFormatter.formatWithoutSymbol(discount)}',
+                    ),
+                  if (pointsDiscount > 0)
+                    _buildReceiptRow(
+                      pointsRedeemed > 0
+                          ? 'Tukar Poin ($pointsRedeemed pt)'
+                          : 'Tukar Poin',
+                      '-${CurrencyFormatter.formatWithoutSymbol(pointsDiscount)}',
+                    ),
+                  if (tax > 0)
+                    _buildReceiptRow(
+                      'Pajak',
+                      '+${CurrencyFormatter.formatWithoutSymbol(tax)}',
+                    ),
+                  const Text(
+                    '----------------------------------------',
+                    style: TextStyle(fontSize: 10, color: Colors.black38),
+                  ),
+                  _buildReceiptRow(
+                    'TOTAL',
+                    'Rp ${CurrencyFormatter.formatWithoutSymbol(total)}',
+                    isBold: true,
+                    fontSize: 13,
+                  ),
+                  const Text(
+                    '----------------------------------------',
+                    style: TextStyle(fontSize: 10, color: Colors.black38),
+                  ),
+                  _buildReceiptRow(
+                    'Bayar ($cleanPaymentMethod)',
+                    CurrencyFormatter.formatWithoutSymbol(paid),
+                  ),
+                  _buildReceiptRow(
+                    'Kembali',
+                    CurrencyFormatter.formatWithoutSymbol(change),
+                  ),
 
-                  // WiFi
-                  if (wifiName != null && wifiName.toString().isNotEmpty) ...[
-                    const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black38)),
-                    Text(
-                      'WiFi: $wifiName ${wifiPass != null && wifiPass.toString().isNotEmpty ? "| Pass: $wifiPass" : ""}',
+                  // Loyalty Claim QR (Guest) atau Info Poin Member
+                  if (isGuest &&
+                      ((claimToken != null && claimToken.isNotEmpty) ||
+                          (claimUrl != null && claimUrl.isNotEmpty)) &&
+                      pointsEarned > 0) ...[
+                    const Text(
+                      '----------------------------------------',
+                      style: TextStyle(fontSize: 10, color: Colors.black38),
+                    ),
+                    const Text(
+                      'KLAIM POIN BELANJAAN INI!',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 9, color: Colors.black54),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Text(
+                      'Scan QR untuk kumpulkan poin:',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 9, color: Colors.black54),
+                    ),
+                    const SizedBox(height: 6),
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.black12),
+                        ),
+                        child: const Column(
+                          children: [
+                            Icon(
+                              Icons.qr_code_2_rounded,
+                              size: 52,
+                              color: Colors.black87,
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              '[QR Code Klaim Poin]',
+                              style: TextStyle(
+                                fontSize: 8,
+                                color: Colors.black45,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
 
-                  const Text('----------------------------------------', style: TextStyle(fontSize: 10, color: Colors.black38)),
+                  // WiFi
+                  if (wifiName != null && wifiName.toString().isNotEmpty) ...[
+                    const Text(
+                      '----------------------------------------',
+                      style: TextStyle(fontSize: 10, color: Colors.black38),
+                    ),
+                    Text(
+                      'WiFi: $wifiName ${wifiPass != null && wifiPass.toString().isNotEmpty ? "| Pass: $wifiPass" : ""}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 9,
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ],
+
+                  const Text(
+                    '----------------------------------------',
+                    style: TextStyle(fontSize: 10, color: Colors.black38),
+                  ),
 
                   // Footer
-                  Text(footerMsg, textAlign: TextAlign.center, style: const TextStyle(fontSize: 10, color: Colors.black54)),
+                  Text(
+                    footerMsg,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 10, color: Colors.black54),
+                  ),
                   const SizedBox(height: 2),
-                  const Text('-- Have a Good Coffee Day --', textAlign: TextAlign.center, style: TextStyle(fontSize: 9, color: Colors.black45)),
+                  const Text(
+                    '-- Have a Good Coffee Day --',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 9, color: Colors.black45),
+                  ),
                 ],
               ),
             ),
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Tutup'),
-          ),
+          TextButton(onPressed: () => Get.back(), child: const Text('Tutup')),
           ElevatedButton.icon(
             icon: const Icon(Icons.print_rounded, size: 18),
             label: const Text('Cetak Struk'),
@@ -254,12 +492,17 @@ class ReceiptViewDialog {
     final printerService = Get.find<EscPosPrinterService>();
 
     final header = payload['header'] ?? {};
-    final shopName = (header['shop_name'] ?? 'NOLI COFFEE & SPACE').toString().toUpperCase();
+    final shopName = (header['shop_name'] ?? 'NOLI COFFEE & SPACE')
+        .toString()
+        .toUpperCase();
 
     final invoice = payload['invoice_number']?.toString() ?? '-';
-    final date = payload['date']?.toString() ?? DateTime.now().toString().substring(0, 16);
+    final date =
+        payload['date']?.toString() ??
+        DateTime.now().toString().substring(0, 16);
     final cashier = payload['cashier_name']?.toString() ?? 'Kasir';
-    final orderType = payload['order_type']?.toString().toUpperCase() ?? 'DINE IN';
+    final orderType =
+        payload['order_type']?.toString().toUpperCase() ?? 'DINE IN';
     final tableNumber = payload['table_number']?.toString();
     final customerName = payload['customer_name']?.toString();
     final List items = payload['items'] ?? [];
@@ -267,7 +510,10 @@ class ReceiptViewDialog {
     String orderTypeBanner = orderType;
     if (orderType.contains('DINE')) {
       if (tableNumber != null && tableNumber.isNotEmpty) {
-        final cleanTable = tableNumber.toUpperCase().replaceAll('MEJA', '').trim();
+        final cleanTable = tableNumber
+            .toUpperCase()
+            .replaceAll('MEJA', '')
+            .trim();
         orderTypeBanner = 'DINE IN (MEJA $cleanTable)';
       } else {
         orderTypeBanner = 'DINE IN';
@@ -280,7 +526,9 @@ class ReceiptViewDialog {
 
     int totalItems = 0;
     for (var it in items) {
-      final q = it['quantity'] is int ? it['quantity'] : int.tryParse(it['quantity']?.toString() ?? '1') ?? 1;
+      final q = it['quantity'] is int
+          ? it['quantity']
+          : int.tryParse(it['quantity']?.toString() ?? '1') ?? 1;
       totalItems += q as int;
     }
 
@@ -348,7 +596,10 @@ class ReceiptViewDialog {
 
                   // 3. Order Banner (Box abu-abu dengan border halus persis web)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(8),
@@ -366,7 +617,8 @@ class ReceiptViewDialog {
                             color: Color(0xFF0F172A),
                           ),
                         ),
-                        if (customerName != null && customerName.isNotEmpty) ...[
+                        if (customerName != null &&
+                            customerName.isNotEmpty) ...[
                           const SizedBox(height: 4),
                           Text(
                             'Pelanggan: $customerName',
@@ -392,9 +644,12 @@ class ReceiptViewDialog {
                     final name = item['name'] ?? 'Item';
                     final int qty = item['quantity'] is int
                         ? item['quantity']
-                        : int.tryParse(item['quantity']?.toString() ?? '1') ?? 1;
+                        : int.tryParse(item['quantity']?.toString() ?? '1') ??
+                              1;
                     final notes = item['notes']?.toString();
-                    final addons = item['addons'] is List ? item['addons'] as List : [];
+                    final addons = item['addons'] is List
+                        ? item['addons'] as List
+                        : [];
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8.0),
@@ -412,11 +667,19 @@ class ReceiptViewDialog {
                           ),
                           if (addons.isNotEmpty)
                             Padding(
-                              padding: const EdgeInsets.only(left: 14.0, top: 2.0),
+                              padding: const EdgeInsets.only(
+                                left: 14.0,
+                                top: 2.0,
+                              ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: addons.map((addon) {
-                                  final aName = (addon is Map ? (addon['name']?.toString() ?? '') : addon.toString()).trim();
+                                  final aName =
+                                      (addon is Map
+                                              ? (addon['name']?.toString() ??
+                                                    '')
+                                              : addon.toString())
+                                          .trim();
                                   return Text(
                                     '[+] $aName',
                                     style: const TextStyle(
@@ -431,7 +694,10 @@ class ReceiptViewDialog {
                             ),
                           if (notes != null && notes.trim().isNotEmpty)
                             Padding(
-                              padding: const EdgeInsets.only(left: 10.0, top: 2.0),
+                              padding: const EdgeInsets.only(
+                                left: 10.0,
+                                top: 2.0,
+                              ),
                               child: Text(
                                 '>> CATATAN: $notes',
                                 style: const TextStyle(
@@ -498,7 +764,10 @@ class ReceiptViewDialog {
             ),
           ),
         ),
-        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        actionsPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
         actions: [
           TextButton(
             onPressed: () => Get.back(),
@@ -512,11 +781,15 @@ class ReceiptViewDialog {
             icon: const Icon(Icons.print_rounded, size: 16),
             label: const Text('Cetak Dapur'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF059669), // Emerald Green persis .btn-direct web
+              backgroundColor: const Color(
+                0xFF059669,
+              ), // Emerald Green persis .btn-direct web
               foregroundColor: Colors.white,
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             onPressed: () async {
               if (printerService.isConnected.value) {
@@ -580,7 +853,12 @@ class ReceiptViewDialog {
     );
   }
 
-  static Widget _buildReceiptRow(String label, String value, {bool isBold = false, double fontSize = 11}) {
+  static Widget _buildReceiptRow(
+    String label,
+    String value, {
+    bool isBold = false,
+    double fontSize = 11,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [

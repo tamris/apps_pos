@@ -5,8 +5,9 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../controllers/cart_controller.dart';
 import 'payment_modal_view.dart';
-import 'table_selector_sheet.dart';
 import 'product_customization_sheet.dart';
+import 'order_header_card.dart';
+import 'redeem_points_dialog.dart';
 
 class TabletCartPanel extends StatelessWidget {
   const TabletCartPanel({super.key});
@@ -194,108 +195,8 @@ class TabletCartPanel extends StatelessWidget {
             );
           }),
 
-          // 2. Order Type & Table Bar (Dine In / Take Away)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Material(
-              color: AppColors.lightBackground,
-              borderRadius: BorderRadius.circular(12),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () => TableSelectorSheet.show(context),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.lightBorder),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: AppColors.primarySoft,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.table_restaurant_rounded,
-                          size: 18,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Obx(() {
-                          final type =
-                              cartController.orderType.value == 'dine_in'
-                              ? 'Dine In (Makan di Tempat)'
-                              : cartController.orderType.value == 'take_away'
-                              ? 'Take Away (Bungkus)'
-                              : 'Delivery';
-                          final table = cartController.tableNumber.value;
-                          final customer = cartController.customerName.value;
-
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                table.isNotEmpty ? 'Meja $table • $type' : type,
-                                style: const TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              if (customer.isNotEmpty)
-                                Text(
-                                  'Pelanggan: $customer',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                            ],
-                          );
-                        }),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: AppColors.lightBorder),
-                        ),
-                        child: const Row(
-                          children: [
-                            Text(
-                              'Ubah',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                            SizedBox(width: 2),
-                            Icon(
-                              Icons.arrow_forward_ios_rounded,
-                              size: 10,
-                              color: AppColors.primary,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
+          // 2. Info Pesanan & Member (Unified Single Card)
+          const OrderHeaderCard(),
 
           // 3. List Item Pesanan
           Expanded(
@@ -623,12 +524,16 @@ class TabletCartPanel extends StatelessWidget {
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Quick Action Chips: Diskon & Pajak
+                  // Quick Action Chips: Diskon, Pajak & Tukar Poin
                   Row(
                     children: [
                       Expanded(child: _buildDiscountButton(context)),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
                       Expanded(child: _buildTaxButton(context)),
+                      if (cartController.selectedCustomer.value != null && (cartController.selectedCustomer.value!.canRedeem || cartController.redeemPoints.value > 0)) ...[
+                        const SizedBox(width: 8),
+                        Expanded(child: _buildRedeemPointsButton(context)),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -643,6 +548,12 @@ class TabletCartPanel extends StatelessWidget {
                       'Diskon (${cartController.discountPercent.value.toInt()}%)',
                       '-${CurrencyFormatter.format(cartController.discountAmount)}',
                       color: AppColors.danger,
+                    ),
+                  if (cartController.pointsDiscountAmount > 0)
+                    _buildSummaryRow(
+                      'Tukar Poin (${cartController.redeemPoints.value} Poin)',
+                      '-${CurrencyFormatter.format(cartController.pointsDiscountAmount)}',
+                      color: AppColors.primaryDark,
                     ),
                   if (cartController.taxAmount > 0)
                     _buildSummaryRow(
@@ -856,6 +767,52 @@ class TabletCartPanel extends StatelessWidget {
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: hasTax ? AppColors.info : AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _buildRedeemPointsButton(BuildContext context) {
+    final cartController = Get.find<CartController>();
+    return Obx(() {
+      final currentPoints = cartController.redeemPoints.value;
+      final hasRedeemed = currentPoints > 0;
+
+      return InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () => RedeemPointsDialog.show(context),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: hasRedeemed ? AppColors.primarySoft : AppColors.lightBackground,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: hasRedeemed ? AppColors.primary : AppColors.lightBorder,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                hasRedeemed ? Icons.stars_rounded : Icons.redeem_rounded,
+                size: 15,
+                color: hasRedeemed ? AppColors.primary : AppColors.textSecondary,
+              ),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  hasRedeemed ? '$currentPoints Poin' : 'Tukar Poin',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: hasRedeemed ? AppColors.primaryDark : AppColors.textPrimary,
+                  ),
                 ),
               ),
             ],

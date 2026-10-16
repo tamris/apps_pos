@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../data/models/addon_model.dart';
 import '../../../data/models/cart_item_model.dart';
+import '../../../data/models/customer_model.dart';
 import '../../../data/models/product_model.dart';
 import '../../../data/models/open_bill_model.dart';
 import '../../../data/providers/api_provider.dart';
@@ -29,6 +30,10 @@ class CartController extends GetxController {
   final RxString orderType = 'dine_in'.obs; // 'dine_in', 'take_away', 'delivery'
   final RxString tableNumber = ''.obs;
   final RxString customerName = ''.obs;
+
+  // --- Loyalty & Membership ---
+  final Rx<CustomerModel?> selectedCustomer = Rx<CustomerModel?>(null);
+  final RxInt redeemPoints = 0.obs;
 
   final RxDouble discountPercent = 0.0.obs;
   final RxDouble taxPercent = 0.0.obs;
@@ -65,11 +70,34 @@ class CartController extends GetxController {
     return '';
   }
 
+  // --- Loyalty & Membership Getters ---
+  bool get hasCustomer => selectedCustomer.value != null;
+  int get customerExchangeRate => selectedCustomer.value?.exchangeRate ?? 1000;
+  double get pointsDiscountAmount {
+    final discount = (redeemPoints.value * customerExchangeRate).toDouble();
+    final billBeforePoints = max(0.0, subtotal - discountAmount);
+    if (billBeforePoints <= 0) return 0.0;
+    return min(discount, billBeforePoints);
+  }
+
+  int get maxRedeemablePoints {
+    final cust = selectedCustomer.value;
+    if (cust == null || cust.pointsBalance <= 0) return 0;
+    final rate = cust.exchangeRate > 0 ? cust.exchangeRate : 1000;
+    final billBeforePoints = max(0.0, subtotal - discountAmount);
+    if (billBeforePoints <= 0) {
+      // Jika keranjang belum diisi / subtotal 0, jangan kunci ke 0 agar kasir tetap bisa memilih poin & testing
+      return cust.pointsBalance;
+    }
+    final maxPointsCoveringTotal = (billBeforePoints / rate).floor();
+    return min(cust.pointsBalance, maxPointsCoveringTotal);
+  }
+
   // --- Kalkulasi Realtime ---
   double get subtotal => items.fold(0.0, (sum, item) => sum + item.subtotal);
   double get discountAmount => (subtotal * discountPercent.value) / 100.0;
-  double get taxAmount => (max(0.0, subtotal - discountAmount) * taxPercent.value) / 100.0;
-  double get grandTotal => max(0.0, subtotal - discountAmount + taxAmount);
+  double get taxAmount => (max(0.0, subtotal - discountAmount - pointsDiscountAmount) * taxPercent.value) / 100.0;
+  double get grandTotal => max(0.0, subtotal - discountAmount - pointsDiscountAmount + taxAmount);
   double get changeAmount => (paymentMethod.value == 'cash') ? max(0.0, paidAmount.value - grandTotal) : 0.0;
   int get totalItemsCount => items.fold(0, (sum, item) => sum + item.quantity);
   bool get isCartEmpty => items.isEmpty;
@@ -146,9 +174,52 @@ class CartController extends GetxController {
     paidAmount.value = 0.0;
     tableNumber.value = '';
     customerName.value = '';
+    selectedCustomer.value = null;
+    redeemPoints.value = 0;
     activeOpenBillId.value = null;
     activeOpenBillInvoice.value = '';
     orderType.value = 'dine_in';
+  }
+
+  /// Hubungkan member ke transaksi kasir
+  void selectCustomer(CustomerModel customer) {
+    selectedCustomer.value = customer;
+    if (customer.name != null && customer.name!.trim().isNotEmpty) {
+      customerName.value = customer.name!.trim();
+    }
+    redeemPoints.value = 0;
+  }
+
+  /// Lepaskan member dari transaksi kasir
+  void removeCustomer() {
+    selectedCustomer.value = null;
+    redeemPoints.value = 0;
+  }
+
+  /// Atur jumlah poin yang ingin ditukarkan untuk diskon
+  void setRedeemPoints(int points) {
+    final maxPts = maxRedeemablePoints;
+    if (points > maxPts) {
+      redeemPoints.value = maxPts;
+    } else if (points < 0) {
+      redeemPoints.value = 0;
+    } else {
+      redeemPoints.value = points;
+    }
+  }
+
+  /// Batalkan penukaran poin
+  void clearRedeemPoints() {
+    redeemPoints.value = 0;
+  }
+
+  /// Toggle tukar semua poin yang tersedia / batalkan tukar poin
+  void toggleMaxRedeem() {
+    if (redeemPoints.value > 0) {
+      redeemPoints.value = 0;
+    } else {
+      redeemPoints.value = maxRedeemablePoints;
+    }
   }
 
   /// Set tipe pesanan & nomor meja
@@ -396,6 +467,9 @@ class CartController extends GetxController {
         'order_type': currentOrderType,
         'table_number': savedTable.isNotEmpty ? savedTable : null,
         'customer_name': savedCustomer.isNotEmpty ? savedCustomer : null,
+        if (selectedCustomer.value != null) 'customer_id': selectedCustomer.value!.id,
+        if (selectedCustomer.value != null) 'customer_phone': selectedCustomer.value!.phone,
+        if (redeemPoints.value > 0) 'redeem_points': redeemPoints.value,
         'payment_method': currentPaymentMethod,
         'discount_percent': discountPercent.value,
         'tax_percent': taxPercent.value,
@@ -487,6 +561,8 @@ class CartController extends GetxController {
           isOffline: false,
           receiptPayload: receiptPayload,
           kitchenPayload: kitchenPayload,
+          customerData: txData['customer'] != null ? Map<String, dynamic>.from(txData['customer']) : null,
+          loyaltyData: txData['loyalty'] != null ? Map<String, dynamic>.from(txData['loyalty']) : null,
         );
 
         clearCart();
@@ -505,6 +581,9 @@ class CartController extends GetxController {
         orderType: currentOrderType,
         tableNumber: savedTable.isNotEmpty ? savedTable : null,
         customerName: savedCustomer.isNotEmpty ? savedCustomer : null,
+        customerPhone: selectedCustomer.value?.phone,
+        customerId: selectedCustomer.value?.id,
+        redeemPoints: redeemPoints.value > 0 ? redeemPoints.value : null,
         paymentMethod: currentPaymentMethod,
         discountPercent: discountPercent.value,
         taxPercent: taxPercent.value,

@@ -27,7 +27,8 @@ class EscPosPrinterService extends GetxService {
       final bool status = await PrintBluetoothThermal.connectionStatus;
       isConnected.value = status;
       if (status) {
-        connectedDeviceName.value = _storageService.printerName ?? 'Bluetooth Printer';
+        connectedDeviceName.value =
+            _storageService.printerName ?? 'Bluetooth Printer';
         connectedMacAddress.value = _storageService.printerMac ?? '';
       }
     } catch (_) {
@@ -39,11 +40,15 @@ class EscPosPrinterService extends GetxService {
   Future<List<BluetoothInfo>> scanDevices() async {
     isScanning.value = true;
     try {
-      final List<BluetoothInfo> devices = await PrintBluetoothThermal.pairedBluetooths;
+      final List<BluetoothInfo> devices =
+          await PrintBluetoothThermal.pairedBluetooths;
       availableDevices.assignAll(devices);
       return devices;
     } catch (e) {
-      AppSnackbar.danger('Bluetooth Error', 'Gagal memindai printer. Pastikan Bluetooth dan lokasi perangkat aktif.');
+      AppSnackbar.danger(
+        'Bluetooth Error',
+        'Gagal memindai printer. Pastikan Bluetooth dan lokasi perangkat aktif.',
+      );
       return [];
     } finally {
       isScanning.value = false;
@@ -53,22 +58,33 @@ class EscPosPrinterService extends GetxService {
   /// Hubungkan ke Printer Bluetooth berdasarkan MAC Address
   Future<bool> connect(String macAddress, String deviceName) async {
     try {
-      final bool result = await PrintBluetoothThermal.connect(macPrinterAddress: macAddress);
+      final bool result = await PrintBluetoothThermal.connect(
+        macPrinterAddress: macAddress,
+      );
       if (result) {
         isConnected.value = true;
         connectedDeviceName.value = deviceName;
         connectedMacAddress.value = macAddress;
         await _storageService.savePrinter(macAddress, deviceName);
-        AppSnackbar.success('Printer Terhubung', '$deviceName siap digunakan untuk cetak struk.');
+        AppSnackbar.success(
+          'Printer Terhubung',
+          '$deviceName siap digunakan untuk cetak struk.',
+        );
         return true;
       } else {
         isConnected.value = false;
-        AppSnackbar.danger('Koneksi Gagal', 'Tidak dapat terhubung ke $deviceName.');
+        AppSnackbar.danger(
+          'Koneksi Gagal',
+          'Tidak dapat terhubung ke $deviceName.',
+        );
         return false;
       }
     } catch (e) {
       isConnected.value = false;
-      AppSnackbar.danger('Koneksi Error', 'Gagal menghubungkan ke printer. Pastikan printer menyala dan dalam jangkauan.');
+      AppSnackbar.danger(
+        'Koneksi Error',
+        'Gagal menghubungkan ke printer. Pastikan printer menyala dan dalam jangkauan.',
+      );
       return false;
     }
   }
@@ -145,7 +161,11 @@ class EscPosPrinterService extends GetxService {
 
   /// Konversi gambar menjadi ESC/POS Column Bit-Image (ESC * 33 - 24 Dot Double Density)
   /// Standar universal yang didukung oleh 100% printer thermal ESC/POS 58mm & 80mm
-  static List<int> convertImageToEscPosBitImage(Uint8List imageBytes, {int maxWidth = 150, int maxHeight = 96}) {
+  static List<int> convertImageToEscPosBitImage(
+    Uint8List imageBytes, {
+    int maxWidth = 150,
+    int maxHeight = 96,
+  }) {
     try {
       final img.Image? decoded = img.decodeImage(imageBytes);
       if (decoded == null) return [];
@@ -200,7 +220,8 @@ class EscPosPrinterService extends GetxService {
               if (currentY < height) {
                 final pixel = resized.getPixel(x, currentY);
                 if (pixel.a > 80) {
-                  double luminance = (0.299 * pixel.r) + (0.587 * pixel.g) + (0.114 * pixel.b);
+                  double luminance =
+                      (0.299 * pixel.r) + (0.587 * pixel.g) + (0.114 * pixel.b);
                   if (luminance < 180) {
                     isBlack = 1;
                   }
@@ -228,6 +249,70 @@ class EscPosPrinterService extends GetxService {
     } catch (_) {
       return [];
     }
+  }
+
+  /// Generate stream binary Model 2 QR Code ESC/POS standar Epson universal (GS ( k)
+  /// Didukung 100% oleh printer thermal Bluetooth / USB / LAN 58mm & 80mm
+  static List<int> buildEscPosQrCode(String data, {int moduleSize = 5}) {
+    if (data.isEmpty) return [];
+    final List<int> bytes = [];
+    final rawData = utf8.encode(data);
+    final len = rawData.length + 3;
+
+    // 0. Align center: ESC a 1
+    bytes.addAll([0x1B, 0x61, 0x01]);
+
+    // 1. Model 2 QR Code (Function 165: GS ( k pL pH cn fn n1 n2)
+    bytes.addAll([0x1D, 0x28, 0x6B, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00]);
+
+    // 2. Module Size (Function 167: GS ( k pL pH cn fn n) - default 5 dots
+    bytes.addAll([
+      0x1D,
+      0x28,
+      0x6B,
+      0x03,
+      0x00,
+      0x31,
+      0x43,
+      moduleSize.clamp(1, 16),
+    ]);
+
+    // 3. Error correction Level M (Function 169: GS ( k pL pH cn fn n) - Level M (\x31)
+    bytes.addAll([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, 0x31]);
+
+    // 4. Store data into symbol storage area (Function 180: GS ( k pL pH cn fn m d1...dk)
+    final pL = len % 256;
+    final pH = len ~/ 256;
+    bytes.addAll([0x1D, 0x28, 0x6B, pL, pH, 0x31, 0x50, 0x30, ...rawData]);
+
+    // 5. Print the symbol data (Function 181: GS ( k pL pH cn fn m)
+    bytes.addAll([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30]);
+
+    // Line feed
+    bytes.add(0x0A);
+
+    return bytes;
+  }
+
+  /// Generate stream binary Barcode 1D (Code 128) ESC/POS
+  static List<int> buildEscPosBarcode128(String data, {int height = 50}) {
+    if (data.isEmpty) return [];
+    final List<int> bytes = [];
+    final rawData = utf8.encode(data);
+
+    // Align Center
+    bytes.addAll([0x1B, 0x61, 0x01]);
+    // Set Barcode Height: GS h <n>
+    bytes.addAll([0x1D, 0x68, height.clamp(1, 255)]);
+    // Set Barcode Width: GS w 2
+    bytes.addAll([0x1D, 0x77, 0x02]);
+    // Set Text Position Below Barcode: GS H 2
+    bytes.addAll([0x1D, 0x48, 0x02]);
+    // Print Code 128 (Format B): GS k 73 <len> {B <data>
+    bytes.addAll([0x1D, 0x6B, 73, rawData.length + 2, 0x7B, 0x42, ...rawData]);
+    bytes.add(0x0A);
+
+    return bytes;
   }
 
   // ESC/POS Commands
@@ -261,17 +346,21 @@ class EscPosPrinterService extends GetxService {
       if (parts.isNotEmpty && parts[0].contains('-')) {
         final dParts = parts[0].split('-');
         if (dParts.length == 3 && dParts[0].length == 4) {
-          final dateFormatted = '${dParts[2].padLeft(2, '0')}/${dParts[1].padLeft(2, '0')}/${dParts[0]}';
+          final dateFormatted =
+              '${dParts[2].padLeft(2, '0')}/${dParts[1].padLeft(2, '0')}/${dParts[0]}';
           String timeFormatted = '';
           if (parts.length > 1) {
             final tParts = parts[1].split(':');
             if (tParts.length >= 2) {
-              timeFormatted = '${tParts[0].padLeft(2, '0')}:${tParts[1].padLeft(2, '0')}';
+              timeFormatted =
+                  '${tParts[0].padLeft(2, '0')}:${tParts[1].padLeft(2, '0')}';
             } else {
               timeFormatted = parts[1];
             }
           }
-          return timeFormatted.isNotEmpty ? '$dateFormatted $timeFormatted' : dateFormatted;
+          return timeFormatted.isNotEmpty
+              ? '$dateFormatted $timeFormatted'
+              : dateFormatted;
         }
       }
     } catch (_) {}
@@ -280,18 +369,28 @@ class EscPosPrinterService extends GetxService {
   }
 
   /// Generate ESC/POS byte data untuk Struk Transaksi Pelanggan (58mm / 32 kolom)
-  /// Format identik 100% dengan ReceiptPrintService.php pada pos-inventory backend
-  Future<List<int>> generateCustomerReceiptBytes(Map<String, dynamic> payload) async {
-    // Jika backend sudah mengirimkan rawbt_base64 string secara langsung, langsung decode
-    if (payload['rawbt_base64'] != null && payload['rawbt_base64'].toString().isNotEmpty) {
-      try {
-        final decoded = base64Decode(payload['rawbt_base64'].toString());
-        if (decoded.isNotEmpty) return List<int>.from(decoded);
-      } catch (_) {}
+  /// Client-Side Native Generator (Offline-first, independen dari backend)
+  Future<List<int>> generateCustomerReceiptBytes(
+    Map<String, dynamic> payload, {
+    bool preferLocal = true,
+  }) async {
+    final List items = payload['items'] ?? [];
+
+    // Fallback jika tidak memaksa local dan payload hanya berupa rawbt_base64 tanpa rincian item
+    if (!preferLocal || items.isEmpty) {
+      if (payload['rawbt_base64'] != null &&
+          payload['rawbt_base64'].toString().isNotEmpty) {
+        try {
+          final decoded = base64Decode(payload['rawbt_base64'].toString());
+          if (decoded.isNotEmpty) return List<int>.from(decoded);
+        } catch (_) {}
+      }
     }
 
     final header = payload['header'] ?? {};
-    final shopName = (header['shop_name'] ?? 'POS CAFE').toString().toUpperCase();
+    final shopName = (header['shop_name'] ?? 'POS CAFE')
+        .toString()
+        .toUpperCase();
     final address = header['address']?.toString() ?? '';
     final phone = header['phone']?.toString() ?? '';
 
@@ -299,23 +398,46 @@ class EscPosPrinterService extends GetxService {
     final rawDate = payload['date']?.toString() ?? '-';
     final date = formatDateTimeDMY(rawDate);
     final cashier = payload['cashier_name']?.toString() ?? 'Staff';
-    final orderType = payload['order_type']?.toString().toUpperCase() ?? 'DINE IN';
+    final orderType =
+        payload['order_type']?.toString().toUpperCase() ?? 'DINE IN';
     final tableNumber = payload['table_number']?.toString();
     final customerName = payload['customer_name']?.toString();
 
-    final List items = payload['items'] ?? [];
     final summary = payload['summary'] ?? {};
-    final double subtotal = (summary['subtotal'] != null) ? double.tryParse(summary['subtotal'].toString()) ?? 0 : 0;
-    final double discount = (summary['discount'] != null) ? double.tryParse(summary['discount'].toString()) ?? 0 : 0;
-    final double tax = (summary['tax'] != null) ? double.tryParse(summary['tax'].toString()) ?? 0 : 0;
-    final double total = (summary['total'] != null) ? double.tryParse(summary['total'].toString()) ?? 0 : 0;
-    final String paymentMethod = summary['payment_method']?.toString().toUpperCase() ?? 'CASH';
-    final double paid = (summary['paid'] != null) ? double.tryParse(summary['paid'].toString()) ?? 0 : 0;
-    final double change = (summary['change'] != null) ? double.tryParse(summary['change'].toString()) ?? 0 : 0;
-    final String status = payload['status']?.toString().toLowerCase() ?? 'completed';
+    final double subtotal = (summary['subtotal'] != null)
+        ? double.tryParse(summary['subtotal'].toString()) ?? 0
+        : 0;
+    final double discount = (summary['discount'] != null)
+        ? double.tryParse(summary['discount'].toString()) ?? 0
+        : 0;
+    final double pointsDiscount = (summary['points_discount'] != null)
+        ? double.tryParse(summary['points_discount'].toString()) ?? 0
+        : (summary['points_discount_amount'] != null)
+        ? double.tryParse(summary['points_discount_amount'].toString()) ?? 0
+        : 0;
+    final int pointsRedeemed = (summary['points_redeemed'] != null)
+        ? int.tryParse(summary['points_redeemed'].toString()) ?? 0
+        : 0;
+    final double tax = (summary['tax'] != null)
+        ? double.tryParse(summary['tax'].toString()) ?? 0
+        : 0;
+    final double total = (summary['total'] != null)
+        ? double.tryParse(summary['total'].toString()) ?? 0
+        : 0;
+    final String paymentMethod =
+        summary['payment_method']?.toString().toUpperCase() ?? 'CASH';
+    final double paid = (summary['paid'] != null)
+        ? double.tryParse(summary['paid'].toString()) ?? 0
+        : 0;
+    final double change = (summary['change'] != null)
+        ? double.tryParse(summary['change'].toString()) ?? 0
+        : 0;
+    final String status =
+        payload['status']?.toString().toLowerCase() ?? 'completed';
 
     final footer = payload['footer'] ?? {};
-    final footerMsg = footer['message']?.toString() ?? 'Terima kasih atas kunjungannya!';
+    final footerMsg =
+        footer['message']?.toString() ?? 'Terima kasih atas kunjungannya!';
     final wifiName = footer['wifi_name']?.toString();
     final wifiPass = footer['wifi_password']?.toString();
 
@@ -333,8 +455,13 @@ class EscPosPrinterService extends GetxService {
     } else {
       // Fallback otomatis muat logo lokal cafe jika tidak ada raster di payload
       try {
-        final ByteData byteData = await rootBundle.load('assets/icons/cafe_logo.png');
-        final logoBytes = convertImageToEscPosBitImage(byteData.buffer.asUint8List(), maxWidth: 200);
+        final ByteData byteData = await rootBundle.load(
+          'assets/icons/cafe_logo.png',
+        );
+        final logoBytes = convertImageToEscPosBitImage(
+          byteData.buffer.asUint8List(),
+          maxWidth: 200,
+        );
         if (logoBytes.isNotEmpty) {
           outBytes.addAll(logoBytes);
           outBytes.addAll(safeEncodeEscPos(resetBold + fontNormal));
@@ -348,7 +475,9 @@ class EscPosPrinterService extends GetxService {
     // 1. HEADER TOKO (CENTER & REGULAR CLEAN)
     buffer.write(alignCenter);
     if (hasLogo) {
-      buffer.write('\x1b\x4a\x0a'); // Micro-feed tipis (10 dots ~1.2mm) agar pas dan tidak terlalu renggang
+      buffer.write(
+        '\x1b\x4a\x0a',
+      ); // Micro-feed tipis (10 dots ~1.2mm) agar pas dan tidak terlalu renggang
     }
     buffer.write('$shopName\n');
     if (address.isNotEmpty) {
@@ -365,10 +494,12 @@ class EscPosPrinterService extends GetxService {
     buffer.write('${line32("Waktu", date)}\n');
     buffer.write('${line32("Kasir", cashier)}\n');
 
-    if ((tableNumber != null && tableNumber.isNotEmpty) || (customerName != null && customerName.isNotEmpty)) {
+    if ((tableNumber != null && tableNumber.isNotEmpty) ||
+        (customerName != null && customerName.isNotEmpty)) {
       String orderTypeStr = orderType;
       if (orderType.contains('DINE')) {
-        orderTypeStr = 'DINE IN${tableNumber != null && tableNumber.isNotEmpty ? " ($tableNumber)" : ""}';
+        orderTypeStr =
+            'DINE IN${tableNumber != null && tableNumber.isNotEmpty ? " ($tableNumber)" : ""}';
       } else if (orderType.contains('TAKE')) {
         orderTypeStr = 'TAKE AWAY';
       } else if (orderType.contains('DELIVERY')) {
@@ -386,15 +517,24 @@ class EscPosPrinterService extends GetxService {
     for (var item in items) {
       String name = '';
       if (item is Map) {
-        name = item['name']?.toString() ??
-               item['product_name']?.toString() ??
-               (item['product'] is Map ? item['product']['name']?.toString() : null) ??
-               item['title']?.toString() ??
-               '';
+        name =
+            item['name']?.toString() ??
+            item['product_name']?.toString() ??
+            (item['product'] is Map
+                ? item['product']['name']?.toString()
+                : null) ??
+            item['title']?.toString() ??
+            '';
         if (name.isEmpty || name == 'Item' || name == 'Menu') {
-          final pId = int.tryParse((item['product_id'] ?? item['id'] ?? '0').toString()) ?? 0;
+          final pId =
+              int.tryParse(
+                (item['product_id'] ?? item['id'] ?? '0').toString(),
+              ) ??
+              0;
           if (pId > 0 && Get.isRegistered<PosController>()) {
-            final found = Get.find<PosController>().products.firstWhereOrNull((p) => p.id == pId);
+            final found = Get.find<PosController>().products.firstWhereOrNull(
+              (p) => p.id == pId,
+            );
             if (found != null && found.name.isNotEmpty) {
               name = found.name;
             }
@@ -404,7 +544,9 @@ class EscPosPrinterService extends GetxService {
       if (name.isEmpty) name = 'Item';
 
       final int qty = (item is Map && item['quantity'] != null)
-          ? (item['quantity'] is int ? item['quantity'] : int.tryParse(item['quantity'].toString()) ?? 1)
+          ? (item['quantity'] is int
+                ? item['quantity']
+                : int.tryParse(item['quantity'].toString()) ?? 1)
           : 1;
       final double price = (item is Map && item['price'] != null)
           ? double.tryParse(item['price'].toString()) ?? 0
@@ -420,15 +562,45 @@ class EscPosPrinterService extends GetxService {
       buffer.write('${line32(qtyPrice, subStr)}\n');
 
       // Add-ons / Toppings (format persis receipt backend: '  + Extra Shot (4.000)')
-      final dynamic rawItemAddons = (item is Map) ? (item['addons'] ?? item['order_item_addons'] ?? item['item_addons']) : null;
+      final dynamic rawItemAddons = (item is Map)
+          ? (item['addons'] ?? item['order_item_addons'] ?? item['item_addons'])
+          : null;
       if (rawItemAddons != null && rawItemAddons is List) {
         for (var addon in rawItemAddons) {
-          final aName = (addon is Map ? (addon['name'] ?? addon['addon_name'] ?? (addon['addon'] is Map ? addon['addon']['name'] : null))?.toString() : addon.toString()) ?? '';
-          final aPrice = (addon is Map && (addon['price'] ?? addon['addon_price'] ?? addon['unit_price'] ?? (addon['addon'] is Map ? addon['addon']['price'] : null)) != null)
-              ? double.tryParse((addon['price'] ?? addon['addon_price'] ?? addon['unit_price'] ?? (addon['addon'] is Map ? addon['addon']['price'] : null)).toString()) ?? 0
+          final aName =
+              (addon is Map
+                  ? (addon['name'] ??
+                            addon['addon_name'] ??
+                            (addon['addon'] is Map
+                                ? addon['addon']['name']
+                                : null))
+                        ?.toString()
+                  : addon.toString()) ??
+              '';
+          final aPrice =
+              (addon is Map &&
+                  (addon['price'] ??
+                          addon['addon_price'] ??
+                          addon['unit_price'] ??
+                          (addon['addon'] is Map
+                              ? addon['addon']['price']
+                              : null)) !=
+                      null)
+              ? double.tryParse(
+                      (addon['price'] ??
+                              addon['addon_price'] ??
+                              addon['unit_price'] ??
+                              (addon['addon'] is Map
+                                  ? addon['addon']['price']
+                                  : null))
+                          .toString(),
+                    ) ??
+                    0
               : 0;
           if (aName.isNotEmpty) {
-            final addonLine = (aPrice > 0) ? '  + $aName (${formatNumber(aPrice)})' : '  + $aName';
+            final addonLine = (aPrice > 0)
+                ? '  + $aName (${formatNumber(aPrice)})'
+                : '  + $aName';
             buffer.write('$addonLine\n');
           }
         }
@@ -444,9 +616,19 @@ class EscPosPrinterService extends GetxService {
     buffer.write('${line32("Subtotal", formatNumber(subtotal))}\n');
 
     if (discount > 0) {
-      final double discNominal = (discount <= 100) ? (subtotal * discount / 100) : discount;
-      final String discLabel = 'Diskon${discount <= 100 ? " (${discount.toInt()}%)" : ""}';
+      final double discNominal = (discount <= 100)
+          ? (subtotal * discount / 100)
+          : discount;
+      final String discLabel =
+          'Diskon${discount <= 100 ? " (${discount.toInt()}%)" : ""}';
       buffer.write('${line32(discLabel, "-${formatNumber(discNominal)}")}\n');
+    }
+
+    if (pointsDiscount > 0) {
+      final String ptLabel = pointsRedeemed > 0
+          ? "Tukar Poin ($pointsRedeemed pt)"
+          : "Tukar Poin";
+      buffer.write('${line32(ptLabel, "-${formatNumber(pointsDiscount)}")}\n');
     }
 
     if (tax > 0) {
@@ -469,7 +651,10 @@ class EscPosPrinterService extends GetxService {
       buffer.write('(BELUM LUNAS / OPEN BILL)\n');
       buffer.write(alignLeft);
     } else {
-      String payMethod = paymentMethod.replaceAll('(OFFLINE)', '').replaceAll('OFFLINE', '').trim();
+      String payMethod = paymentMethod
+          .replaceAll('(OFFLINE)', '')
+          .replaceAll('OFFLINE', '')
+          .trim();
       if (payMethod.isEmpty || payMethod == 'CASH' || payMethod == 'TUNAI') {
         payMethod = 'TUNAI';
       } else if (payMethod == 'QRIS') {
@@ -481,8 +666,50 @@ class EscPosPrinterService extends GetxService {
       buffer.write('${line32("Kembali", formatNumber(change))}\n');
     }
 
+    // 6b. KLAIM POIN STRUK (HANYA UNTUK GUEST / NON-MEMBER) ATAU INFO MEMBER
+    final loyalty = (payload['loyalty'] is Map)
+        ? payload['loyalty'] as Map<String, dynamic>
+        : null;
+    final String? customerPhone =
+        loyalty?['customer_phone']?.toString() ??
+        payload['customer_phone']?.toString();
+    final String? claimToken =
+        loyalty?['claim_token']?.toString() ??
+        payload['claim_token']?.toString();
+    final String? claimUrl =
+        loyalty?['claim_url']?.toString() ?? payload['claim_url']?.toString();
+    final int pointsEarned = (loyalty?['points_earned'] != null)
+        ? int.tryParse(loyalty!['points_earned'].toString()) ?? 0
+        : (payload['points_earned'] != null
+              ? int.tryParse(payload['points_earned'].toString()) ?? 0
+              : 0);
+
+    final bool isGuest = (customerPhone == null || customerPhone.isEmpty);
+
+    if (isGuest &&
+        ((claimToken != null && claimToken.isNotEmpty) ||
+            (claimUrl != null && claimUrl.isNotEmpty)) &&
+        pointsEarned > 0) {
+      buffer.write('--------------------------------\n');
+      buffer.write(alignCenter);
+      buffer.write('KLAIM POIN BELANJAAN INI!\n');
+      buffer.write('Scan QR untuk kumpulkan poin:\n');
+
+      // Flush buffer sebelum menyisipkan byte binary QR Code ESC/POS
+      outBytes.addAll(safeEncodeEscPos(buffer.toString()));
+      buffer.clear();
+
+      final String finalClaimUrl = (claimUrl != null && claimUrl.isNotEmpty)
+          ? claimUrl
+          : 'https://noli.cafe/claim/$claimToken';
+      outBytes.addAll(buildEscPosQrCode(finalClaimUrl, moduleSize: 5));
+
+      buffer.write(alignLeft);
+    }
+
     // 7. WIFI CAFE (JIKA ADA)
-    if ((wifiName != null && wifiName.isNotEmpty) || (wifiPass != null && wifiPass.isNotEmpty)) {
+    if ((wifiName != null && wifiName.isNotEmpty) ||
+        (wifiPass != null && wifiPass.isNotEmpty)) {
       buffer.write('--------------------------------\n');
       buffer.write(alignCenter);
       String wifiStr = 'WiFi: ${wifiName ?? "-"}';
@@ -506,9 +733,13 @@ class EscPosPrinterService extends GetxService {
   }
 
   /// Generate ESC/POS byte data untuk Laporan Tutup Shift Kasir (58mm)
-  Future<List<int>> generateShiftReportBytes(Map<String, dynamic> payload) async {
+  Future<List<int>> generateShiftReportBytes(
+    Map<String, dynamic> payload,
+  ) async {
     final header = payload['header'] ?? {};
-    final shopName = (header['shop_name'] ?? 'POS CAFE').toString().toUpperCase();
+    final shopName = (header['shop_name'] ?? 'POS CAFE')
+        .toString()
+        .toUpperCase();
     final address = header['address']?.toString() ?? '';
     final phone = header['phone']?.toString() ?? '';
 
@@ -520,17 +751,39 @@ class EscPosPrinterService extends GetxService {
     final status = payload['status']?.toString().toLowerCase() ?? 'closed';
 
     final summary = payload['summary'] ?? {};
-    final double startingCash = (summary['starting_cash'] != null) ? double.tryParse(summary['starting_cash'].toString()) ?? 0 : 0;
-    final double cashSales = (summary['cash_sales'] != null) ? double.tryParse(summary['cash_sales'].toString()) ?? 0 : 0;
-    final double qrisSales = (summary['qris_sales'] != null) ? double.tryParse(summary['qris_sales'].toString()) ?? 0 : 0;
-    final double transferSales = (summary['transfer_sales'] != null) ? double.tryParse(summary['transfer_sales'].toString()) ?? 0 : 0;
-    final double totalCashIn = (summary['total_cash_in'] != null) ? double.tryParse(summary['total_cash_in'].toString()) ?? 0 : 0;
-    final double totalCashOut = (summary['total_cash_out'] != null) ? double.tryParse(summary['total_cash_out'].toString()) ?? 0 : 0;
-    final double totalSales = (summary['total_sales'] != null) ? double.tryParse(summary['total_sales'].toString()) ?? 0 : 0;
-    final int totalTx = (summary['total_transactions'] != null) ? int.tryParse(summary['total_transactions'].toString()) ?? 0 : 0;
-    final double expectedCash = (summary['expected_cash'] != null) ? double.tryParse(summary['expected_cash'].toString()) ?? 0 : 0;
-    final double actualCash = (summary['actual_cash'] != null) ? double.tryParse(summary['actual_cash'].toString()) ?? 0 : 0;
-    final double difference = (summary['difference'] != null) ? double.tryParse(summary['difference'].toString()) ?? 0 : 0;
+    final double startingCash = (summary['starting_cash'] != null)
+        ? double.tryParse(summary['starting_cash'].toString()) ?? 0
+        : 0;
+    final double cashSales = (summary['cash_sales'] != null)
+        ? double.tryParse(summary['cash_sales'].toString()) ?? 0
+        : 0;
+    final double qrisSales = (summary['qris_sales'] != null)
+        ? double.tryParse(summary['qris_sales'].toString()) ?? 0
+        : 0;
+    final double transferSales = (summary['transfer_sales'] != null)
+        ? double.tryParse(summary['transfer_sales'].toString()) ?? 0
+        : 0;
+    final double totalCashIn = (summary['total_cash_in'] != null)
+        ? double.tryParse(summary['total_cash_in'].toString()) ?? 0
+        : 0;
+    final double totalCashOut = (summary['total_cash_out'] != null)
+        ? double.tryParse(summary['total_cash_out'].toString()) ?? 0
+        : 0;
+    final double totalSales = (summary['total_sales'] != null)
+        ? double.tryParse(summary['total_sales'].toString()) ?? 0
+        : 0;
+    final int totalTx = (summary['total_transactions'] != null)
+        ? int.tryParse(summary['total_transactions'].toString()) ?? 0
+        : 0;
+    final double expectedCash = (summary['expected_cash'] != null)
+        ? double.tryParse(summary['expected_cash'].toString()) ?? 0
+        : 0;
+    final double actualCash = (summary['actual_cash'] != null)
+        ? double.tryParse(summary['actual_cash'].toString()) ?? 0
+        : 0;
+    final double difference = (summary['difference'] != null)
+        ? double.tryParse(summary['difference'].toString()) ?? 0
+        : 0;
     final String? notes = payload['notes']?.toString();
 
     final buffer = StringBuffer();
@@ -545,7 +798,11 @@ class EscPosPrinterService extends GetxService {
     if (phone.isNotEmpty) buffer.write('Telp: $phone\n');
     buffer.write('--------------------------------\n');
     buffer.write('*** REKAP SHIFT ***\n');
-    buffer.write(status == 'closed' ? 'STATUS: DITUTUP (FINAL)\n' : 'STATUS: SHIFT AKTIF\n');
+    buffer.write(
+      status == 'closed'
+          ? 'STATUS: DITUTUP (FINAL)\n'
+          : 'STATUS: SHIFT AKTIF\n',
+    );
     buffer.write('--------------------------------\n');
 
     // Meta
@@ -562,34 +819,56 @@ class EscPosPrinterService extends GetxService {
     // Penjualan
     buffer.write('RINCIAN PENJUALAN\n');
     buffer.write('${line32("Total Struk", "$totalTx Trx")}\n');
-    buffer.write('${line32("Penjualan Tunai", "Rp ${formatNumber(cashSales)}")}\n');
-    buffer.write('${line32("Penjualan QRIS", "Rp ${formatNumber(qrisSales)}")}\n');
-    buffer.write('${line32("Penjualan Transfer", "Rp ${formatNumber(transferSales)}")}\n');
+    buffer.write(
+      '${line32("Penjualan Tunai", "Rp ${formatNumber(cashSales)}")}\n',
+    );
+    buffer.write(
+      '${line32("Penjualan QRIS", "Rp ${formatNumber(qrisSales)}")}\n',
+    );
+    buffer.write(
+      '${line32("Penjualan Transfer", "Rp ${formatNumber(transferSales)}")}\n',
+    );
     buffer.write('--------------------------------\n');
 
     // Total Omset
     buffer.write(doubleHeight);
-    buffer.write('${line32("TOTAL OMSET", "Rp ${formatNumber(totalSales)}")}\n');
+    buffer.write(
+      '${line32("TOTAL OMSET", "Rp ${formatNumber(totalSales)}")}\n',
+    );
     buffer.write(fontNormal);
     buffer.write('--------------------------------\n');
 
     // Kas Laci
     buffer.write('REKONSILIASI KAS LACI\n');
-    buffer.write('${line32("Modal Kas Awal", "Rp ${formatNumber(startingCash)}")}\n');
-    buffer.write('${line32("(+) Total Tunai", "Rp ${formatNumber(cashSales)}")}\n');
+    buffer.write(
+      '${line32("Modal Kas Awal", "Rp ${formatNumber(startingCash)}")}\n',
+    );
+    buffer.write(
+      '${line32("(+) Total Tunai", "Rp ${formatNumber(cashSales)}")}\n',
+    );
     if (totalCashIn > 0) {
-      buffer.write('${line32("(+) Kas Masuk", "Rp ${formatNumber(totalCashIn)}")}\n');
+      buffer.write(
+        '${line32("(+) Kas Masuk", "Rp ${formatNumber(totalCashIn)}")}\n',
+      );
     }
     if (totalCashOut > 0) {
-      buffer.write('${line32("(-) Kas Keluar", "Rp ${formatNumber(totalCashOut)}")}\n');
+      buffer.write(
+        '${line32("(-) Kas Keluar", "Rp ${formatNumber(totalCashOut)}")}\n',
+      );
     }
-    buffer.write('${line32("(=) Kas Harapan", "Rp ${formatNumber(expectedCash)}")}\n');
+    buffer.write(
+      '${line32("(=) Kas Harapan", "Rp ${formatNumber(expectedCash)}")}\n',
+    );
 
     if (status == 'closed') {
-      buffer.write('${line32("Uang Fisik Kas", "Rp ${formatNumber(actualCash)}")}\n');
+      buffer.write(
+        '${line32("Uang Fisik Kas", "Rp ${formatNumber(actualCash)}")}\n',
+      );
       String diffStr = (difference == 0)
           ? 'Rp 0 (PAS)'
-          : (difference > 0 ? '+Rp ${formatNumber(difference)} (LEBIH)' : '-Rp ${formatNumber(difference.abs())} (KURANG)');
+          : (difference > 0
+                ? '+Rp ${formatNumber(difference)} (LEBIH)'
+                : '-Rp ${formatNumber(difference.abs())} (KURANG)');
       buffer.write('--------------------------------\n');
       buffer.write(doubleHeight);
       buffer.write('${line32("SELISIH KAS", diffStr)}\n');
@@ -608,7 +887,10 @@ class EscPosPrinterService extends GetxService {
 
     buffer.write('--------------------------------\n');
     buffer.write(alignCenter);
-    final nowStr = DateTime.now().toString().substring(0, 19).replaceAll('-', '/');
+    final nowStr = DateTime.now()
+        .toString()
+        .substring(0, 19)
+        .replaceAll('-', '/');
     buffer.write('Dicetak: $nowStr\n');
     buffer.write(cutPaper);
 
@@ -616,15 +898,22 @@ class EscPosPrinterService extends GetxService {
   }
 
   /// Generate ESC/POS byte data untuk Struk Dapur / Kitchen Order Ticket (58mm)
-  Future<List<int>> generateKitchenReceiptBytes(Map<String, dynamic> payload) async {
+  Future<List<int>> generateKitchenReceiptBytes(
+    Map<String, dynamic> payload,
+  ) async {
     final header = payload['header'] ?? {};
-    final shopName = (header['shop_name'] ?? 'POS CAFE').toString().toUpperCase();
+    final shopName = (header['shop_name'] ?? 'POS CAFE')
+        .toString()
+        .toUpperCase();
 
     final invoice = payload['invoice_number']?.toString() ?? '-';
-    final rawDate = payload['date']?.toString() ?? DateTime.now().toString().substring(0, 16);
+    final rawDate =
+        payload['date']?.toString() ??
+        DateTime.now().toString().substring(0, 16);
     final date = formatDateTimeDMY(rawDate);
     final cashier = payload['cashier_name']?.toString() ?? 'Kasir';
-    final orderType = payload['order_type']?.toString().toUpperCase() ?? 'DINE IN';
+    final orderType =
+        payload['order_type']?.toString().toUpperCase() ?? 'DINE IN';
     final tableNumber = payload['table_number']?.toString();
     final customer = payload['customer_name']?.toString();
     final List items = payload['items'] ?? [];
@@ -652,7 +941,10 @@ class EscPosPrinterService extends GetxService {
     String orderTypeStr = orderType;
     if (orderType.contains('DINE')) {
       if (tableNumber != null && tableNumber.isNotEmpty) {
-        final cleanTable = tableNumber.toUpperCase().replaceAll('MEJA', '').trim();
+        final cleanTable = tableNumber
+            .toUpperCase()
+            .replaceAll('MEJA', '')
+            .trim();
         orderTypeStr = 'DINE IN (MEJA $cleanTable)';
       } else {
         orderTypeStr = 'DINE IN';
@@ -675,15 +967,24 @@ class EscPosPrinterService extends GetxService {
     for (var item in items) {
       String name = '';
       if (item is Map) {
-        name = item['name']?.toString() ??
-               item['product_name']?.toString() ??
-               (item['product'] is Map ? item['product']['name']?.toString() : null) ??
-               item['title']?.toString() ??
-               '';
+        name =
+            item['name']?.toString() ??
+            item['product_name']?.toString() ??
+            (item['product'] is Map
+                ? item['product']['name']?.toString()
+                : null) ??
+            item['title']?.toString() ??
+            '';
         if (name.isEmpty || name == 'Item' || name == 'Menu') {
-          final pId = int.tryParse((item['product_id'] ?? item['id'] ?? '0').toString()) ?? 0;
+          final pId =
+              int.tryParse(
+                (item['product_id'] ?? item['id'] ?? '0').toString(),
+              ) ??
+              0;
           if (pId > 0 && Get.isRegistered<PosController>()) {
-            final found = Get.find<PosController>().products.firstWhereOrNull((p) => p.id == pId);
+            final found = Get.find<PosController>().products.firstWhereOrNull(
+              (p) => p.id == pId,
+            );
             if (found != null && found.name.isNotEmpty) {
               name = found.name;
             }
@@ -693,7 +994,9 @@ class EscPosPrinterService extends GetxService {
       if (name.isEmpty) name = 'Item';
 
       final int qty = (item is Map && item['quantity'] != null)
-          ? (item['quantity'] is int ? item['quantity'] : int.tryParse(item['quantity'].toString()) ?? 1)
+          ? (item['quantity'] is int
+                ? item['quantity']
+                : int.tryParse(item['quantity'].toString()) ?? 1)
           : 1;
       final notes = (item is Map) ? item['notes']?.toString() : null;
       totalItems += qty;
@@ -701,10 +1004,22 @@ class EscPosPrinterService extends GetxService {
       buffer.write('${qty}x  $name\n');
 
       // Format addon di tiket dapur: '   [+] Extra Shot' persis standar F&B pos-inventory
-      final dynamic rawKitchenAddons = (item is Map) ? (item['addons'] ?? item['order_item_addons'] ?? item['item_addons']) : null;
+      final dynamic rawKitchenAddons = (item is Map)
+          ? (item['addons'] ?? item['order_item_addons'] ?? item['item_addons'])
+          : null;
       if (rawKitchenAddons != null && rawKitchenAddons is List) {
         for (var addon in rawKitchenAddons) {
-          final aName = (addon is Map ? (addon['name'] ?? addon['addon_name'] ?? (addon['addon'] is Map ? addon['addon']['name'] : null))?.toString() : addon.toString())?.trim() ?? '';
+          final aName =
+              (addon is Map
+                      ? (addon['name'] ??
+                                addon['addon_name'] ??
+                                (addon['addon'] is Map
+                                    ? addon['addon']['name']
+                                    : null))
+                            ?.toString()
+                      : addon.toString())
+                  ?.trim() ??
+              '';
           if (aName.isNotEmpty) {
             buffer.write('   [+] $aName\n');
           }
@@ -732,12 +1047,17 @@ class EscPosPrinterService extends GetxService {
   /// Eksekusi cetak struk dapur ke printer Bluetooth
   Future<bool> printKitchenReceipt(Map<String, dynamic> kitchenPayload) async {
     if (!isConnected.value) {
-      AppSnackbar.warning('Printer Belum Terhubung', 'Silakan hubungkan printer Bluetooth di Pengaturan.');
+      AppSnackbar.warning(
+        'Printer Belum Terhubung',
+        'Silakan hubungkan printer Bluetooth di Pengaturan.',
+      );
       return false;
     }
 
     try {
-      final List<int> rawBytes = await generateKitchenReceiptBytes(kitchenPayload);
+      final List<int> rawBytes = await generateKitchenReceiptBytes(
+        kitchenPayload,
+      );
       // Wajib konversi ke standard List<int> (bukan Uint8List) agar Android MethodChannel
       // menerimanya sebagai java.util.List dan tidak crash ClassCastException
       final List<int> intList = List<int>.from(rawBytes);
@@ -752,12 +1072,17 @@ class EscPosPrinterService extends GetxService {
   /// Eksekusi cetak struk ke printer Bluetooth
   Future<bool> printReceipt(Map<String, dynamic> receiptPayload) async {
     if (!isConnected.value) {
-      AppSnackbar.warning('Printer Belum Terhubung', 'Silakan hubungkan printer Bluetooth 58mm di menu Pengaturan.');
+      AppSnackbar.warning(
+        'Printer Belum Terhubung',
+        'Silakan hubungkan printer Bluetooth 58mm di menu Pengaturan.',
+      );
       return false;
     }
 
     try {
-      final List<int> rawBytes = await generateCustomerReceiptBytes(receiptPayload);
+      final List<int> rawBytes = await generateCustomerReceiptBytes(
+        receiptPayload,
+      );
       // Wajib konversi ke standard List<int> (bukan Uint8List) agar Android MethodChannel
       // menerimanya sebagai java.util.List dan tidak crash ClassCastException
       final List<int> intList = List<int>.from(rawBytes);
@@ -772,7 +1097,10 @@ class EscPosPrinterService extends GetxService {
   /// Eksekusi cetak laporan shift
   Future<bool> printShiftReport(Map<String, dynamic> shiftPayload) async {
     if (!isConnected.value) {
-      AppSnackbar.warning('Printer Belum Terhubung', 'Silakan hubungkan printer Bluetooth di Pengaturan.');
+      AppSnackbar.warning(
+        'Printer Belum Terhubung',
+        'Silakan hubungkan printer Bluetooth di Pengaturan.',
+      );
       return false;
     }
 
@@ -790,16 +1118,26 @@ class EscPosPrinterService extends GetxService {
   }
 
   /// Generate ESC/POS byte data untuk Bukti Kas Keluar / Kas Masuk Kasir (58mm)
-  Future<List<int>> generateCashMovementSlipBytes(Map<String, dynamic> payload) async {
+  Future<List<int>> generateCashMovementSlipBytes(
+    Map<String, dynamic> payload,
+  ) async {
     final header = payload['header'] ?? {};
-    final shopName = (header['shop_name'] ?? 'NOLI POS CAFE').toString().toUpperCase();
+    final shopName = (header['shop_name'] ?? 'NOLI POS CAFE')
+        .toString()
+        .toUpperCase();
     final isOut = (payload['type']?.toString().toLowerCase() == 'out');
-    final title = (header['title'] ?? (isOut ? 'BUKTI KAS KELUAR' : 'BUKTI KAS MASUK')).toString();
+    final title =
+        (header['title'] ?? (isOut ? 'BUKTI KAS KELUAR' : 'BUKTI KAS MASUK'))
+            .toString();
 
     final movementNumber = payload['movement_number']?.toString() ?? '-';
-    final date = payload['date']?.toString() ?? DateTime.now().toString().substring(0, 16);
+    final date =
+        payload['date']?.toString() ??
+        DateTime.now().toString().substring(0, 16);
     final cashier = payload['cashier_name']?.toString() ?? 'Kasir';
-    final shiftId = payload['shift_id'] != null ? '#SFT-${payload['shift_id']}' : '-';
+    final shiftId = payload['shift_id'] != null
+        ? '#SFT-${payload['shift_id']}'
+        : '-';
     final source = payload['source']?.toString() ?? 'Laci Kasir';
     final category = payload['category']?.toString() ?? 'Pengeluaran';
     final double amount = (payload['amount'] != null)
@@ -834,7 +1172,9 @@ class EscPosPrinterService extends GetxService {
     buffer.write('${line32("Kategori", category)}\n');
     buffer.write(doubleHeight);
     final sign = isOut ? '(-) ' : '(+) ';
-    buffer.write('${line32(isOut ? "KAS KELUAR" : "KAS MASUK", "$sign Rp ${formatNumber(amount)}")}\n');
+    buffer.write(
+      '${line32(isOut ? "KAS KELUAR" : "KAS MASUK", "$sign Rp ${formatNumber(amount)}")}\n',
+    );
     buffer.write(fontNormal);
     buffer.write('--------------------------------\n');
 
@@ -861,16 +1201,24 @@ class EscPosPrinterService extends GetxService {
   /// Eksekusi cetak slip bukti kas keluar / kas masuk
   Future<bool> printCashMovementSlip(Map<String, dynamic> slipPayload) async {
     if (!isConnected.value) {
-      AppSnackbar.warning('Printer Belum Terhubung', 'Silakan hubungkan printer Bluetooth di Pengaturan.');
+      AppSnackbar.warning(
+        'Printer Belum Terhubung',
+        'Silakan hubungkan printer Bluetooth di Pengaturan.',
+      );
       return false;
     }
 
     try {
-      final List<int> rawBytes = await generateCashMovementSlipBytes(slipPayload);
+      final List<int> rawBytes = await generateCashMovementSlipBytes(
+        slipPayload,
+      );
       final List<int> intList = List<int>.from(rawBytes);
       final bool result = await PrintBluetoothThermal.writeBytes(intList);
       if (result) {
-        AppSnackbar.success('Struk Dicetak', 'Bukti arus kas berhasil dikirim ke printer.');
+        AppSnackbar.success(
+          'Struk Dicetak',
+          'Bukti arus kas berhasil dikirim ke printer.',
+        );
       }
       return result;
     } catch (e) {
@@ -883,31 +1231,57 @@ class EscPosPrinterService extends GetxService {
   Future<bool> printTestReceipt() async {
     List<int>? logoBytes;
     try {
-      final ByteData byteData = await rootBundle.load('assets/icons/cafe_logo.png');
-      logoBytes = convertImageToEscPosBitImage(byteData.buffer.asUint8List(), maxWidth: 150, maxHeight: 96);
+      final ByteData byteData = await rootBundle.load(
+        'assets/icons/cafe_logo.png',
+      );
+      logoBytes = convertImageToEscPosBitImage(
+        byteData.buffer.asUint8List(),
+        maxWidth: 150,
+        maxHeight: 96,
+      );
     } catch (_) {
       try {
-        final ByteData byteData = await rootBundle.load('assets/icons/app_icon.png');
-        logoBytes = convertImageToEscPosBitImage(byteData.buffer.asUint8List(), maxWidth: 150, maxHeight: 96);
+        final ByteData byteData = await rootBundle.load(
+          'assets/icons/app_icon.png',
+        );
+        logoBytes = convertImageToEscPosBitImage(
+          byteData.buffer.asUint8List(),
+          maxWidth: 150,
+          maxHeight: 96,
+        );
       } catch (_) {}
     }
 
     final testPayload = {
       'header': {
         'shop_name': 'NOLI COFFEE & SPACE',
-        'address': 'Jl. Kh Wahid Hasyim, Slawi Kulon Kec. Slawi, Kab. Tegal Slawi',
+        'address':
+            'Jl. Kh Wahid Hasyim, Slawi Kulon Kec. Slawi, Kab. Tegal Slawi',
         'phone': '081234567890',
         if (logoBytes != null && logoBytes.isNotEmpty) 'logo_raster': logoBytes,
       },
-      'invoice_number': 'INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
+      'invoice_number':
+          'INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
       'date': DateTime.now().toString().substring(0, 16),
       'cashier_name': 'Admin Kasir',
       'order_type': 'DINE IN',
       'table_number': 'MEJA 05',
       'customer_name': 'Budi Santoso',
       'items': [
-        {'name': 'Kopi Susu Gula Aren', 'quantity': 2, 'price': 18000, 'subtotal': 36000, 'notes': 'Less Ice'},
-        {'name': 'Croissant Butter', 'quantity': 1, 'price': 22000, 'subtotal': 22000, 'notes': 'Hangatkan'},
+        {
+          'name': 'Kopi Susu Gula Aren',
+          'quantity': 2,
+          'price': 18000,
+          'subtotal': 36000,
+          'notes': 'Less Ice',
+        },
+        {
+          'name': 'Croissant Butter',
+          'quantity': 1,
+          'price': 22000,
+          'subtotal': 22000,
+          'notes': 'Hangatkan',
+        },
       ],
       'summary': {
         'subtotal': 58000,
@@ -917,6 +1291,13 @@ class EscPosPrinterService extends GetxService {
         'payment_method': 'TUNAI',
         'paid': 60000,
         'change': 2000,
+      },
+      'customer_phone': '',
+      'points_earned': 10,
+      'loyalty': {
+        'points_earned': 10,
+        'claim_token': 'DEMO-CLAIM-123',
+        'claim_url': 'https://noli.cafe/claim/DEMO-CLAIM-123',
       },
       'footer': {
         'message': 'Terima kasih atas kunjungannya!',
